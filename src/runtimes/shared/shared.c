@@ -24,12 +24,18 @@ bool Lore_RevealLibraryPath(char *buffer, const void *addr) {
     return true;
 }
 
-void Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out) {
+int Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out) {
     char buffer[1];
     (void) _vsnprintf(_out_null, buffer, (size_t) -1, format, ap, (struct printf_arg_entry *) out);
+
+    struct LORE_VARG_ENTRY *p = out;
+    while (p->type) {
+        p++;
+    }
+    return p - out;
 }
 
-void Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, void **out) {
+int Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, void **out) {
     va_list ap1;
     va_copy(ap1, ap);
 
@@ -41,4 +47,5 @@ void Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, 
         out[i] = p;
     }
     out[cnt] = NULL;
+    return cnt;
 }

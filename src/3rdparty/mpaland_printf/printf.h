@@ -8,6 +8,10 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // output function type
 typedef void (*out_fct_type)(char character, void *buffer, size_t idx, size_t maxlen);
 
@@ -66,5 +70,9 @@ int _vsnprintf(out_fct_type out, char *buffer, const size_t maxlen, const char *
                struct printf_arg_entry *entries);
 
 int _vprintf(const char *format, va_list va, struct printf_arg_entry *entries);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MPALAND_PRINTF_H 

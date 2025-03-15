@@ -34,6 +34,8 @@ LORELEI_DECL_EXPORT const char *Lore_HRTGetValue(const char *key);
 
 LORELEI_DECL_EXPORT bool Lore_HRTSetValue(const char *key, const char *value);
 
+LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void *args[]);
+
 #ifdef __cplusplus
 }
 #endif

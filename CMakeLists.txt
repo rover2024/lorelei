@@ -5,7 +5,8 @@ project(lorelei VERSION 0.0.0.1 LANGUAGES C CXX)
 # ----------------------------------
 # Build Options
 # ----------------------------------
-option(LORELEI_ENABLE_GUEST "Enable guest targets" OFF)
+option(LORELEI_ENABLE_GUEST "Build guest targets" OFF)
+option(LORELEI_ENABLE_TOOLS "Build tool targets" ON)
 option(LORELEI_INSTALL "Install library" ON)
 option(LORELEI_VCPKG_TOOLS_HINT "Install executables to tools directory" OFF)
 

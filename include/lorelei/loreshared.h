@@ -69,9 +69,9 @@ struct LORE_VARG_ENTRY {
     };
 };
 
-LORELEI_EXPORT void Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out);
+LORELEI_EXPORT int Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out);
 
-LORELEI_EXPORT void Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, void **out);
+LORELEI_EXPORT int Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, void **out);
 
 #ifdef __cplusplus
 }

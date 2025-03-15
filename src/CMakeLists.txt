@@ -1,3 +1,11 @@
+function(lorelei_add_simple_library _target)
+    file(GLOB_RECURSE _src *.h *.hpp *.c *.cpp)
+    add_library(${_target} STATIC ${_src})
+    target_include_directories(${_target} PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/..>"
+    )
+endfunction()
+
 function(lorelei_install_tool _target)
     if(LORELEI_INSTALL)
         if(LORELEI_VCPKG_TOOLS_HINT)
@@ -14,7 +22,7 @@ function(lorelei_install_tool _target)
 endfunction()
 
 function(lorelei_install_library _target)
-    if (LORELEI_INSTALL)
+    if(LORELEI_INSTALL)
         target_include_directories(${_target} PUBLIC "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
         install(TARGETS ${_target}
             EXPORT ${LORELEI_INSTALL_NAME}Targets
@@ -25,11 +33,14 @@ function(lorelei_install_library _target)
     endif()
 endfunction()
 
+# add_subdirectory(libs)
 add_subdirectory(3rdparty)
 
 add_subdirectory(runtimes)
 
-add_subdirectory(tools)
+if(LORELEI_ENABLE_TOOLS)
+    add_subdirectory(tools)
+endif()
 
 if(LORELEI_INSTALL)
     # Add install target

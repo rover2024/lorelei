@@ -8,6 +8,10 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct FFFILE {
     size_t buf_size;
     unsigned char *buf;
@@ -21,5 +25,9 @@ typedef struct FFFILE {
 int ff_vfscanf(FFFILE *f, const char *fmt, va_list ap, int *cnt);
 
 int ff_vsscanf(const char *s, const char *fmt, va_list ap, int *cnt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FF_SCANF_H
