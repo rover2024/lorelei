@@ -18,11 +18,12 @@ enum LOREUSER_CALL_TYPE {
     LOREUSER_CT_GetErrorMessage,
     LOREUSER_CT_GetModulePath,
 
-    LOREUSER_CT_CallHostProc,
+    LOREUSER_CT_InvokeHostProc,
     LOREUSER_CT_ResumeHostProc, // internal
 
     LOREUSER_CT_AddCallbackThunk,
-    LOREUSER_CT_GetGuestLibraryData,
+    LOREUSER_CT_GetLibraryData,
+    LOREUSER_CT_CallHostHelper,
 
     // internal
     LOREUSER_CT_LA_ObjOpen,
@@ -41,6 +42,11 @@ enum LOREUSER_PROC_RESULT {
 enum LOREUSER_PROC_CONVENTION {
     LOREUSER_PC_Function,
     LOREUSER_PC_ThreadEntry,
+};
+
+enum LOREUESR_HELPER_ID {
+    LOREUSER_HI_ExtractPrintFArgs = 1,
+    LOREUSER_HI_ExtractSScanFArgs,
 };
 
 #ifdef LORELEI_GUEST_LIBRARY
@@ -62,7 +68,7 @@ LORELEI_EXPORT char *Lore_GetModulePath(void *addr, bool isHandle);
 //
 // Native proc APIs, implemented in emulator
 //
-LORELEI_EXPORT void Lore_CallHostProc(void *func, void **args, void *ret, int convention, void **metadata);
+LORELEI_EXPORT void Lore_InvokeHostProc(void *func, void **args, void *ret, int convention, void **metadata);
 
 
 //
@@ -70,7 +76,18 @@ LORELEI_EXPORT void Lore_CallHostProc(void *func, void **args, void *ret, int co
 //
 LORELEI_EXPORT void Lore_AddCallbackThunk(const char *sign, void *func);
 
-LORELEI_EXPORT struct LORE_GUEST_LIBRARY_DATA *Lore_GetGuestLibraryData(const char *path, int libType);
+LORELEI_EXPORT void *Lore_GetLibraryData(const char *path, bool isGuest);
+
+LORELEI_EXPORT void Lore_CallHostHelper(int id, void **args, void *ret);
+
+//
+// Guest thunk utility APIs
+//
+LORELEI_EXPORT void *Lore_LoadHostThunkLibrary(void *someAddr);
+
+LORELEI_EXPORT void Lore_FreeHostThunkLibrary(void *handle);
+
+LORELEI_EXPORT void *Lore_ConvertHostProcAddress(const char *name, void *addr);
 
 #endif
 

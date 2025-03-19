@@ -8,6 +8,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ../../../include/lorelei)
 target_compile_definitions(${PROJECT_NAME} PUBLIC LORELEI_GUEST_LIBRARY)
-target_link_libraries(${PROJECT_NAME} PRIVATE loreshared)
+target_link_libraries(${PROJECT_NAME} PRIVATE loreshared dl)
+target_link_options(${PROJECT_NAME} PRIVATE -pthread)
 
 lorelei_install_library(${PROJECT_NAME})

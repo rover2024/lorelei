@@ -10,21 +10,14 @@
 extern "C" {
 #endif
 
-enum LORE_LIBRARY_TYPE {
-    LORE_LT_GUEST_THUNK,
-    LORE_LT_HOST_THUNK,
-    LORE_LT_HOST,
-};
-
 struct LORE_GUEST_LIBRARY_DATA {
     const char *name;
     const char *path;
+    const char *hostThunk;
+    const char *host;
 
     int dependencyCount;
     const char **dependencies;
-
-    const char *hostThunk;
-    const char *host;
 };
 
 struct LORE_HOST_LIBRARY_DATA {
@@ -39,6 +32,8 @@ struct LORE_HOST_LIBRARY_DATA {
 // Path APIs
 //
 LORELEI_EXPORT bool Lore_RevealLibraryPath(char *buffer, const void *addr);
+
+LORELEI_EXPORT void Lore_GetLibraryName(char *buffer, const char *path);
 
 
 //
@@ -72,6 +67,8 @@ struct LORE_VARG_ENTRY {
 LORELEI_EXPORT int Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out);
 
 LORELEI_EXPORT int Lore_ExtractSScanFArgs(const char *buffer, const char *format, va_list ap, void **out);
+
+LORELEI_EXPORT void Lore_VariadicCall(void *func, int argc, struct LORE_VARG_ENTRY *argv, struct LORE_VARG_ENTRY *ret);
 
 #ifdef __cplusplus
 }

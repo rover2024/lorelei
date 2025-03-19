@@ -2,6 +2,7 @@
 #define HOSTRT_P_H
 
 #include <pthread.h>
+#include <stdbool.h>
 
 #include <lorelei/lorelei_global.h>
 
@@ -28,13 +29,30 @@ struct LoreEmuApis {
 extern "C" {
 #endif
 
+//
+// Emulator APIs
+//
 LORELEI_DECL_EXPORT struct LoreEmuApis *Lore_HRTGetEmuApis();
 
 LORELEI_DECL_EXPORT const char *Lore_HRTGetValue(const char *key);
 
 LORELEI_DECL_EXPORT bool Lore_HRTSetValue(const char *key, const char *value);
 
-LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void *args[]);
+LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void **args, void *ret);
+
+LORELEI_DECL_EXPORT void Lore_HostHelper(int id, void **args, void *ret);
+
+//
+// Host library APIs
+//
+LORELEI_EXPORT void *Lore_GetFPExecuteCallback();
+
+LORELEI_EXPORT void *Lore_GetCallbackThunk(const char *sign);
+
+//
+// Host thunk APIs
+//
+LORELEI_EXPORT void *Lore_GetLibraryDataH(const char *path, bool isGuest);
 
 #ifdef __cplusplus
 }

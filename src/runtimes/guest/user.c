@@ -10,9 +10,8 @@ void *Lore_LoadLibrary(const char *path, int flags) {
     void *a[] = {
         (char *) (path),
         (void *) (uintptr_t) flags,
-        &ret,
     };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_LoadLibrary, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_LoadLibrary, a, &ret);
     return ret;
 }
 
@@ -20,9 +19,8 @@ int Lore_FreeLibrary(void *handle) {
     int ret;
     void *a[] = {
         handle,
-        &ret,
     };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_FreeLibrary, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_FreeLibrary, a, &ret);
     return ret;
 }
 
@@ -31,18 +29,14 @@ void *Lore_GetProcAddress(void *handle, const char *name) {
     void *a[] = {
         handle,
         (char *) (name),
-        &ret,
     };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetProcAddress, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetProcAddress, a, &ret);
     return ret;
 }
 
 char *Lore_GetErrorMessage() {
     char *ret = NULL;
-    void *a[] = {
-        &ret,
-    };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetErrorMessage, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetErrorMessage, NULL, &ret);
     return ret;
 }
 
@@ -51,9 +45,8 @@ char *Lore_GetModulePath(void *addr, bool isHandle) {
     void *a[] = {
         addr,
         (void *) (intptr_t) isHandle,
-        &ret,
     };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetModulePath, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetModulePath, a, &ret);
     return ret;
 }
 
@@ -65,13 +58,21 @@ void Lore_AddCallbackThunk(const char *sign, void *func) {
     (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_AddCallbackThunk, a);
 }
 
-struct LORE_GUEST_LIBRARY_DATA *Lore_GetGuestLibraryData(const char *path, int libType) {
-    struct LORE_GUEST_LIBRARY_DATA *ret = NULL;
+void *Lore_GetLibraryData(const char *path, bool isGuest) {
+    void *ret = NULL;
     void *a[] = {
         (char *) (path),
-        (void *) (intptr_t) libType,
-        &ret,
+        (void *) (intptr_t) isGuest,
     };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetGuestLibraryData, a);
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetLibraryData, a, &ret);
     return ret;
+}
+
+void Lore_CallHostHelper(int id, void **args, void *ret) {
+    void *a[] = {
+        (void *) (intptr_t) (id),
+        args,
+        ret,
+    };
+    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_CallHostHelper, a);
 }

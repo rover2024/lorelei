@@ -6,7 +6,8 @@ project(lorelei VERSION 0.0.0.1 LANGUAGES C CXX)
 # Build Options
 # ----------------------------------
 option(LORELEI_ENABLE_GUEST "Build guest targets" OFF)
-option(LORELEI_ENABLE_TOOLS "Build tool targets" ON)
+option(LORELEI_BUILD_TOOLS "Build tool targets" ON)
+option(LORELEI_BUILD_TESTS "Build test targets" ON)
 option(LORELEI_INSTALL "Install library" ON)
 option(LORELEI_VCPKG_TOOLS_HINT "Install executables to tools directory" OFF)
 
@@ -39,6 +40,8 @@ elseif(MINGW)
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif()
 
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 if(LORELEI_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
@@ -52,3 +55,7 @@ set(LORELEI_INSTALL_NAME ${PROJECT_NAME})
 set(LORELEI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(src)
+
+if (LORELEI_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

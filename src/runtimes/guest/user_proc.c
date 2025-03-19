@@ -30,15 +30,15 @@ static void *ThreadEntry(void *args) {
     /* Wait until the parent has finished initializing the tls state.  */
 
     void *ret;
-    Lore_CallHostProc(entry, arg, &ret, LOREUSER_PC_ThreadEntry, NULL);
+    Lore_InvokeHostProc(entry, arg, &ret, LOREUSER_PC_ThreadEntry, NULL);
     return ret;
 }
 
-static void HostCallLoop(void *a) {
+static void HostProcLoop(void *a) {
     void *next_call[8];
 
     // Call and wait for the potential callback request
-    uint64_t syscall_ret = syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_CallHostProc, a, next_call);
+    uint64_t syscall_ret = syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_InvokeHostProc, a, next_call);
     while (syscall_ret != LOREUSER_PR_Finished) {
         switch (syscall_ret) {
             case LOREUSER_PR_Callback: {
@@ -94,9 +94,9 @@ static void HostCallLoop(void *a) {
     }
 }
 
-void Lore_CallHostProc(void *func, void **args, void *ret, int convention, void **metadata) {
+void Lore_InvokeHostProc(void *func, void **args, void *ret, int convention, void **metadata) {
     void *a[] = {
         func, args, ret, (void *) (intptr_t) convention, metadata,
     };
-    HostCallLoop(a);
+    HostProcLoop(a);
 }
