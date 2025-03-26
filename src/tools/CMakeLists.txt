@@ -12,6 +12,8 @@ function(lorelei_link_clang _target)
     )
 endfunction()
 
+add_subdirectory(ppf)
+
 add_subdirectory(cfic)
 
-add_subdirectory(delc)
+add_subdirectory(tklc)

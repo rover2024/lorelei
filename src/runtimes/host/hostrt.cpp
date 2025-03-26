@@ -18,6 +18,7 @@
 #include <json11/json11.hpp>
 
 #include "loreuser.h"
+#include "lorehapi.h"
 #include "util.h"
 
 static const char ENV_LORELEI_LIBRARY_DATA_FILE[] = "LORELEI_LIBRARY_DATA_FILE";
@@ -341,7 +342,7 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
         case LOREUSER_CT_GetLibraryData: {
             auto path = (char *) (args[0]);
             bool isGuest = (intptr_t) (args[1]);
-            *(void **) ret = Lore_GetLibraryDataH(path, isGuest);
+            *(void **) ret = Lore_GetLibraryDataImpl(path, isGuest);
             break;
         }
 
@@ -366,7 +367,7 @@ void *Lore_GetCallbackThunk(const char *sign) {
     return it->second;
 }
 
-void *Lore_GetLibraryDataH(const char *path, bool isGuest) {
+void *Lore_GetLibraryDataImpl(const char *path, bool isGuest) {
     char nameBuf[PATH_MAX];
     Lore_GetLibraryName(nameBuf, path);
 
@@ -387,4 +388,23 @@ void *Lore_GetLibraryDataH(const char *path, bool isGuest) {
         return nullptr;
     }
     return &it->second.c_data;
+}
+
+void *Lore_LoadHostLibrary(void *someAddr) {
+    char buf[PATH_MAX];
+    if (!Lore_RevealLibraryPath(buf, someAddr)) {
+        return nullptr;
+    }
+
+    auto lib_data = (struct LORE_GUEST_LIBRARY_DATA *) Lore_GetLibraryDataImpl(buf, true);
+    if (!lib_data) {
+        return nullptr;
+    }
+
+    // Load host
+    return dlopen(lib_data->host, RTLD_NOW);
+}
+
+void Lore_FreeHostLibrary(void *handle) {
+    dlclose(handle);
 }

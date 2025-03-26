@@ -42,18 +42,6 @@ LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void **args, void *
 
 LORELEI_DECL_EXPORT void Lore_HostHelper(int id, void **args, void *ret);
 
-//
-// Host library APIs
-//
-LORELEI_EXPORT void *Lore_GetFPExecuteCallback();
-
-LORELEI_EXPORT void *Lore_GetCallbackThunk(const char *sign);
-
-//
-// Host thunk APIs
-//
-LORELEI_EXPORT void *Lore_GetLibraryDataH(const char *path, bool isGuest);
-
 #ifdef __cplusplus
 }
 #endif

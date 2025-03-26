@@ -72,7 +72,7 @@ if(LORELEI_INSTALL)
     # Install cmake targets files
     install(EXPORT ${LORELEI_INSTALL_NAME}Targets
         FILE "${LORELEI_INSTALL_NAME}Targets.cmake"
-        NAMESPACE LORELEI::
+        NAMESPACE lorelei::
         DESTINATION ${_install_dir}
     )
 
