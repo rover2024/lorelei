@@ -1,0 +1,8 @@
+glewGetErrorString
+glewGetExtension
+glewGetString
+glewInit
+glewIsSupported
+glxewGetExtension
+glxewInit
+glxewIsSupported

@@ -50,19 +50,17 @@ char *Lore_GetModulePath(void *addr, bool isHandle) {
     return ret;
 }
 
-void Lore_AddCallbackThunk(const char *sign, void *func) {
-    void *a[] = {
-        (char *) (sign),
-        func,
-    };
-    (void) syscall2(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_AddCallbackThunk, a);
+void *Lore_GetAddressBoundary() {
+    char *ret = NULL;
+    (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetAddressBoundary, NULL, &ret);
+    return ret;
 }
 
-void *Lore_GetLibraryData(const char *path, bool isGuest) {
+void *Lore_GetLibraryData(const char *path, bool isThunk) {
     void *ret = NULL;
     void *a[] = {
         (char *) (path),
-        (void *) (intptr_t) isGuest,
+        (void *) (intptr_t) isThunk,
     };
     (void) syscall3(LOREUSER_SYSCALL_NUM, (void *) LOREUSER_CT_GetLibraryData, a, &ret);
     return ret;

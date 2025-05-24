@@ -34,7 +34,7 @@ ObjCBlockIndentWidth: 4
 # SFS_Empty (在配置中： Empty) 仅合并空的函数。
 # SFS_Inline (在配置中： Inline) 仅合并类中定义的方法或函数. 意味着 “empty”.
 # SFS_All (在配置中： All) 合并所有的方法适应单行.
-AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortFunctionsOnASingleLine: None
 
 # 如果为真（true）, 语句“if (a) return;” 能被放到单行。
 AllowShortIfStatementsOnASingleLine: false

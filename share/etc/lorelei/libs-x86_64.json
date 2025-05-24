@@ -1,0 +1,29 @@
+{
+    "thunks": [
+        {
+            "name": "libOpenGL",
+            "dependencies": [],
+            "gtl": "@/lib/x86_64-lore_guest/libOpenGL.so",
+            "htl": "@/lib/x86_64-lore_host/libOpenGL_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libOpenGL.so.0.0.0"
+        },
+        {
+            "name": "libSDL2",
+            "alias": [
+                "libSDL2-2.0"
+            ],
+            "dependencies": [],
+            "gtl": "@/lib/x86_64-lore_guest/libSDL2.so",
+            "htl": "@/lib/x86_64-lore_host/libSDL2_host_bridge.so"
+        }
+    ],
+    "host": [
+        {
+            "name": "libGLdispatch",
+            "fileName": "libGLdispatch.so.0.0.0",
+            "thunks": [
+                "libOpenGL"
+            ]
+        }
+    ]
+}

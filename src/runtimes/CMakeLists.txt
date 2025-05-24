@@ -1,7 +1,9 @@
 add_subdirectory(shared)
 
-if (LORELEI_ENABLE_GUEST)
+if(LORELEI_ENABLE_GUEST)
     add_subdirectory(guest)
 endif()
 
-add_subdirectory(host)
+if(LORELEI_ENABLE_HOST)
+    add_subdirectory(host)
+endif()

@@ -11,24 +11,26 @@ extern "C" {
 
 #ifdef LORELEI_HOST_LIBRARY
 
+struct LoreEmuApis;
+
 //
 // Host library APIs
 //
-LORELEI_EXPORT void *Lore_GetFPExecuteCallback();
-
-LORELEI_EXPORT void *Lore_GetCallbackThunk(const char *sign);
+LORELEI_EXPORT struct LoreEmuApis *Lore_HrtGetEmuApis();
 
 
 //
 // Host thunk APIs
 //
-LORELEI_EXPORT void *Lore_GetLibraryDataImpl(const char *path, bool isGuest);
+LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, bool isThunk);
+
+LORELEI_EXPORT void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest);
 
 
 //
 // Guest thunk utility APIs
 //
-LORELEI_EXPORT void *Lore_LoadHostLibrary(void *someAddr);
+LORELEI_EXPORT void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks);
 
 LORELEI_EXPORT void Lore_FreeHostLibrary(void *handle);
 

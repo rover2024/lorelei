@@ -1,0 +1,10 @@
+if(LORELEI_ENABLE_GUEST)
+    set_target_properties(${LORELEI_GUEST_PROJECT} PROPERTIES OUTPUT_NAME z)
+    set(LORELEI_GUEST_SYMLINKS libz.so.1)
+endif()
+
+if(LORELEI_ENABLE_HOST)
+    set_target_properties(${LORELEI_HOST_PROJECT} PROPERTIES OUTPUT_NAME z_HTL)
+endif()
+
+set(LORELEI_TLC_OPTIONS)

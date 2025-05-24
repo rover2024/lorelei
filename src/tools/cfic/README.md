@@ -5,28 +5,20 @@ A tool to add CFI checks to C source files.
 ## Usage
 
 ```bash
-lorecfic [-c <config>] [-p <compile_commands>] [<input>] [-- <cc options>]
+lorecfic [-i <id>] [-c <config>] [-o <output>] [<input>] -- [compile commands]
 ```
-
-- config: a json file with desired function signatures
-    ```json
-    {
-        "functions": [
-            "void (int, int)",
-            "void *()"
-        ]
-    }
+- id: library identifier
+- config: a text file in which each line should be a function signature
     ```
+    void (int, int)
+    void *()
+    ```
+- output: output file , default to `stdout` if not specified
 
-- modes:
-    - single file mode:
-        ```bash
-        lorecfic main.cpp -c config.json -- -I/usr/include -DDEBUG
-        ```
-    - batch mode:
-        ```bash
-        lorecfic -p /path/to/compile_commands.json -c config.json
-        ```
+Example:
+```bash
+lorecfic -c config.txt -i mylib mylib.cpp -- -I/usr/include -DDEBUG
+```
 
 ## Working Procedure
 
@@ -34,9 +26,8 @@ Briefly, for each C source file, the tool will:
 1. Parse the file and collect all function pointer calls.
 2. Check if the function pointer call matches the desired function signatures in the config file.
 3. If a match is found, add the necessary CFI checks.
-4. Override the original source file with the modified contents.
 
-NOTICE: There should be no unexpanded macros in the source code file
+NOTICE: There should be no unexpanded macros in the input source file
 
 ## Implementation Details
 
@@ -56,7 +47,7 @@ void some_method(FUNC_PTR fp) {
 The CFI check will be added as follows:
 ```c
 /****************************************************************************
-** Lifted code from reading C++ file 'xxx.c'
+** CFI wrapped code from reading C file 'cfi_example_before.c'
 **
 ** Created by: Lorelei CFI compiler
 **
@@ -66,25 +57,31 @@ The CFI check will be added as follows:
 //
 // CFI declarations begin
 //
+enum LoreLib_Constants {
+    LoreLib_CFI_Count = 1,
+};
 
-// Generates the helpers
-static void (*LoreLib_ECB)(void *, void *, void *[], void *); // guest entry
-static __thread void *LoreLib_Callback;
-#define LORELIB_CFI_BASE(FP, CFI_FP)                                \
-    ({                                                              \
-        __auto_type _ret = (FP);                                    \
-        if ((unsigned long) _ret < (unsigned long) LoreLib_ECB) {   \
-            LoreLib_Callback = _ret;                                \
-            _ret = (__typeof__(_ret)) CFI_FP;                       \
-        }                                                           \
-        _ret;                                                       \
+extern __thread void *Lore_HRTThreadCallback;
+
+typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
+
+static void *LoreLib_AddressBoundary;
+static FP_NotifyHostLibraryOpen LoreLib_NHLO;
+static const char LoreLib_Identifier[] = "mylib";
+static void *LoreLib_CFIs[LoreLib_CFI_Count];
+
+#define LORELIB_CFI(INDEX, FP)                                                             \
+    ({                                                                                     \
+        __auto_type _lorelib_cfi_ret = (FP);                                               \
+        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_AddressBoundary) {  \
+            Lore_HRTThreadCallback = _lorelib_cfi_ret;                                     \
+            _lorelib_cfi_ret = (__typeof__(_lorelib_cfi_ret)) LoreLib_CFIs[INDEX];         \
+        }                                                                                  \
+        _lorelib_cfi_ret;                                                                  \
     })
 
-// Generates the proceding codes for each kind of function pointer
-static const void *const LoreLib_CFI_iXii_ptr;
-#define LORELIB_CFI_iXii(FP) \
-    LORELIB_CFI_BASE(FP, LoreLib_CFI_iXii_ptr)
-
+// decl: int (*)(int, int)
+#define LORELIB_CFI_1(FP) LORELIB_CFI(1, FP)
 //
 // CFI declarations end
 //
@@ -100,7 +97,7 @@ void some_method(FUNC_PTR fp) {
     // ...
 
     // Replace the function pointer with the CFI check
-    a = LORELIB_CFI_iXii(fp)(x, y);
+    a = LORELIB_CFI_1(fp)(x, y);
     // ...
 }
 //
@@ -112,63 +109,42 @@ void some_method(FUNC_PTR fp) {
 //
 // CFI implementation begin
 //
-
-// Generates common function declarations
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-// lorelei
-extern bool Lore_RevealLibraryPath(char *buffer, const void *addr);
-extern void *Lore_GetFPExecuteCallback();
-extern void *Lore_GetCallbackThunk(const char *sign);
+extern bool Lore_RevealLibraryPath(char *buffer, const void *addr, bool followSymlink);
+extern void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest);
+extern struct LoreEmuApis *Lore_HrtGetEmuApis();
 
-
-// Generates thunks
-static void *LoreLib_GTK_iXii;
-
-// Generates utilities
-static inline void LoreLib_GetThunkHelper(
-    void **thunk, const char *sign, const char *path) {
-    if (!(*thunk = Lore_GetCallbackThunk(sign))) {
-        fprintf(stderr, "%s: guest thunk lookup error: %s\n", path, sign);
-        abort();
-    }
-}
 static void __attribute__((constructor)) LoreLib_Init() {
     char path[PATH_MAX];
-    if (!Lore_RevealLibraryPath(path, LoreLib_Init)) {
+    if (!Lore_RevealLibraryPath(path, LoreLib_Init, false)) {
         fprintf(stderr, "Unknown host library: failed to get library path\n");
         abort();
     }
-    LoreLib_ECB = (__typeof__(LoreLib_ECB)) Lore_GetFPExecuteCallback();
-    
-    // Initialize thunks
-    LoreLib_GetThunkHelper(&LoreLib_GTK_iXii, "int (int, int)", path);
+
+    struct _LoreEmuApis {
+        void *apis[5];
+    };
+    struct _LoreEmuApis *emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
+    LoreLib_AddressBoundary = emuApis->apis[0];
+    LoreLib_NHLO = emuApis->apis[4];
+
+    void **thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
+    if (!thunks) {
+        LoreLib_NHLO(LoreLib_Identifier);
+        thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
+        if (!thunks) {
+            fprintf(stderr, "%s: failed to get host library thunks\n", path);
+            abort();
+        }
+    }
+    for (int i = 0; i < LoreLib_CFI_Count; ++i) {
+        LoreLib_CFIs[i] = thunks[i];
+    }
 }
-
-// Generates CFI functions
-static int LoreLib_CFI_iXii(int arg1, int arg2) {
-    int ret;
-    void *args[] = { &arg1, &arg2 };
-    LoreLib_ECB(LoreLib_GTK_iXii, LoreLib_Callback, args, &ret);
-    return ret;
-}
-static const void *const LoreLib_CFI_iXii_ptr = LoreLib_CFI_iXii;
-
-
-// For the CFI function:
-// 1. the name is associated with the function pointer signature,
-//    for different types of function pointers, their names must be
-//    different, can take SHA256 or other encoding
-// 2. the signature should be the same as the function pointer
-
-// An alternative CFI check function could also be like this:
-// static int LoreLib_CFI_iXii(__typeof__(int) arg1, __typeof__(int) arg2)
-
-// Complex types such as C array or function pointer can be declared as common
-// types using GNU extension `__typeof__`
 
 //
 // CFI implementation end
@@ -190,29 +166,31 @@ void some_method(RETURN_FUNC_PTR fp) {
 
 The CFI check will be added as follows:
 ```c
-// ...
+// decl: int (*)(int, int)
+#define LORELIB_CFI_1(FP) LORELIB_CFI(1, FP)
+// decl: int (*(*)(int, int))(int, int)
+#define LORELIB_CFI_2(FP) LORELIB_CFI(2, FP)
 
+//
+// Original code end
+//
 typedef int (*FUNC_PTR) (int, int);
 
 typedef FUNC_PTR (*RETURN_FUNC_PTR) (int, int);
-
-// Generated CFI check function declarations
-int check_iXii(FUNC_PTR _callback, int _arg1, int _arg2);
-FUNC_PTR check_pXii(RETURN_FUNC_PTR _callback, int _arg1, int _arg2);
 
 void some_method(RETURN_FUNC_PTR fp) {
     // ...
 
     // A function pointer that returns a function pointer
     // needs to be replaced more than once
-    a = LORELIB_CFI_iXii(LORELIB_CFI_iXii(fp)(x, y))(z, w);
+    a = LORELIB_CFI_2(LORELIB_CFI_1(fp)(x, y))(z, w);
     // ...
 }
-
-// ...
+//
+// Original code end
+//
 ```
 
-## Dependencis
+## Dependencies
 
 - LLVM libtooling
-- json11

@@ -7,6 +7,14 @@ function(lorelei_add_simple_library _target)
     target_compile_options(${_target} PRIVATE -fPIC)
 endfunction()
 
+function(lorelei_install_program _target)
+    if(LORELEI_INSTALL)
+        install(TARGETS ${_target}
+            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL
+        )
+    endif()
+endfunction()
+
 function(lorelei_install_tool _target)
     if(LORELEI_INSTALL)
         if(LORELEI_VCPKG_TOOLS_HINT)
@@ -34,13 +42,20 @@ function(lorelei_install_library _target)
     endif()
 endfunction()
 
-# add_subdirectory(libs)
 add_subdirectory(3rdparty)
 
 add_subdirectory(runtimes)
 
 if(LORELEI_BUILD_TOOLS)
     add_subdirectory(tools)
+endif()
+
+if(LORELEI_BUILD_TOOLS AND LORELEI_BUILD_THUNKS)
+    add_subdirectory(thunks)
+endif()
+
+if(LORELEI_BUILD_PROGRAMS)
+    add_subdirectory(programs)
 endif()
 
 if(LORELEI_INSTALL)
@@ -80,4 +95,7 @@ if(LORELEI_INSTALL)
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h"
     )
+
+    # Install shared files
+    include("../share/install.cmake")
 endif()

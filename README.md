@@ -6,3 +6,5 @@ Lorelei is a cross-ISA compatibility layer.
 
 - llvm
 - ffcall
+- ffi
+- SDL2

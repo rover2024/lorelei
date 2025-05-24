@@ -16,4 +16,4 @@ add_subdirectory(ppf)
 
 add_subdirectory(cfic)
 
-add_subdirectory(tklc)
+add_subdirectory(tlc)

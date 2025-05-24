@@ -14,6 +14,7 @@
 #include <fstream>
 #include <sstream>
 #include <utility>
+#include <filesystem>
 
 #include <json11/json11.hpp>
 
@@ -25,22 +26,34 @@ static const char ENV_LORELEI_LIBRARY_DATA_FILE[] = "LORELEI_LIBRARY_DATA_FILE";
 
 static const char ENV_LORELEI_ROOT[] = "LORELEI_ROOT";
 
-struct LoreGuestLibraryData {
+static const char LORELEI_ARCH_NAME[] =
+#ifdef __aarch64__
+    "aarch64"
+#elif defined(__riscv)
+    "riscv64"
+#else
+    "x86_64"
+#endif
+    ;
+
+
+struct LoreThunkLibraryData {
     std::string name;
-    std::string path;
-    std::string hostThunk;
-    std::string host;
+    std::vector<std::string> alias;
+    std::string gtl;
+    std::string htl;
+    std::string hl;
     std::vector<std::string> dependencies;
 
     // C data
-    struct LORE_GUEST_LIBRARY_DATA c_data;
+    struct LORE_THUNK_LIBRARY_DATA c_data {};
     std::vector<const char *> c_data_dependencies;
 
     void build_c_data() {
         c_data.name = name.data();
-        c_data.path = path.data();
-        c_data.hostThunk = hostThunk.data();
-        c_data.host = host.data();
+        c_data.gtl = gtl.data();
+        c_data.htl = htl.data();
+        c_data.hl = hl.data();
         c_data_dependencies.reserve(dependencies.size());
         for (const auto &item : std::as_const(dependencies)) {
             c_data_dependencies.push_back(item.data());
@@ -50,34 +63,37 @@ struct LoreGuestLibraryData {
 
 struct LoreHostLibraryData {
     std::string name;
+    std::vector<std::string> alias;
     std::string fileName;
-    std::vector<std::string> guestThunks;
+    std::vector<std::string> thunks;
 
     // C data
-    struct LORE_HOST_LIBRARY_DATA c_data;
-    std::vector<const char *> c_data_guestThunks;
+    struct LORE_HOST_LIBRARY_DATA c_data {};
+    std::vector<const char *> c_data_thunks;
 
     void build_c_data() {
         c_data.name = name.data();
         c_data.fileName = fileName.data();
-        c_data_guestThunks.reserve(guestThunks.size());
-        for (const auto &item : std::as_const(guestThunks)) {
-            c_data_guestThunks.push_back(item.data());
+        c_data_thunks.reserve(thunks.size());
+        for (const auto &item : std::as_const(thunks)) {
+            c_data_thunks.push_back(item.data());
         }
+        c_data.thunksCount = c_data_thunks.size();
+        c_data.thunks = c_data_thunks.data();
     }
 };
 
 struct LoreHostRuntimeContext {
-    std::map<std::string, std::string> emuValues;
-    std::map<std::string, void *> callbackThunks;
-
     std::shared_mutex mtx;
 
     std::string rootPath;
     std::string dataFilePath;
 
-    std::map<std::string, LoreGuestLibraryData> guestDataMap;
-    std::map<std::string, LoreHostLibraryData> hostDataMap;
+    std::map<std::string, size_t> thunkNamesMap;
+    std::map<std::string, size_t> hostNamesMap;
+
+    std::vector<LoreThunkLibraryData> thunkDataList;
+    std::vector<LoreHostLibraryData> hostDataList;
 
     LoreEmuApis emuApis{
         nullptr,
@@ -96,10 +112,10 @@ struct LoreHostRuntimeContext {
 
         auto dataFile = getenv(ENV_LORELEI_LIBRARY_DATA_FILE);
         if (!dataFile) {
-            fprintf(stderr, "lorehrt: required variable %s not set", ENV_LORELEI_LIBRARY_DATA_FILE);
-            std::abort();
+            dataFilePath = rootPath + "/etc/lorelei/libs-" + LORELEI_ARCH_NAME + ".json";
+        } else {
+            dataFilePath = dataFile;
         }
-        dataFilePath = dataFile;
         readLibraryDataFile();
     }
 
@@ -129,16 +145,16 @@ struct LoreHostRuntimeContext {
             std::abort();
         }
 
-        // read guest data
+        // read thunk data
         const auto &docObj = json.object_items();
-        if (auto it0 = docObj.find("guest"); it0 != docObj.end() && it0->second.is_array()) {
+        if (auto it0 = docObj.find("thunks"); it0 != docObj.end() && it0->second.is_array()) {
             const auto &guestItems = it0->second.array_items();
             for (const auto &guestItem : guestItems) {
                 if (!guestItem.is_object()) {
                     continue;
                 }
                 const auto &guestItemObj = guestItem.object_items();
-                LoreGuestLibraryData result;
+                LoreThunkLibraryData result;
 
                 // name
                 auto it = guestItemObj.find("name");
@@ -151,37 +167,53 @@ struct LoreHostRuntimeContext {
                     result.name = val;
                 }
 
+                // alias
+                it = guestItemObj.find("alias");
+                if (it != guestItemObj.end() && it->second.is_array()) {
+                    const auto &aliasItems = it->second.array_items();
+                    for (const auto &aliasItem : aliasItems) {
+                        if (!aliasItem.is_string()) {
+                            continue;
+                        }
+                        auto val = aliasItem.string_value();
+                        if (val.empty()) {
+                            continue;
+                        }
+                        result.alias.push_back(val);
+                    }
+                }
+
                 // path
-                it = guestItemObj.find("path");
+                it = guestItemObj.find("gtl");
                 if (it == guestItemObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
                     continue;
                 } else {
-                    result.path = resolvePath(val);
+                    result.gtl = resolvePath(val);
                 }
 
                 // hostThunk
-                it = guestItemObj.find("hostThunk");
+                it = guestItemObj.find("htl");
                 if (it == guestItemObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
                     continue;
                 } else {
-                    result.hostThunk = resolvePath(val);
+                    result.htl = resolvePath(val);
                 }
 
                 // host
-                it = guestItemObj.find("host");
+                it = guestItemObj.find("hl");
                 if (it == guestItemObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
                     continue;
                 } else {
-                    result.host = resolvePath(val);
+                    result.hl = resolvePath(val);
                 }
 
                 // dependencies
@@ -199,9 +231,7 @@ struct LoreHostRuntimeContext {
                         result.dependencies.push_back(val);
                     }
                 }
-
-                result.build_c_data();
-                std::ignore = guestDataMap.insert(std::make_pair(result.name, result));
+                thunkDataList.push_back(result);
             }
         }
 
@@ -226,6 +256,22 @@ struct LoreHostRuntimeContext {
                     result.name = val;
                 }
 
+                // alias
+                it = hostItemObj.find("alias");
+                if (it != hostItemObj.end() && it->second.is_array()) {
+                    const auto &aliasItems = it->second.array_items();
+                    for (const auto &aliasItem : aliasItems) {
+                        if (!aliasItem.is_string()) {
+                            continue;
+                        }
+                        auto val = aliasItem.string_value();
+                        if (val.empty()) {
+                            continue;
+                        }
+                        result.alias.push_back(val);
+                    }
+                }
+
                 // fileName
                 it = hostItemObj.find("fileName");
                 if (it == hostItemObj.end() || !it->second.is_string()) {
@@ -238,7 +284,7 @@ struct LoreHostRuntimeContext {
                 }
 
                 // dependencies
-                it = hostItemObj.find("guestThunks");
+                it = hostItemObj.find("thunks");
                 if (it != hostItemObj.end() && it->second.is_array()) {
                     const auto &items = it->second.array_items();
                     for (const auto &item : items) {
@@ -249,37 +295,41 @@ struct LoreHostRuntimeContext {
                         if (val.empty()) {
                             continue;
                         }
-                        result.guestThunks.push_back(val);
+                        result.thunks.push_back(val);
                     }
                 }
 
                 result.build_c_data();
-                std::ignore = hostDataMap.insert(std::make_pair(result.name, result));
+                hostDataList.push_back(result);
             }
+        }
+
+        for (size_t i = 0; i < thunkDataList.size(); i++) {
+            auto &data = thunkDataList[i];
+            thunkNamesMap[data.name] = i;
+            for (const auto &alias : data.alias) {
+                thunkNamesMap[alias] = i;
+            }
+            data.build_c_data();
+        }
+
+        for (size_t i = 0; i < hostDataList.size(); i++) {
+            auto &data = hostDataList[i];
+            hostNamesMap[data.name] = i;
+            for (const auto &alias : data.alias) {
+                hostNamesMap[alias] = i;
+            }
+            data.build_c_data();
         }
     }
 };
 
 static LoreHostRuntimeContext contextInstance;
 
-struct LoreEmuApis *Lore_HRTGetEmuApis() {
+LORELEI_DECL_EXPORT __thread void *Lore_HRTThreadCallback;
+
+struct LoreEmuApis *Lore_HrtGetEmuApis() {
     return &contextInstance.emuApis;
-}
-
-const char *Lore_HRTGetValue(const char *key) {
-    std::shared_lock<std::shared_mutex> lock(contextInstance.mtx);
-    auto &map = contextInstance.emuValues;
-    auto it = map.find(key);
-    if (it == map.end()) {
-        return nullptr;
-    }
-    return it->second.data();
-}
-
-bool Lore_HRTSetValue(const char *key, const char *value) {
-    std::unique_lock<std::shared_mutex> lock(contextInstance.mtx);
-    auto &map = contextInstance.emuValues;
-    return map.insert(std::make_pair(key, value)).second;
 }
 
 #ifdef __linux__
@@ -333,16 +383,10 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
                                     (uintptr_t *) args[3], (unsigned int *) args[4], (char *) args[5]);
             break;
 #endif
-        case LOREUSER_CT_AddCallbackThunk: {
-            auto sign = (char *) (args[0]);
-            contextInstance.callbackThunks[sign] = args[1];
-            break;
-        }
-
         case LOREUSER_CT_GetLibraryData: {
             auto path = (char *) (args[0]);
             bool isGuest = (intptr_t) (args[1]);
-            *(void **) ret = Lore_GetLibraryDataImpl(path, isGuest);
+            *(void **) ret = Lore_HrtGetLibraryData(path, isGuest);
             break;
         }
 
@@ -359,15 +403,7 @@ void *Lore_GetFPExecuteCallback() {
     return (void *) contextInstance.emuApis.ExecuteCallback;
 }
 
-void *Lore_GetCallbackThunk(const char *sign) {
-    auto it = contextInstance.callbackThunks.find(sign);
-    if (it == contextInstance.callbackThunks.end()) {
-        return nullptr;
-    }
-    return it->second;
-}
-
-void *Lore_GetLibraryDataImpl(const char *path, bool isGuest) {
+void *Lore_HrtGetLibraryData(const char *path, bool isThunk) {
     char nameBuf[PATH_MAX];
     Lore_GetLibraryName(nameBuf, path);
 
@@ -376,33 +412,52 @@ void *Lore_GetLibraryDataImpl(const char *path, bool isGuest) {
         name = name.substr(0, name.size() - 4);
     }
 
-    if (isGuest) {
-        auto it = contextInstance.guestDataMap.find(path);
-        if (it == contextInstance.guestDataMap.end()) {
+    if (isThunk) {
+        auto it = contextInstance.thunkNamesMap.find(path);
+        if (it == contextInstance.thunkNamesMap.end()) {
             return nullptr;
         }
-        return &it->second.c_data;
+        return &contextInstance.thunkDataList[it->second].c_data;
     }
-    auto it = contextInstance.hostDataMap.find(path);
-    if (it == contextInstance.hostDataMap.end()) {
+
+    auto it = contextInstance.hostNamesMap.find(path);
+    if (it == contextInstance.hostNamesMap.end()) {
         return nullptr;
     }
-    return &it->second.c_data;
+    return &contextInstance.hostDataList[it->second].c_data;
 }
 
-void *Lore_LoadHostLibrary(void *someAddr) {
+void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest) {
+    auto lib_data = (struct LORE_THUNK_LIBRARY_DATA *) Lore_HrtGetLibraryData(path, true);
+    if (!lib_data) {
+        return nullptr;
+    }
+    if (isGuest) {
+        return lib_data->guestThunks;
+    }
+    return lib_data->hostThunks;
+}
+
+void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks) {
     char buf[PATH_MAX];
-    if (!Lore_RevealLibraryPath(buf, someAddr)) {
+    if (!Lore_RevealLibraryPath(buf, someAddr, true)) {
         return nullptr;
     }
 
-    auto lib_data = (struct LORE_GUEST_LIBRARY_DATA *) Lore_GetLibraryDataImpl(buf, true);
+    auto lib_data = (struct LORE_THUNK_LIBRARY_DATA *) Lore_HrtGetLibraryData(buf, true);
     if (!lib_data) {
         return nullptr;
     }
 
     // Load host
-    return dlopen(lib_data->host, RTLD_NOW);
+    auto handle = dlopen(lib_data->hl, RTLD_NOW);
+    if (!handle) {
+        return nullptr;
+    }
+
+    lib_data->hostThunkCount = thunkCount;
+    lib_data->hostThunks = thunks;
+    return handle;
 }
 
 void Lore_FreeHostLibrary(void *handle) {

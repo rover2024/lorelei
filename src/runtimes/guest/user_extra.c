@@ -7,23 +7,24 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #include "loreshared.h"
 
-void *Lore_LoadHostThunkLibrary(void *someAddr) {
+void *Lore_LoadHostThunkLibrary(void *someAddr, int thunkCount, void **thunks) {
     char buf[PATH_MAX];
-    if (!Lore_RevealLibraryPath(buf, someAddr)) {
+    if (!Lore_RevealLibraryPath(buf, someAddr, true)) {
         return NULL;
     }
 
-    struct LORE_GUEST_LIBRARY_DATA *lib_data = Lore_GetLibraryData(buf, true);
+    struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(buf, true);
     if (!lib_data) {
         return NULL;
     }
 
     // Load host thunk
-    void *host_thunk_handle = Lore_LoadLibrary(lib_data->hostThunk, RTLD_NOW);
+    void *host_thunk_handle = Lore_LoadLibrary(lib_data->htl, RTLD_NOW);
     if (!host_thunk_handle) {
         return NULL;
     }
@@ -31,11 +32,12 @@ void *Lore_LoadHostThunkLibrary(void *someAddr) {
     // Load dependencies
     const char **deps = lib_data->dependencies;
     for (int i = 0; i < lib_data->dependencyCount; ++i) {
-        struct LORE_GUEST_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
+        struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
         if (!dep_lib_data) {
+            fprintf(stderr, "loregrt: failed to get data of dependency \"%s\"\n", deps[i]);
             continue;
         }
-        const char *path = dep_lib_data->path;
+        const char *path = dep_lib_data->gtl;
         void *guest_handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
         if (!guest_handle) {
             guest_handle = dlopen(path, RTLD_NOW);
@@ -49,6 +51,8 @@ void *Lore_LoadHostThunkLibrary(void *someAddr) {
         }
     }
 
+    lib_data->guestThunkCount = thunkCount;
+    lib_data->guestThunks = thunks;
     return host_thunk_handle;
 }
 
@@ -59,7 +63,7 @@ void Lore_FreeHostThunkLibrary(void *handle) {
             break;
         }
 
-        struct LORE_GUEST_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_thunk_path, true);
+        struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_thunk_path, true);
         if (!lib_data) {
             break;
         }
@@ -67,11 +71,11 @@ void Lore_FreeHostThunkLibrary(void *handle) {
         // Free dependencies
         const char **deps = lib_data->dependencies;
         for (int i = 0; i < lib_data->dependencyCount; ++i) {
-            struct LORE_GUEST_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
+            struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
             if (!dep_lib_data) {
                 continue;
             }
-            const char *path = dep_lib_data->path;
+            const char *path = dep_lib_data->gtl;
             void *guest_handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
             if (guest_handle) {
                 dlclose(guest_handle);
@@ -82,6 +86,13 @@ void Lore_FreeHostThunkLibrary(void *handle) {
 
     // Free host thunk
     Lore_FreeHostThunkLibrary(handle);
+}
+
+void *Lore_GetHostThunkProcAddress(void *handle, const char *name) {
+    char realName[1024];
+    strcpy(realName, "_HTP_");
+    strcat(realName, name);
+    return Lore_GetProcAddress(handle, realName);
 }
 
 void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
@@ -95,9 +106,14 @@ void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
         return NULL;
     }
 
-    const char **thunks = lib_data->guestThunks;
-    for (int i = 0; i < lib_data->guestThunkCount; ++i) {
-        const char *path = thunks[i];
+    const char **thunks = lib_data->thunks;
+    for (int i = 0; i < lib_data->thunksCount; ++i) {
+        const char *thunkName = thunks[i];
+        struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data = Lore_GetLibraryData(thunkName, true);
+        if (!thunk_lib_data) {
+            continue;
+        }
+        const char *path = thunk_lib_data->gtl;
         void *guest_handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
         if (!guest_handle) {
             guest_handle = dlopen(path, RTLD_NOW);
@@ -111,6 +127,5 @@ void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
         }
         return func;
     }
-
     return NULL;
 }

@@ -1,0 +1,3 @@
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/etc/
+    DESTINATION etc
+)

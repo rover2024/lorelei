@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "loreshared.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,38 +17,13 @@ extern "C" {
 // output function type
 typedef void (*out_fct_type)(char character, void *buffer, size_t idx, size_t maxlen);
 
-enum printf_arg_type {
-    pa_char = 1,
-    pa_short,
-    pa_int,
-    pa_long,
-    pa_longlong,
-    pa_float,
-    pa_double,
-    pa_pointer,
-};
-
-struct printf_arg_entry {
-    int type;
-    union {
-        char c;
-        short s;
-        int i;
-        long l;
-        long long ll;
-        float f;
-        double d;
-        void *p;
-    };
-};
-
 
 // internal buffer output
-static inline void _out_buffer(char character, void *buffer, size_t idx, size_t maxlen) {
-    if (idx < maxlen) {
-        ((char *) buffer)[idx] = character;
-    }
-}
+// static inline void _out_buffer(char character, void *buffer, size_t idx, size_t maxlen) {
+//     if (idx < maxlen) {
+//         ((char *) buffer)[idx] = character;
+//     }
+// }
 
 // internal null output
 static inline void _out_null(char character, void *buffer, size_t idx, size_t maxlen) {
@@ -67,9 +44,9 @@ static inline void _out_null(char character, void *buffer, size_t idx, size_t ma
 // }
 
 int _vsnprintf(out_fct_type out, char *buffer, const size_t maxlen, const char *format, va_list va,
-               struct printf_arg_entry *entries);
+               struct LORE_VARG_ENTRY *entries);
 
-int _vprintf(const char *format, va_list va, struct printf_arg_entry *entries);
+int _vprintf(const char *format, va_list va, struct LORE_VARG_ENTRY *entries);
 
 #ifdef __cplusplus
 }

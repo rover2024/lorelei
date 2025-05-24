@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <map>
-#include <vector>
 #include <cstdlib>
+#include <sstream>
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
@@ -16,8 +16,6 @@
 #include <llvm/Support/SHA256.h>
 #include <llvm/Support/MemoryBuffer.h>
 
-#include <json11/json11.hpp>
-
 using namespace clang;
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -25,62 +23,49 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-class FPExprConfig {
+class CFICConfig {
 public:
-    std::set<std::string> Functions;
+    std::map<std::string, int> Signatures;
 
-    static FPExprConfig parse(const std::string &path) {
+    static CFICConfig parse(const std::string &path) {
         auto buffer = llvm::MemoryBuffer::getFile(path);
         if (std::error_code EC = buffer.getError()) {
             llvm::errs() << path << ": failed to open file: " << EC.message() << "\n";
             std::abort();
         }
 
-        std::string jsonErr;
-        auto json = json11::Json::parse(buffer->get()->getBuffer().str(), jsonErr);
-        if (!jsonErr.empty()) {
-            llvm::errs() << path << ": failed to parse file: " << jsonErr << "\n";
-            std::abort();
-        }
-        if (!json.is_object()) {
-            llvm::errs() << path << ": not an object\n";
-            std::abort();
-        }
-        const auto &docObj = json.object_items();
-
-        FPExprConfig config;
-        if (auto it = docObj.find("functions"); it != docObj.end()) {
-            const auto &functionsVal = it->second;
-            if (functionsVal.is_array()) {
-                const auto &functionsArr = functionsVal.array_items();
-                for (const auto &item : functionsArr) {
-                    if (!item.is_string()) {
-                        continue;
-                    }
-                    const auto &name = item.string_value();
-                    if (name.empty()) {
-                        continue;
-                    }
-                    config.Functions.insert(name);
+        CFICConfig config;
+        {
+            std::istringstream iss(buffer->get()->getBuffer().str());
+            std::string line;
+            int i = 0;
+            while (std::getline(iss, line)) {
+                if (line.empty()) {
+                    continue;
                 }
+                config.Signatures[line] = ++i;
             }
         }
         return config;
     }
 };
 
-class FPExprGlobalContext {
+class CFICCGlobalContext {
 public:
-    FPExprConfig Config;
+    CFICConfig Config;
+
+    std::filesystem::path WorkingDirectory;
+
+    std::string Identifier = "unknown";
     std::string OutputPath;
 };
 
-static FPExprGlobalContext GlobalContext;
+static CFICCGlobalContext GlobalContext;
 
 // 1. Match handler
 class FPExprHandler : public MatchFinder::MatchCallback {
 public:
-    FPExprHandler(std::vector<const CallExpr *> &Expressions) : Expressions(Expressions) {}
+    FPExprHandler(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions) {}
 
     virtual void run(const MatchFinder::MatchResult &Result) override {
         const CallExpr *call = Result.Nodes.getNodeAs<CallExpr>("call");
@@ -99,13 +84,13 @@ public:
     }
 
 private:
-    std::vector<const CallExpr *> &Expressions;
+    SmallVectorImpl<const CallExpr *> &Expressions;
 };
 
 // 2. AST consumer
 class FPExprConsumer : public ASTConsumer {
 public:
-    FPExprConsumer(std::vector<const CallExpr *> &Expressions) : Expressions(Expressions), Handler(Expressions) {
+    FPExprConsumer(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions), Handler(Expressions) {
         Matcher.addMatcher(callExpr().bind("call"), &Handler);
     }
 
@@ -114,17 +99,19 @@ public:
     }
 
 private:
-    std::vector<const CallExpr *> &Expressions;
+    SmallVectorImpl<const CallExpr *> &Expressions;
     MatchFinder Matcher;
     FPExprHandler Handler;
 };
 
 // 3. AST frontend action
-class FPExprAction : public ASTFrontendAction {
+class CFICAction : public ASTFrontendAction {
 public:
-    FPExprAction() {}
+    CFICAction() {}
 
     void EndSourceFileAction() override {
+        fs::current_path(GlobalContext.WorkingDirectory);
+
         SourceManager &SM = Rewrite.getSourceMgr();
         LangOptions LangOpts = Rewrite.getLangOpts();
         ASTContext &Context = CI->getASTContext();
@@ -132,7 +119,7 @@ public:
         class CFIInfo {
         public:
             QualType Type;
-            std::string Hash;
+            int Index;
             std::string Signature;
         };
 
@@ -146,6 +133,7 @@ public:
         std::vector<Insertion> InsertionList;
 
         int hashCnt = 0;
+        auto &SignatureMap = GlobalContext.Config.Signatures;
         for (const CallExpr *call : std::as_const(Expressions)) {
             // Ignore expressions in header files
             if (!SM.isInMainFile(call->getBeginLoc())) {
@@ -181,18 +169,26 @@ public:
             }
 
             std::string signature = type.getAsString();
-            if (!GlobalContext.Config.Functions.empty() && !GlobalContext.Config.Functions.count(signature)) {
-                continue;
+            int hashIndex = 0;
+            if (!SignatureMap.empty()) {
+                auto it = SignatureMap.find(signature);
+                if (it == SignatureMap.end()) {
+                    continue;
+                }
+                hashIndex = it->second;
             }
 
-            std::string hashStr;
             if (auto it = CFIInfoMap.find(signature); it == CFIInfoMap.end()) {
-                hashStr = std::to_string(++hashCnt);
-                CFIInfoMap.insert(std::make_pair(signature, CFIInfo{type, hashStr, signature}));
+                if (hashIndex == 0) {
+                    hashIndex = ++hashCnt;
+                } else {
+                    hashCnt = hashIndex;
+                }
+                CFIInfoMap.insert(std::make_pair(signature, CFIInfo{type, hashIndex, signature}));
             } else {
-                hashStr = it->second.Hash;
+                hashIndex = it->second.Index;
             }
-            InsertionList.push_back({fixedRange.getBegin(), "LORELIB_CFI_" + hashStr + "(", false});
+            InsertionList.push_back({fixedRange.getBegin(), "LORELIB_CFI_" + std::to_string(hashIndex) + "(", false});
             InsertionList.push_back({fixedRange.getEnd(), ")", true});
         }
 
@@ -207,7 +203,7 @@ public:
 
         // 1. Generate header
         out << llvm::format(R"(/****************************************************************************
-** Lifted code from reading C file '%s'
+** CFI wrapped code from reading C file '%s'
 **
 ** Created by: Lorelei CFI compiler
 **
@@ -217,30 +213,37 @@ public:
 //
 // CFI declarations begin
 //
-static void (*LoreLib_ECB)(void *, void *, void *[], void *); // guest entry
-static __thread void *LoreLib_Callback;
-#define LORELIB_CFI_BASE(FP, CFI_FP)                                            \
-    ({                                                                          \
-        __auto_type _lorelib_cfi_ret = (FP);                                    \
-        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_ECB) {   \
-            LoreLib_Callback = _lorelib_cfi_ret;                                \
-            _lorelib_cfi_ret = (__typeof__(_lorelib_cfi_ret)) CFI_FP;           \
-        }                                                                       \
-        _lorelib_cfi_ret;                                                       \
+enum LoreLib_Constants {
+    LoreLib_CFI_Count = %d,
+};
+
+extern __thread void *Lore_HRTThreadCallback;
+
+typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
+
+static void *LoreLib_AddressBoundary;
+static FP_NotifyHostLibraryOpen LoreLib_NHLO;
+static const char LoreLib_Identifier[] = "%s";
+static void *LoreLib_CFIs[LoreLib_CFI_Count];
+
+#define LORELIB_CFI(INDEX, FP)                                                             \
+    ({                                                                                     \
+        __auto_type _lorelib_cfi_ret = (FP);                                               \
+        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_AddressBoundary) {  \
+            Lore_HRTThreadCallback = _lorelib_cfi_ret;                                     \
+            _lorelib_cfi_ret = (__typeof__(_lorelib_cfi_ret)) LoreLib_CFIs[INDEX];         \
+        }                                                                                  \
+        _lorelib_cfi_ret;                                                                  \
     })
 )",
-                            fileName.string().c_str());
+                            fileName.string().c_str(), int(CFIInfoMap.size()), GlobalContext.Identifier.c_str());
         out << "\n";
 
         // 2. Generate forward declarations
         for (const auto &pair : std::as_const(CFIInfoMap)) {
             auto &info = pair.second;
             out << "// decl: " << info.Signature << "\n";
-            out << llvm::format(R"(static const void *const LoreLib_CFI_%s_ptr;
-#define LORELIB_CFI_%s(FP) \
-    LORELIB_CFI_BASE(FP, LoreLib_CFI_%s_ptr)
-)",
-                                info.Hash.c_str(), info.Hash.c_str(), info.Hash.c_str());
+            out << llvm::format("#define LORELIB_CFI_%d(FP) LORELIB_CFI(%d, FP)\n", info.Index, info.Index);
             out << "\n";
         }
 
@@ -274,104 +277,48 @@ static __thread void *LoreLib_Callback;
         out << R"(//
 // CFI implementation begin
 //
-)";
-        out << "\n";
 
-        out << R"(#include <limits.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-extern bool Lore_RevealLibraryPath(char *buffer, const void *addr);
-extern void *Lore_GetFPExecuteCallback();
-extern void *Lore_GetCallbackThunk(const char *sign);
-)";
-        out << "\n";
+extern bool Lore_RevealLibraryPath(char *buffer, const void *addr, bool followSymlink);
+extern void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest);
+extern struct LoreEmuApis *Lore_HrtGetEmuApis();
 
-        for (const auto &pair : std::as_const(CFIInfoMap)) {
-            auto &info = pair.second;
-            out << "// thunk: " << info.Signature << "\n";
-            out << llvm::format("static void *LoreLib_GTK_%s;\n", info.Hash.c_str());
-        }
-        out << "\n";
-
-        out << R"(static inline void LoreLib_GetThunkHelper(
-    void **thunk, const char *sign, const char *path) {
-    if (!(*thunk = Lore_GetCallbackThunk(sign))) {
-        fprintf(stderr, "%s: guest thunk lookup error: %s\n", path, sign);
-        abort();
-    }
-}
 static void __attribute__((constructor)) LoreLib_Init() {
     char path[PATH_MAX];
-    if (!Lore_RevealLibraryPath(path, LoreLib_Init)) {
+    if (!Lore_RevealLibraryPath(path, LoreLib_Init, false)) {
         fprintf(stderr, "Unknown host library: failed to get library path\n");
         abort();
     }
-    LoreLib_ECB = (__typeof__(LoreLib_ECB)) Lore_GetFPExecuteCallback();
-)";
-        out << "\n";
 
-        for (const auto &pair : std::as_const(CFIInfoMap)) {
-            auto &info = pair.second;
-            out << llvm::format("    LoreLib_GetThunkHelper(&LoreLib_GTK_%s, \"%s\", path);\n", info.Hash.c_str(),
-                                info.Signature.c_str());
+    struct _LoreEmuApis {
+        void *apis[5];
+    };
+    struct _LoreEmuApis *emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
+    LoreLib_AddressBoundary = emuApis->apis[0];
+    LoreLib_NHLO = emuApis->apis[4];
+
+    void **thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
+    if (!thunks) {
+        LoreLib_NHLO(LoreLib_Identifier);
+        thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
+        if (!thunks) {
+            fprintf(stderr, "%s: failed to get HTL thunks\n", path);
+            abort();
         }
+    }
+    for (int i = 0; i < LoreLib_CFI_Count; ++i) {
+        LoreLib_CFIs[i] = thunks[i];
+    }
+}
 
-        out << "}\n\n";
-
-        for (const auto &pair : std::as_const(CFIInfoMap)) {
-            auto &info = pair.second;
-            auto &type = info.Type;
-
-            QualType retType;
-            SmallVector<QualType, 4> argTypes;
-            if (type->isFunctionNoProtoType()) {
-                auto funcType = type->getAs<clang::FunctionNoProtoType>();
-                retType = funcType->getReturnType();
-            } else {
-                auto funcType = type->getAs<clang::FunctionProtoType>();
-                retType = funcType->getReturnType();
-                argTypes = {funcType->param_type_begin(), funcType->param_type_end()};
-            }
-
-            out << "// impl: " << info.Signature << "\n";
-            out << llvm::format("__typeof__(%s) LoreLib_CFI_%s(", retType.getAsString().c_str(), info.Hash.c_str());
-            for (int i = 0; i < argTypes.size(); ++i) {
-                out << llvm::format("__typeof__(%s) arg%d", argTypes[i].getAsString().c_str(), i + 1);
-                if (i != argTypes.size() - 1) {
-                    out << ", ";
-                }
-            }
-            out << ") {\n";
-            if (!retType->isVoidType()) {
-                out << llvm::format("    __typeof__(%s) ret;\n", retType.getAsString().c_str());
-            }
-            if (!argTypes.empty()) {
-                out << "    void *args[] = {\n        ";
-                for (int i = 0; i < argTypes.size(); ++i) {
-                    out << "&arg" << i + 1 << ", ";
-                }
-                out << "\n    };\n";
-            } else {
-                out << "    void *args[] = {};\n";
-            }
-            if (!retType->isVoidType()) {
-                out << llvm::format("    LoreLib_ECB(LoreLib_GTK_%s, LoreLib_Callback, args, &ret);\n",
-                                    info.Hash.c_str());
-                out << "    return ret;\n";
-            } else {
-                out << llvm::format("    LoreLib_ECB(LoreLib_GTK_%s, LoreLib_Callback, args, NULL);\n",
-                                    info.Hash.c_str());
-            }
-            out << "}\n";
-            out << llvm::format("static const void *const LoreLib_CFI_%s_ptr = LoreLib_CFI_%s;\n\n", info.Hash.c_str(),
-                                info.Hash.c_str());
-        }
-
-        out << R"(//
+//
 // CFI implementation end
-//)";
+//
+)";
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
@@ -381,14 +328,17 @@ static void __attribute__((constructor)) LoreLib_Init() {
     }
 
 private:
-    std::vector<const CallExpr *> Expressions;
+    SmallVector<const CallExpr *, 20> Expressions;
     Rewriter Rewrite;
     CompilerInstance *CI = nullptr;
 };
 
 static cl::OptionCategory FPExprCategory("cfi compiler");
 
-static cl::opt<std::string> ConfigOption("c", cl::desc("Specify configuration file"), cl::desc("<config>"),
+static cl::opt<std::string> IdentifierOption("i", cl::desc("Specify identifier"), cl::value_desc("id"),
+                                             cl::cat(FPExprCategory));
+
+static cl::opt<std::string> ConfigOption("c", cl::desc("Specify configuration file"), cl::value_desc("config"),
                                          cl::cat(FPExprCategory));
 
 static cl::opt<std::string> OutputOption("o", cl::desc("Specify output file"), cl::value_desc("output file"),
@@ -403,13 +353,17 @@ int main(int argc, const char *argv[]) {
         return 0;
     }
 
-    // Parse configure
+    GlobalContext.WorkingDirectory = fs::current_path();
+
     if (auto ConfigPath = ConfigOption.getValue(); !ConfigPath.empty()) {
-        GlobalContext.Config = FPExprConfig::parse(ConfigPath);
+        GlobalContext.Config = CFICConfig::parse(ConfigPath);
+    }
+    if (auto Identifier = IdentifierOption.getValue(); !Identifier.empty()) {
+        GlobalContext.Identifier = IdentifierOption.getValue();
     }
     GlobalContext.OutputPath = OutputOption.getValue();
 
     auto &OptionsParser = ExpectedParser.get();
     ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-    return Tool.run(newFrontendActionFactory<FPExprAction>().get());
+    return Tool.run(newFrontendActionFactory<CFICAction>().get());
 }
