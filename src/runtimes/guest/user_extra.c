@@ -88,7 +88,7 @@ void Lore_FreeHostThunkLibrary(void *handle) {
     } while (0);
 
     // Free host thunk
-    Lore_FreeHostThunkLibrary(handle);
+    Lore_FreeLibrary(handle);
 }
 
 void *Lore_GetHostThunkProcAddress(void *handle, const char *name) {

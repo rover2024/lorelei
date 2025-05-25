@@ -3,13 +3,15 @@
 
 #include <pthread.h>
 
-#include <lorelei/lorelei_global.h>
+#include <lorelei/lorehapi.h>
 
-typedef void      (*FP_ExecuteCallback)(void * /*thunk*/, void * /*callback*/, void * /*args*/, void * /*ret*/, void * /*metadata*/);
+typedef void (*FP_ExecuteCallback)(void * /*thunk*/, void * /*callback*/, void * /*args*/, void * /*ret*/,
+                                   void * /*metadata*/);
 typedef pthread_t (*FP_GetLastPThreadId)(void);
-typedef void      (*FP_NotifyPThreadCreate)(pthread_t * /*thread*/, const pthread_attr_t * /*attr*/, void *(*) (void *) /*start_routine*/, void * /*arg*/, int * /*ret*/);
-typedef void      (*FP_NotifyPThreadExit)(void * /*ret*/);
-typedef void      (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
+typedef void (*FP_NotifyPThreadCreate)(pthread_t * /*thread*/, const pthread_attr_t * /*attr*/,
+                                       void *(*) (void *) /*start_routine*/, void * /*arg*/, int * /*ret*/);
+typedef void (*FP_NotifyPThreadExit)(void * /*ret*/);
+typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
 
 struct LoreEmuApis {
     // Executes guest callback
@@ -38,6 +40,14 @@ extern "C" {
 LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void **args, void *ret);
 
 LORELEI_DECL_EXPORT void Lore_HostHelper(int id, void **args, void *ret);
+
+//
+// Host Library APIs
+//
+LORELEI_EXPORT int Lore_HrtPThreadCreate(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *),
+                                         void *arg);
+
+LORELEI_EXPORT void Lore_HrtPThreadExit(void *ret);
 
 #ifdef __cplusplus
 }

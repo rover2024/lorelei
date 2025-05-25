@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include <lorelei/loreuser.h>
-#include <lorelei/lorehapi.h>
+#include <lorelei/lorehapi_p.h>
 
 #include "lorelib_defs.h"
 
@@ -118,7 +118,10 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
     {
         struct LoreLib_HostLibraryContext {
             void *AddressBoundary;
-            void (*HrtSetThreadCallback)(void *callback);
+
+            void *HrtSetThreadCallback;
+            void *HrtPThreadCreate;
+            void *HrtPThreadExit;
 
             void *CFIs[LoreLib_GCBEnumSize];
         };
@@ -127,9 +130,13 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
         if (ctx) {
             ctx->AddressBoundary = LoreLibCtx.AddressBoundary;
             ctx->HrtSetThreadCallback = Lore_HrtSetThreadCallback;
+            ctx->HrtPThreadCreate = Lore_HrtPThreadCreate;
+            ctx->HrtPThreadExit = Lore_HrtPThreadExit;
             for (int i = 0; i < LoreLib_GCBEnumSize; ++i) {
                 ctx->CFIs[i] = LoreLib_GCB_HTPs[i];
             }
+        } else {
+            fprintf(stderr, "%s: HTL: host library is not a lorelei-patched library\n", path);
         }
     }
 
@@ -198,10 +205,6 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize] = {
 // Implement helpers
 //
 static void LoreLib_PreInitialize() {
-    void *Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
-    void *Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
-    void *Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
-    void *Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
 }
 
 static void LoreLib_PostInitialize() {

@@ -12,16 +12,12 @@ extern "C" {
 struct LoreEmuApis;
 
 //
-// Host library APIs
+// Host thunk APIs
 //
 LORELEI_EXPORT struct LoreEmuApis *Lore_HrtGetEmuApis();
 
 LORELEI_EXPORT void Lore_HrtSetThreadCallback(void *callback);
 
-
-//
-// Host thunk APIs
-//
 LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, int isThunk);
 
 LORELEI_EXPORT void *Lore_HrtGetLibraryThunks(const char *path, int isGuest);

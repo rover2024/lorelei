@@ -1,4 +1,4 @@
-#include "hostrt_p.h"
+#include "lorehapi_p.h"
 
 #ifdef __linux__
 #  include <elf.h>
@@ -367,17 +367,7 @@ struct LoreHostRuntimeContext {
     }
 };
 
-static LoreHostRuntimeContext contextInstance;
-
-LORELEI_DECL_EXPORT __thread void *Lore_HRTThreadCallback;
-
-struct LoreEmuApis *Lore_HrtGetEmuApis() {
-    return &contextInstance.emuApis;
-}
-
-void Lore_HrtSetThreadCallback(void *callback) {
-    Lore_HRTThreadCallback = callback;
-}
+static LoreHostRuntimeContext LoreHrtCtx;
 
 #ifdef __linux__
 static unsigned int Lore_AuditObjOpen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie, const char *target) {
@@ -446,17 +436,18 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
             break;
     }
 }
-void *Lore_GetFPExecuteCallback() {
-    return (void *) contextInstance.emuApis.ExecuteCallback;
+
+LORELEI_DECL_EXPORT __thread void *Lore_HRTThreadCallback;
+
+struct LoreEmuApis *Lore_HrtGetEmuApis() {
+    return &LoreHrtCtx.emuApis;
+}
+
+void Lore_HrtSetThreadCallback(void *callback) {
+    Lore_HRTThreadCallback = callback;
 }
 
 void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
-    {
-        void *Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
-        void *Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
-        void *Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
-        void *Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
-    }
     char nameBuf[PATH_MAX];
     Lore_GetLibraryName(nameBuf, path);
 
@@ -466,18 +457,18 @@ void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
     }
 
     if (isThunk) {
-        auto it = contextInstance.thunkNamesMap.find(name);
-        if (it == contextInstance.thunkNamesMap.end()) {
+        auto it = LoreHrtCtx.thunkNamesMap.find(name);
+        if (it == LoreHrtCtx.thunkNamesMap.end()) {
             return nullptr;
         }
-        return &contextInstance.thunkDataList[it->second].c_data;
+        return &LoreHrtCtx.thunkDataList[it->second].c_data;
     }
 
-    auto it = contextInstance.hostNamesMap.find(path);
-    if (it == contextInstance.hostNamesMap.end()) {
+    auto it = LoreHrtCtx.hostNamesMap.find(path);
+    if (it == LoreHrtCtx.hostNamesMap.end()) {
         return nullptr;
     }
-    return &contextInstance.hostDataList[it->second].c_data;
+    return &LoreHrtCtx.hostDataList[it->second].c_data;
 }
 
 void *Lore_HrtGetLibraryThunks(const char *path, int isGuest) {
@@ -518,4 +509,19 @@ void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks) {
 
 void Lore_FreeHostLibrary(void *handle) {
     dlclose(handle);
+}
+
+int Lore_HrtPThreadCreate(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) {
+    int ret;
+    LoreHrtCtx.emuApis.NotifyPThreadCreate(thread, attr, start_routine, arg, &ret);
+    *thread = LoreHrtCtx.emuApis.GetLastPThreadId();
+
+    auto self = pthread_self();
+    auto last = LoreHrtCtx.emuApis.GetLastPThreadId();
+    return ret;
+}
+
+void Lore_HrtPThreadExit(void *ret) {
+    LoreHrtCtx.emuApis.NotifyPThreadExit(ret);
+    __builtin_unreachable();
 }

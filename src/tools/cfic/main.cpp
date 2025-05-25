@@ -225,7 +225,10 @@ enum LoreLib_Constants {
 
 struct LoreLib_HostLibraryContext {
     void *AddressBoundary;
+
     void (*HrtSetThreadCallback)(void *callback);
+    void *HrtPThreadCreate;
+    void *HrtPThreadExit;
 
     void *CFIs[LoreLib_CFI_Count];
 };
@@ -238,12 +241,12 @@ __attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib
         void *_lorelib_cfi_ret = (void *) (FP);                                                      \
         if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_HostLibCtx.AddressBoundary) { \
             LoreLib_HostLibCtx.HrtSetThreadCallback(_lorelib_cfi_ret);                               \
-            _lorelib_cfi_ret = (void *) LoreLib_HostLibCtx.CFIs[INDEX];                              \
+            _lorelib_cfi_ret = (void *) LoreLib_HostLibCtx.CFIs[INDEX - 1];                          \
         }                                                                                            \
         (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                        \
     })
 )",
-                            fileName.string().c_str(), int(CFIInfoMap.size()), GlobalContext.Identifier.c_str());
+                            fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()), GlobalContext.Identifier.c_str());
         out << "\n";
 
         // 2. Generate forward declarations

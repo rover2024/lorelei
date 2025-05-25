@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     int loop = 0;
     while (audio_data.length > 0) {
         printf("LOOP: %d\n", ++loop);
-        if (loop > 30) {
+        if (loop > 300) {
             break;
         }
         SDL_Delay(100);
