@@ -18,6 +18,8 @@ struct LoreEmuApis;
 //
 LORELEI_EXPORT struct LoreEmuApis *Lore_HrtGetEmuApis();
 
+LORELEI_EXPORT void Lore_HrtSetThreadCallback(void *callback);
+
 
 //
 // Host thunk APIs

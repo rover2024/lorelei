@@ -116,9 +116,10 @@ public:
         auto OutCallbacksPath =
             GlobalContext.OutputCallbacksPath.empty() ? "lorelib_callbacks.txt" : GlobalContext.OutputCallbacksPath;
 
-        SourceManager &SM = Rewrite.getSourceMgr();
-        LangOptions LangOpts = Rewrite.getLangOpts();
-        ASTContext &Context = CI->getASTContext();
+        CompilerInstance &CI = getCompilerInstance();
+        SourceManager &SM = CI.getSourceManager();
+        LangOptions LangOpts = CI.getLangOpts();
+        ASTContext &Context = CI.getASTContext();
 
         TLC::PassContext PassCtx(GlobalContext.Config.Functions, FunctionDecls, &SM, LangOpts, &Context,
                                  fs::path(InputFilePath).filename().string(),
@@ -153,15 +154,11 @@ public:
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
-        this->CI = &CI;
-        Rewrite.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
         return std::make_unique<FuncDeclConsumer>(FunctionDecls);
     }
 
 private:
     SmallVector<const FunctionDecl *, 20> FunctionDecls;
-    Rewriter Rewrite;
-    CompilerInstance *CI = nullptr;
 };
 
 static cl::OptionCategory FuncDeclCategory("Thunk library compiler");

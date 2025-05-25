@@ -332,6 +332,10 @@ struct LoreEmuApis *Lore_HrtGetEmuApis() {
     return &contextInstance.emuApis;
 }
 
+void Lore_HrtSetThreadCallback(void *callback) {
+    Lore_HRTThreadCallback = callback;
+}
+
 #ifdef __linux__
 static unsigned int Lore_AuditObjOpen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie, const char *target) {
     printf("Loading dynamic library: %s %s\n", map->l_name, target);

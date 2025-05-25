@@ -65,7 +65,8 @@ static CFICCGlobalContext GlobalContext;
 // 1. Match handler
 class FPExprHandler : public MatchFinder::MatchCallback {
 public:
-    FPExprHandler(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions) {}
+    FPExprHandler(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions) {
+    }
 
     virtual void run(const MatchFinder::MatchResult &Result) override {
         const CallExpr *call = Result.Nodes.getNodeAs<CallExpr>("call");
@@ -107,14 +108,15 @@ private:
 // 3. AST frontend action
 class CFICAction : public ASTFrontendAction {
 public:
-    CFICAction() {}
+    CFICAction() {
+    }
 
     void EndSourceFileAction() override {
         fs::current_path(GlobalContext.WorkingDirectory);
 
         SourceManager &SM = Rewrite.getSourceMgr();
         LangOptions LangOpts = Rewrite.getLangOpts();
-        ASTContext &Context = CI->getASTContext();
+        ASTContext &Context = getCompilerInstance().getASTContext();
 
         class CFIInfo {
         public:
@@ -192,6 +194,10 @@ public:
             InsertionList.push_back({fixedRange.getEnd(), ")", true});
         }
 
+        if (InsertionList.empty()) {
+            return;
+        }
+
         std::error_code EC;
         llvm::raw_fd_ostream out(GlobalContext.OutputPath.empty() ? "-" : GlobalContext.OutputPath, EC);
         if (EC) {
@@ -217,23 +223,22 @@ enum LoreLib_Constants {
     LoreLib_CFI_Count = %d,
 };
 
-extern __thread void *Lore_HRTThreadCallback;
-
-typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
+static const char LoreLib_Identifier[] = "%s";
 
 static void *LoreLib_AddressBoundary;
-static FP_NotifyHostLibraryOpen LoreLib_NHLO;
-static const char LoreLib_Identifier[] = "%s";
 static void *LoreLib_CFIs[LoreLib_CFI_Count];
 
-#define LORELIB_CFI(INDEX, FP)                                                             \
-    ({                                                                                     \
-        __auto_type _lorelib_cfi_ret = (FP);                                               \
-        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_AddressBoundary) {  \
-            Lore_HRTThreadCallback = _lorelib_cfi_ret;                                     \
-            _lorelib_cfi_ret = (__typeof__(_lorelib_cfi_ret)) LoreLib_CFIs[INDEX];         \
-        }                                                                                  \
-        _lorelib_cfi_ret;                                                                  \
+static void (*Lore_HrtSetThreadCallback)(void *callback);
+
+#define LORELIB_CFI(INDEX, FP)                                                            \
+    ({                                                                                    \
+        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                         \
+        void *_lorelib_cfi_ret = (void *) (FP);                                           \
+        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_AddressBoundary) { \
+            Lore_HrtSetThreadCallback(_lorelib_cfi_ret);                                  \
+            _lorelib_cfi_ret = (void *) LoreLib_CFIs[INDEX];                              \
+        }                                                                                 \
+        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                             \
     })
 )",
                             fileName.string().c_str(), int(CFIInfoMap.size()), GlobalContext.Identifier.c_str());
@@ -278,30 +283,48 @@ static void *LoreLib_CFIs[LoreLib_CFI_Count];
 // CFI implementation begin
 //
 
+#include <dlfcn.h>
 #include <limits.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-extern bool Lore_RevealLibraryPath(char *buffer, const void *addr, bool followSymlink);
-extern void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest);
-extern struct LoreEmuApis *Lore_HrtGetEmuApis();
+struct _LoreEmuApis {
+    void *apis[5];
+};
+
+typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
+static FP_NotifyHostLibraryOpen LoreLib_NHLO;
+
+static bool (*Lore_RevealLibraryPath)(char *buffer, const void *addr, bool followSymlink);
+static void *(*Lore_HrtGetLibraryThunks)(const char *path, bool isGuest);
+static struct LoreEmuApis *(*Lore_HrtGetEmuApis)();
 
 static void __attribute__((constructor)) LoreLib_Init() {
+    struct _LoreEmuApis *emuApis;
+    void **thunks;
     char path[PATH_MAX];
+
+    Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
+    Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
+    Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
+    Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
+    if (!Lore_RevealLibraryPath || !Lore_HrtGetLibraryThunks || !Lore_HrtGetEmuApis || !Lore_HrtSetThreadCallback) {
+        fprintf(stderr, "Unknown host library: failed to resolve host runtime apis\n");
+        abort();
+    }
+
     if (!Lore_RevealLibraryPath(path, LoreLib_Init, false)) {
         fprintf(stderr, "Unknown host library: failed to get library path\n");
         abort();
     }
 
-    struct _LoreEmuApis {
-        void *apis[5];
-    };
-    struct _LoreEmuApis *emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
+    emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
     LoreLib_AddressBoundary = emuApis->apis[0];
     LoreLib_NHLO = emuApis->apis[4];
 
-    void **thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
+    thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
     if (!thunks) {
         LoreLib_NHLO(LoreLib_Identifier);
         thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
@@ -322,7 +345,6 @@ static void __attribute__((constructor)) LoreLib_Init() {
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
-        this->CI = &CI;
         Rewrite.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
         return std::make_unique<FPExprConsumer>(Expressions);
     }
@@ -330,10 +352,11 @@ static void __attribute__((constructor)) LoreLib_Init() {
 private:
     SmallVector<const CallExpr *, 20> Expressions;
     Rewriter Rewrite;
-    CompilerInstance *CI = nullptr;
 };
 
 static cl::OptionCategory FPExprCategory("cfi compiler");
+
+static cl::opt<bool> ExpandOption("e", cl::desc("Expand macros"), cl::cat(FPExprCategory));
 
 static cl::opt<std::string> IdentifierOption("i", cl::desc("Specify identifier"), cl::value_desc("id"),
                                              cl::cat(FPExprCategory));
@@ -355,11 +378,11 @@ int main(int argc, const char *argv[]) {
 
     GlobalContext.WorkingDirectory = fs::current_path();
 
-    if (auto ConfigPath = ConfigOption.getValue(); !ConfigPath.empty()) {
-        GlobalContext.Config = CFICConfig::parse(ConfigPath);
-    }
     if (auto Identifier = IdentifierOption.getValue(); !Identifier.empty()) {
         GlobalContext.Identifier = IdentifierOption.getValue();
+    }
+    if (auto ConfigPath = ConfigOption.getValue(); !ConfigPath.empty()) {
+        GlobalContext.Config = CFICConfig::parse(ConfigPath);
     }
     GlobalContext.OutputPath = OutputOption.getValue();
 

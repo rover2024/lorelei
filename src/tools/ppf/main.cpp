@@ -78,14 +78,36 @@ static Config parse_args(int argc, char *argv[]) {
     return cfg;
 }
 
+static std::string fixIncludeFile(std::string filename) {
+    {
+        static std::regex re("/usr/include/(.+)");
+        std::smatch match;
+        if (std::regex_search(filename, match, re)) {
+            filename = match[1];
+        }
+    }
+
+    {
+        static std::regex re("/usr/lib/gcc/(.+)");
+        std::smatch match;
+        if (std::regex_search(filename, match, re)) {
+            filename = std::filesystem::path(filename).filename();
+        }
+    }
+    return filename;
+}
+
 // 主处理函数
-void process_file(const Config &cfg) {
+static void process_file(const Config &cfg) {
     // 读取输入文件
     std::ifstream fin(cfg.input);
     if (!fin) {
         std::cerr << cfg.input << ": failed to open input file" << "\n";
         exit(EXIT_FAILURE);
     }
+    std::string input_str((std::istreambuf_iterator<char>(fin)), std::istreambuf_iterator<char>());
+    fin.close();
+    std::istringstream iss(input_str);
 
     // 准备输出
     std::ostream *out = &std::cout;
@@ -104,7 +126,7 @@ void process_file(const Config &cfg) {
     int level = 0;
     std::string line;
 
-    while (std::getline(fin, line)) {
+    while (std::getline(iss, line)) {
         std::smatch match;
         if (std::regex_search(line, match, re)) {
             // 解析预处理指令
@@ -153,7 +175,7 @@ void process_file(const Config &cfg) {
                     if (ignore) {
                         // 生成 include 语句，忽略全部内容
                         if (!ignored_include.count(file_path.filename())) {
-                            *out << (is_system ? "#include <" : "#include \"") << filename
+                            *out << (is_system ? "#include <" : "#include \"") << fixIncludeFile(filename)
                                  << (is_system ? ">\n" : "\"\n");
                         }
                         level = 1;

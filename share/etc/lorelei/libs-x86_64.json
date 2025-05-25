@@ -2,19 +2,30 @@
     "thunks": [
         {
             "name": "libOpenGL",
-            "dependencies": [],
             "gtl": "@/lib/x86_64-lore_guest/libOpenGL.so",
             "htl": "@/lib/x86_64-lore_host/libOpenGL_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libOpenGL.so.0.0.0"
+        },
+        {
+            "name": "libGL",
+            "gtl": "@/lib/x86_64-lore_guest/libOpenGL.so",
+            "htl": "@/lib/x86_64-lore_host/libOpenGL_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libGL.so.1.7.0"
+        },
+        {
+            "name": "libGLEW",
+            "gtl": "@/lib/x86_64-lore_guest/libGLEW.so",
+            "htl": "@/lib/x86_64-lore_host/libGLEW_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so.2.1"
         },
         {
             "name": "libSDL2",
             "alias": [
                 "libSDL2-2.0"
             ],
-            "dependencies": [],
-            "gtl": "@/lib/x86_64-lore_guest/libSDL2.so",
-            "htl": "@/lib/x86_64-lore_host/libSDL2_host_bridge.so"
+            "gtl": "@/lib/x86_64-lore_guest/libSDL2-2.0.so",
+            "htl": "@/lib/x86_64-lore_host/libSDL2-2.0_HTL.so",
+            "hl": "/home/overworld/Documents/ccxxprojs/SDL/build/install/lib/libSDL2-2.0.so.0.2600.0"
         }
     ],
     "host": [
