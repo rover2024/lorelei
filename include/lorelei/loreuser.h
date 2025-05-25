@@ -94,7 +94,7 @@ LORELEI_EXPORT void *Lore_GetProcAddress(void *handle, const char *name);
 
 LORELEI_EXPORT char *Lore_GetErrorMessage();
 
-LORELEI_EXPORT char *Lore_GetModulePath(void *addr, bool isHandle);
+LORELEI_EXPORT char *Lore_GetModulePath(void *addr, int isHandle);
 
 LORELEI_EXPORT void *Lore_GetAddressBoundary();
 
@@ -108,7 +108,7 @@ LORELEI_EXPORT void Lore_InvokeHostProc(int convention, void *func, void **args,
 //
 // Loader metadata APIs, implemented in host runtime
 //
-LORELEI_EXPORT void *Lore_GetLibraryData(const char *path, bool isThunk);
+LORELEI_EXPORT void *Lore_GetLibraryData(const char *path, int isThunk);
 
 LORELEI_EXPORT void Lore_CallHostHelper(int id, void **args, void *ret);
 

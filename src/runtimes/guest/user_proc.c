@@ -92,7 +92,7 @@ static void HostProcLoop(void *a) {
 
             case LOREUSER_PR_HostLibraryOpen: {
                 const char *identifier = next_call.host_library_open.id;
-                struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(identifier, true);
+                struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(identifier, 1);
                 if (!lib_data) {
                     break;
                 }

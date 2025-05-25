@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include <lorelei/loreuser.h>
@@ -71,6 +70,7 @@ struct LoreLib_Context {
     void *AddressBoundary;
     void (*ExecuteCallback)(void * /*thunk*/, void * /*callback*/, void * /*args*/, void * /*ret*/,
                             void * /*metadata*/);
+    void (*NotifyHostLibraryOpen)(const char * /*identifier*/);
 };
 static struct LoreLib_Context LoreLibCtx = {0};
 
@@ -84,7 +84,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
 
     // 1. Load library
     char path[PATH_MAX];
-    if (!Lore_RevealLibraryPath(path, LoreLib_Inititialize, false)) {
+    if (!Lore_RevealLibraryPath(path, LoreLib_Inititialize, 0)) {
         fprintf(stderr, "Unknown HTL: failed to get library path\n");
         abort();
     }
@@ -112,6 +112,26 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
     struct _LoreEmuApis *emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
     LoreLibCtx.AddressBoundary = emuApis->apis[0];
     LoreLibCtx.ExecuteCallback = emuApis->apis[0];
+    LoreLibCtx.NotifyHostLibraryOpen = emuApis->apis[4];
+
+    // 4. Initialize library
+    {
+        struct LoreLib_HostLibraryContext {
+            void *AddressBoundary;
+            void (*HrtSetThreadCallback)(void *callback);
+
+            void *CFIs[LoreLib_GCBEnumSize];
+        };
+
+        struct LoreLib_HostLibraryContext *ctx = dlsym(handle, "LoreLib_HostLibCtx");
+        if (ctx) {
+            ctx->AddressBoundary = LoreLibCtx.AddressBoundary;
+            ctx->HrtSetThreadCallback = Lore_HrtSetThreadCallback;
+            for (int i = 0; i < LoreLib_GCBEnumSize; ++i) {
+                ctx->CFIs[i] = LoreLib_GCB_HTPs[i];
+            }
+        }
+    }
 
     LoreLib_PostInitialize();
 }
@@ -178,6 +198,10 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize] = {
 // Implement helpers
 //
 static void LoreLib_PreInitialize() {
+    void *Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
+    void *Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
+    void *Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
+    void *Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
 }
 
 static void LoreLib_PostInitialize() {

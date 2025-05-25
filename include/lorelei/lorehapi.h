@@ -1,8 +1,6 @@
 #ifndef LOREHAPI_H
 #define LOREHAPI_H
 
-#include <stdbool.h>
-
 #include <lorelei/lorelei_global.h>
 
 #ifdef __cplusplus
@@ -24,9 +22,9 @@ LORELEI_EXPORT void Lore_HrtSetThreadCallback(void *callback);
 //
 // Host thunk APIs
 //
-LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, bool isThunk);
+LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, int isThunk);
 
-LORELEI_EXPORT void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest);
+LORELEI_EXPORT void *Lore_HrtGetLibraryThunks(const char *path, int isGuest);
 
 
 //

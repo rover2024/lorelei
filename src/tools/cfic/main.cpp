@@ -223,22 +223,24 @@ enum LoreLib_Constants {
     LoreLib_CFI_Count = %d,
 };
 
-static const char LoreLib_Identifier[] = "%s";
+struct LoreLib_HostLibraryContext {
+    void *AddressBoundary;
+    void (*HrtSetThreadCallback)(void *callback);
 
-static void *LoreLib_AddressBoundary;
-static void *LoreLib_CFIs[LoreLib_CFI_Count];
+    void *CFIs[LoreLib_CFI_Count];
+};
 
-static void (*Lore_HrtSetThreadCallback)(void *callback);
+__attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib_HostLibCtx;
 
-#define LORELIB_CFI(INDEX, FP)                                                            \
-    ({                                                                                    \
-        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                         \
-        void *_lorelib_cfi_ret = (void *) (FP);                                           \
-        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_AddressBoundary) { \
-            Lore_HrtSetThreadCallback(_lorelib_cfi_ret);                                  \
-            _lorelib_cfi_ret = (void *) LoreLib_CFIs[INDEX];                              \
-        }                                                                                 \
-        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                             \
+#define LORELIB_CFI(INDEX, FP)                                                                       \
+    ({                                                                                               \
+        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                                    \
+        void *_lorelib_cfi_ret = (void *) (FP);                                                      \
+        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_HostLibCtx.AddressBoundary) { \
+            LoreLib_HostLibCtx.HrtSetThreadCallback(_lorelib_cfi_ret);                               \
+            _lorelib_cfi_ret = (void *) LoreLib_HostLibCtx.CFIs[INDEX];                              \
+        }                                                                                            \
+        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                        \
     })
 )",
                             fileName.string().c_str(), int(CFIInfoMap.size()), GlobalContext.Identifier.c_str());
@@ -277,71 +279,6 @@ static void (*Lore_HrtSetThreadCallback)(void *callback);
 //
 )";
         out << "\n\n";
-
-        // 4. Generate CFI implementations
-        out << R"(//
-// CFI implementation begin
-//
-
-#include <dlfcn.h>
-#include <limits.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
-struct _LoreEmuApis {
-    void *apis[5];
-};
-
-typedef void (*FP_NotifyHostLibraryOpen)(const char * /*identifier*/);
-static FP_NotifyHostLibraryOpen LoreLib_NHLO;
-
-static bool (*Lore_RevealLibraryPath)(char *buffer, const void *addr, bool followSymlink);
-static void *(*Lore_HrtGetLibraryThunks)(const char *path, bool isGuest);
-static struct LoreEmuApis *(*Lore_HrtGetEmuApis)();
-
-static void __attribute__((constructor)) LoreLib_Init() {
-    struct _LoreEmuApis *emuApis;
-    void **thunks;
-    char path[PATH_MAX];
-
-    Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
-    Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
-    Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
-    Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
-    if (!Lore_RevealLibraryPath || !Lore_HrtGetLibraryThunks || !Lore_HrtGetEmuApis || !Lore_HrtSetThreadCallback) {
-        fprintf(stderr, "Unknown host library: failed to resolve host runtime apis\n");
-        abort();
-    }
-
-    if (!Lore_RevealLibraryPath(path, LoreLib_Init, false)) {
-        fprintf(stderr, "Unknown host library: failed to get library path\n");
-        abort();
-    }
-
-    emuApis = (struct _LoreEmuApis *) Lore_HrtGetEmuApis();
-    LoreLib_AddressBoundary = emuApis->apis[0];
-    LoreLib_NHLO = emuApis->apis[4];
-
-    thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
-    if (!thunks) {
-        LoreLib_NHLO(LoreLib_Identifier);
-        thunks = (void **) Lore_HrtGetLibraryThunks(LoreLib_Identifier, false);
-        if (!thunks) {
-            fprintf(stderr, "%s: failed to get HTL thunks\n", path);
-            abort();
-        }
-    }
-    for (int i = 0; i < LoreLib_CFI_Count; ++i) {
-        LoreLib_CFIs[i] = thunks[i];
-    }
-}
-
-//
-// CFI implementation end
-//
-)";
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {

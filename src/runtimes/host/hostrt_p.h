@@ -2,7 +2,6 @@
 #define HOSTRT_P_H
 
 #include <pthread.h>
-#include <stdbool.h>
 
 #include <lorelei/lorelei_global.h>
 

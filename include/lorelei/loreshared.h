@@ -2,7 +2,6 @@
 #define LORESHARED_H
 
 #include <stdarg.h>
-#include <stdbool.h>
 
 #include <lorelei/lorelei_global.h>
 
@@ -41,7 +40,7 @@ struct LORE_HOST_LIBRARY_DATA {
 //
 // Path APIs
 //
-LORELEI_EXPORT bool Lore_RevealLibraryPath(char *buffer, const void *addr, bool followSymlink);
+LORELEI_EXPORT int Lore_RevealLibraryPath(char *buffer, const void *addr, int followSymlink);
 
 LORELEI_EXPORT void Lore_GetLibraryName(char *buffer, const char *path);
 

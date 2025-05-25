@@ -40,7 +40,7 @@ char *Lore_GetErrorMessage() {
     return ret;
 }
 
-char *Lore_GetModulePath(void *addr, bool isHandle) {
+char *Lore_GetModulePath(void *addr, int isHandle) {
     char *ret = NULL;
     void *a[] = {
         addr,
@@ -56,7 +56,7 @@ void *Lore_GetAddressBoundary() {
     return ret;
 }
 
-void *Lore_GetLibraryData(const char *path, bool isThunk) {
+void *Lore_GetLibraryData(const char *path, int isThunk) {
     void *ret = NULL;
     void *a[] = {
         (char *) (path),

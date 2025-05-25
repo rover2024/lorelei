@@ -14,27 +14,30 @@
 
 void *Lore_LoadHostThunkLibrary(void *someAddr, int thunkCount, void **thunks) {
     char buf[PATH_MAX];
-    if (!Lore_RevealLibraryPath(buf, someAddr, true)) {
+    if (!Lore_RevealLibraryPath(buf, someAddr, 1)) {
+        fprintf(stderr, "loregrt: %p: failed to reveal library path\n", someAddr);
         return NULL;
     }
 
-    struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(buf, true);
+    struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(buf, 1);
     if (!lib_data) {
+        fprintf(stderr, "loregrt: %s: failed to get library data\n", buf);
         return NULL;
     }
 
     // Load host thunk
     void *host_thunk_handle = Lore_LoadLibrary(lib_data->htl, RTLD_NOW);
     if (!host_thunk_handle) {
+        fprintf(stderr, "loregrt: %s: failed to load HTL \"%s\": %s\n", buf, lib_data->htl, Lore_GetErrorMessage());
         return NULL;
     }
 
     // Load dependencies
     const char **deps = lib_data->dependencies;
     for (int i = 0; i < lib_data->dependencyCount; ++i) {
-        struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
+        struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], 1);
         if (!dep_lib_data) {
-            fprintf(stderr, "loregrt: failed to get data of dependency \"%s\"\n", deps[i]);
+            fprintf(stderr, "loregrt: %s: failed to get data of dependency \"%s\"\n", buf, deps[i]);
             continue;
         }
         const char *path = dep_lib_data->gtl;
@@ -42,7 +45,7 @@ void *Lore_LoadHostThunkLibrary(void *someAddr, int thunkCount, void **thunks) {
         if (!guest_handle) {
             guest_handle = dlopen(path, RTLD_NOW);
             if (!guest_handle) {
-                fprintf(stderr, "loregrt: failed to load dependency \"%s\"\n", path);
+                fprintf(stderr, "loregrt: %s: failed to load dependency \"%s\"\n", buf, path);
                 continue;
             }
         } else {
@@ -58,12 +61,12 @@ void *Lore_LoadHostThunkLibrary(void *someAddr, int thunkCount, void **thunks) {
 
 void Lore_FreeHostThunkLibrary(void *handle) {
     do {
-        const char *host_thunk_path = Lore_GetModulePath(handle, true);
+        const char *host_thunk_path = Lore_GetModulePath(handle, 1);
         if (!host_thunk_path) {
             break;
         }
 
-        struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_thunk_path, true);
+        struct LORE_THUNK_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_thunk_path, 1);
         if (!lib_data) {
             break;
         }
@@ -71,7 +74,7 @@ void Lore_FreeHostThunkLibrary(void *handle) {
         // Free dependencies
         const char **deps = lib_data->dependencies;
         for (int i = 0; i < lib_data->dependencyCount; ++i) {
-            struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], true);
+            struct LORE_THUNK_LIBRARY_DATA *dep_lib_data = Lore_GetLibraryData(deps[i], 1);
             if (!dep_lib_data) {
                 continue;
             }
@@ -82,7 +85,7 @@ void Lore_FreeHostThunkLibrary(void *handle) {
                 dlclose(guest_handle);
             }
         }
-    } while (false);
+    } while (0);
 
     // Free host thunk
     Lore_FreeHostThunkLibrary(handle);
@@ -96,12 +99,12 @@ void *Lore_GetHostThunkProcAddress(void *handle, const char *name) {
 }
 
 void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
-    const char *host_library_path = Lore_GetModulePath(addr, false);
+    const char *host_library_path = Lore_GetModulePath(addr, 0);
     if (!host_library_path) {
         return NULL;
     }
 
-    struct LORE_HOST_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_library_path, false);
+    struct LORE_HOST_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_library_path, 0);
     if (!lib_data) {
         return NULL;
     }
@@ -109,7 +112,7 @@ void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
     const char **thunks = lib_data->thunks;
     for (int i = 0; i < lib_data->thunksCount; ++i) {
         const char *thunkName = thunks[i];
-        struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data = Lore_GetLibraryData(thunkName, true);
+        struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data = Lore_GetLibraryData(thunkName, 1);
         if (!thunk_lib_data) {
             continue;
         }

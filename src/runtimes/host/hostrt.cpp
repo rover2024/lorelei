@@ -15,12 +15,15 @@
 #include <sstream>
 #include <utility>
 #include <filesystem>
+#include <set>
 
 #include <json11/json11.hpp>
 
 #include "loreuser.h"
 #include "lorehapi.h"
 #include "util.h"
+
+namespace fs = std::filesystem;
 
 static const char ENV_LORELEI_LIBRARY_DATA_FILE[] = "LORELEI_LIBRARY_DATA_FILE";
 
@@ -86,8 +89,8 @@ struct LoreHostLibraryData {
 struct LoreHostRuntimeContext {
     std::shared_mutex mtx;
 
-    std::string rootPath;
-    std::string dataFilePath;
+    std::filesystem::path rootPath;
+    std::filesystem::path dataFilePath;
 
     std::map<std::string, size_t> thunkNamesMap;
     std::map<std::string, size_t> hostNamesMap;
@@ -108,14 +111,24 @@ struct LoreHostRuntimeContext {
             fprintf(stderr, "lorehrt: required variable %s not set", ENV_LORELEI_ROOT);
             std::abort();
         }
-        rootPath = root;
+        if (!fs::is_directory(root)) {
+            fprintf(stderr, "lorehrt: %s: not a directory", root);
+            std::abort();
+        }
+        rootPath = fs::canonical(root);
 
         auto dataFile = getenv(ENV_LORELEI_LIBRARY_DATA_FILE);
         if (!dataFile) {
-            dataFilePath = rootPath + "/etc/lorelei/libs-" + LORELEI_ARCH_NAME + ".json";
+            dataFilePath = rootPath / (std::string("etc/lorelei/libs-") + LORELEI_ARCH_NAME + ".json");
         } else {
             dataFilePath = dataFile;
         }
+        if (!fs::is_regular_file(dataFilePath)) {
+            fprintf(stderr, "lorehrt: %s: not a regular file", dataFilePath.c_str());
+            std::abort();
+        }
+        dataFilePath = fs::canonical(dataFilePath);
+
         readLibraryDataFile();
     }
 
@@ -304,6 +317,7 @@ struct LoreHostRuntimeContext {
             }
         }
 
+        // Build C data
         for (size_t i = 0; i < thunkDataList.size(); i++) {
             auto &data = thunkDataList[i];
             thunkNamesMap[data.name] = i;
@@ -312,7 +326,6 @@ struct LoreHostRuntimeContext {
             }
             data.build_c_data();
         }
-
         for (size_t i = 0; i < hostDataList.size(); i++) {
             auto &data = hostDataList[i];
             hostNamesMap[data.name] = i;
@@ -320,6 +333,36 @@ struct LoreHostRuntimeContext {
                 hostNamesMap[alias] = i;
             }
             data.build_c_data();
+        }
+
+        // Build LD_LIBRARY_PATH
+        {
+            std::vector<std::string> pathList;
+            std::set<std::string> pathSet;
+            const auto &addPath = [&pathList, &pathSet](const fs::path &path) {
+                if (fs::is_directory(path)) {
+                    std::string canonicalPath = fs::canonical(path).string();
+                    if (!pathSet.count(canonicalPath)) {
+                        pathList.push_back(canonicalPath);
+                        pathSet.insert(canonicalPath);
+                    }
+                }
+            };
+
+            addPath(rootPath / "lib");
+
+            auto orgPathListStr = getenv("LD_LIBRARY_PATH");
+            if (orgPathListStr) {
+                for (const auto &item : Util::SplitString(orgPathListStr, ":")) {
+                    addPath(fs::path(item));
+                }
+            }
+
+            for (const auto &item : std::as_const(thunkDataList)) {
+                addPath(fs::path(item.hl).parent_path());
+            }
+
+            setenv("LD_LIBRARY_PATH", Util::JoinString(pathList, ":").c_str(), true);
         }
     }
 };
@@ -389,7 +432,7 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
 #endif
         case LOREUSER_CT_GetLibraryData: {
             auto path = (char *) (args[0]);
-            bool isGuest = (intptr_t) (args[1]);
+            int isGuest = (intptr_t) (args[1]);
             *(void **) ret = Lore_HrtGetLibraryData(path, isGuest);
             break;
         }
@@ -407,7 +450,13 @@ void *Lore_GetFPExecuteCallback() {
     return (void *) contextInstance.emuApis.ExecuteCallback;
 }
 
-void *Lore_HrtGetLibraryData(const char *path, bool isThunk) {
+void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
+    {
+        void *Lore_RevealLibraryPath = dlsym(NULL, "Lore_RevealLibraryPath");
+        void *Lore_HrtGetLibraryThunks = dlsym(NULL, "Lore_HrtGetLibraryThunks");
+        void *Lore_HrtGetEmuApis = dlsym(NULL, "Lore_HrtGetEmuApis");
+        void *Lore_HrtSetThreadCallback = dlsym(NULL, "Lore_HrtSetThreadCallback");
+    }
     char nameBuf[PATH_MAX];
     Lore_GetLibraryName(nameBuf, path);
 
@@ -417,7 +466,7 @@ void *Lore_HrtGetLibraryData(const char *path, bool isThunk) {
     }
 
     if (isThunk) {
-        auto it = contextInstance.thunkNamesMap.find(path);
+        auto it = contextInstance.thunkNamesMap.find(name);
         if (it == contextInstance.thunkNamesMap.end()) {
             return nullptr;
         }
@@ -431,7 +480,7 @@ void *Lore_HrtGetLibraryData(const char *path, bool isThunk) {
     return &contextInstance.hostDataList[it->second].c_data;
 }
 
-void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest) {
+void *Lore_HrtGetLibraryThunks(const char *path, int isGuest) {
     auto lib_data = (struct LORE_THUNK_LIBRARY_DATA *) Lore_HrtGetLibraryData(path, true);
     if (!lib_data) {
         return nullptr;
@@ -445,17 +494,20 @@ void *Lore_HrtGetLibraryThunks(const char *path, bool isGuest) {
 void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks) {
     char buf[PATH_MAX];
     if (!Lore_RevealLibraryPath(buf, someAddr, true)) {
+        fprintf(stderr, "lorehrt: %p: failed to reveal library path\n", someAddr);
         return nullptr;
     }
 
     auto lib_data = (struct LORE_THUNK_LIBRARY_DATA *) Lore_HrtGetLibraryData(buf, true);
     if (!lib_data) {
+        fprintf(stderr, "lorehrt: %s: failed to get library data\n", buf);
         return nullptr;
     }
 
     // Load host
     auto handle = dlopen(lib_data->hl, RTLD_NOW);
     if (!handle) {
+        fprintf(stderr, "lorehrt: %s: failed to load host library \"%s\": %s\n", buf, lib_data->hl, dlerror());
         return nullptr;
     }
 

@@ -23,21 +23,21 @@ static const char *PathGetName(const char *path) {
     return slashPos + 1;
 }
 
-bool Lore_RevealLibraryPath(char *buffer, const void *addr, bool followSymlink) {
+int Lore_RevealLibraryPath(char *buffer, const void *addr, int followSymlink) {
     Dl_info info;
     dladdr(addr, &info);
 
     if (!followSymlink) {
         strcpy(buffer, info.dli_fname);
-        return true;
+        return 1;
     }
 
     char path[PATH_MAX];
     if (!realpath(info.dli_fname, path)) {
-        return false;
+        return 0;
     }
     strcpy(buffer, path);
-    return true;
+    return 1;
 }
 
 void Lore_GetLibraryName(char *buffer, const char *path) {
@@ -54,7 +54,8 @@ void Lore_GetLibraryName(char *buffer, const char *path) {
     if (!end) {
         end = path + len;
     }
-    strncpy(buffer, start, end - start);
+    memcpy(buffer, start, end - start);
+    buffer[end - start] = '\0';
 }
 
 int Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTRY *out) {

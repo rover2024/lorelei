@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include <lorelei/loreuser.h>
@@ -82,7 +81,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
 
     // 1. Load library
     char path[PATH_MAX];
-    if (!Lore_RevealLibraryPath(path, LoreLib_Inititialize, false)) {
+    if (!Lore_RevealLibraryPath(path, LoreLib_Inititialize, 0)) {
         fprintf(stderr, "Unknown GTL: failed to get library path\n");
         abort();
     }

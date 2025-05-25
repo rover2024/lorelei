@@ -4,7 +4,7 @@ function(lorelei_add_simple_library _target)
     target_include_directories(${_target} PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/..>"
     )
-    target_compile_options(${_target} PRIVATE -fPIC)
+    target_compile_options(${_target} PRIVATE -fPIC -fvisibility=hidden)
 endfunction()
 
 function(lorelei_install_program _target)
