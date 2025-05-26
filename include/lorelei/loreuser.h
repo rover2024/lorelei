@@ -115,7 +115,7 @@ LORELEI_EXPORT void Lore_CallHostHelper(int id, void **args, void *ret);
 //
 // Guest thunk utility APIs
 //
-LORELEI_EXPORT void *Lore_LoadHostThunkLibrary(void *someAddr, int thunkCount, void **thunks);
+LORELEI_EXPORT void *Lore_LoadHostThunkLibrary(void *someAddr);
 
 LORELEI_EXPORT void Lore_FreeHostThunkLibrary(void *handle);
 

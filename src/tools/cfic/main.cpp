@@ -56,7 +56,6 @@ public:
 
     std::filesystem::path WorkingDirectory;
 
-    std::string Identifier = "unknown";
     std::string OutputPath;
 };
 
@@ -246,7 +245,7 @@ __attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib
         (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                        \
     })
 )",
-                            fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()), GlobalContext.Identifier.c_str());
+                            fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()));
         out << "\n";
 
         // 2. Generate forward declarations
@@ -298,9 +297,6 @@ static cl::OptionCategory FPExprCategory("cfi compiler");
 
 static cl::opt<bool> ExpandOption("e", cl::desc("Expand macros"), cl::cat(FPExprCategory));
 
-static cl::opt<std::string> IdentifierOption("i", cl::desc("Specify identifier"), cl::value_desc("id"),
-                                             cl::cat(FPExprCategory));
-
 static cl::opt<std::string> ConfigOption("c", cl::desc("Specify configuration file"), cl::value_desc("config"),
                                          cl::cat(FPExprCategory));
 
@@ -318,9 +314,6 @@ int main(int argc, const char *argv[]) {
 
     GlobalContext.WorkingDirectory = fs::current_path();
 
-    if (auto Identifier = IdentifierOption.getValue(); !Identifier.empty()) {
-        GlobalContext.Identifier = IdentifierOption.getValue();
-    }
     if (auto ConfigPath = ConfigOption.getValue(); !ConfigPath.empty()) {
         GlobalContext.Config = CFICConfig::parse(ConfigPath);
     }

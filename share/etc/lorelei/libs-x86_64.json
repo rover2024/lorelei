@@ -1,6 +1,21 @@
 {
     "thunks": [
         {
+            "name": "libSDL2",
+            "alias": [
+                "libSDL2-2.0"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libSDL2.so",
+            "htl": "@/lib/x86_64-lore-host/libSDL2_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/SDL/build/install/lib/libSDL2-2.0.so"
+        },
+        {
+            "name": "libz",
+            "gtl": "@/lib/x86_64-lore-guest/libz.so",
+            "htl": "@/lib/x86_64-lore-host/libz_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/zlib/build/install/lib/libz.so"
+        },
+        {
             "name": "libOpenGL",
             "gtl": "@/lib/x86_64-lore-guest/libOpenGL.so",
             "htl": "@/lib/x86_64-lore-host/libOpenGL_HTL.so",
@@ -8,8 +23,8 @@
         },
         {
             "name": "libGL",
-            "gtl": "@/lib/x86_64-lore-guest/libOpenGL.so",
-            "htl": "@/lib/x86_64-lore-host/libOpenGL_HTL.so",
+            "gtl": "@/lib/x86_64-lore-guest/libGL.so",
+            "htl": "@/lib/x86_64-lore-host/libGL_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libGL.so.1.7.0"
         },
         {
@@ -19,13 +34,28 @@
             "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so.2.1"
         },
         {
-            "name": "libSDL2",
-            "alias": [
-                "libSDL2-2.0"
+            "name": "libvorbis",
+            "gtl": "@/lib/x86_64-lore-guest/libvorbis.so",
+            "htl": "@/lib/x86_64-lore-host/libvorbis_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/vorbis/build/install/lib/libvorbis.so"
+        },
+        {
+            "name": "libvorbisenc",
+            "dependencies": [
+                "libvorbis"
             ],
-            "gtl": "@/lib/x86_64-lore-guest/libSDL2-2.0.so",
-            "htl": "@/lib/x86_64-lore-host/libSDL2-2.0_HTL.so",
-            "hl": "/home/overworld/Documents/rover2024/SDL/build/install/lib/libSDL2-2.0.so"
+            "gtl": "@/lib/x86_64-lore-guest/libvorbisenc.so",
+            "htl": "@/lib/x86_64-lore-host/libvorbisenc_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/vorbis/build/install/lib/libvorbisenc.so"
+        },
+        {
+            "name": "libvorbisfile",
+            "dependencies": [
+                "libvorbis"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libvorbisfile.so",
+            "htl": "@/lib/x86_64-lore-host/libvorbisfile_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/vorbis/build/install/lib/libvorbisfile.so"
         }
     ],
     "host": [
@@ -33,7 +63,8 @@
             "name": "libGLdispatch",
             "fileName": "libGLdispatch.so.0.0.0",
             "thunks": [
-                "libOpenGL"
+                "libOpenGL",
+                "libGL"
             ]
         }
     ]

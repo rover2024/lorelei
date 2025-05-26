@@ -40,13 +40,11 @@ def get_name_without_ext(path: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description='Read compile commands and add CFIs.')
-    parser.add_argument('id', type=str, help='Project ID.')
     parser.add_argument('tool_dir', type=str, help='Directory of Lorelei CFI tools.')
     parser.add_argument('callbacks_file', type=str, help='File contains list of callbacks.')
     parser.add_argument('compile_commands', type=str, help='Compile commands file path.')
     args = parser.parse_args()
 
-    id: str = args.id
     tool_dir: str = os.path.abspath(args.tool_dir)
     callbacks_file: str = os.path.abspath(args.callbacks_file)
     compile_commands_file: str = os.path.abspath(args.compile_commands)
@@ -143,7 +141,7 @@ def main():
 
         # 4. Run CFIC
         if True:
-            cmds = [ cfic_tool, '-i', id, '-c', callbacks_file, '-o', source_file, temp_file_new, '--' ] + args_no_output
+            cmds = [ cfic_tool, '-c', callbacks_file, '-o', source_file, temp_file_new, '--' ] + args_no_output
             run_command(cmds, dir)
 
         # sys.exit(1)

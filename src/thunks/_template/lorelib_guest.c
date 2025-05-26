@@ -85,7 +85,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
         fprintf(stderr, "Unknown GTL: failed to get library path\n");
         abort();
     }
-    void *handle = Lore_LoadHostThunkLibrary(LoreLib_Inititialize, LoreLib_ApiEnumSize, LoreLib_API_GTPs);
+    void *handle = Lore_LoadHostThunkLibrary(LoreLib_Inititialize);
     if (!handle) {
         fprintf(stderr, "%s: GTL: failed to load HTL\n", path);
         abort();

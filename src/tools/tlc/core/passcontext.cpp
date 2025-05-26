@@ -902,7 +902,7 @@ namespace TLC {
             std::stringstream ss;
 
             char *warning;
-            asprintf(&warning, GENERATED_WARNING, InputFileName.c_str());
+            assert(asprintf(&warning, GENERATED_WARNING, InputFileName.c_str()) > 0);
             ss << warning;
             free(warning);
 
@@ -937,7 +937,7 @@ namespace TLC {
             std::stringstream ss;
 
             char *warning;
-            asprintf(&warning, GENERATED_WARNING, InputFileName.c_str());
+            assert(asprintf(&warning, GENERATED_WARNING, InputFileName.c_str()) > 0);
             ss << warning;
             free(warning);
 

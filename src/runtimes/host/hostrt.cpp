@@ -57,10 +57,14 @@ struct LoreThunkLibraryData {
         c_data.gtl = gtl.data();
         c_data.htl = htl.data();
         c_data.hl = hl.data();
+
         c_data_dependencies.reserve(dependencies.size());
         for (const auto &item : std::as_const(dependencies)) {
             c_data_dependencies.push_back(item.data());
         }
+
+        c_data.dependencyCount = c_data_dependencies.size();
+        c_data.dependencies = c_data_dependencies.data();
     }
 };
 
@@ -77,6 +81,7 @@ struct LoreHostLibraryData {
     void build_c_data() {
         c_data.name = name.data();
         c_data.fileName = fileName.data();
+
         c_data_thunks.reserve(thunks.size());
         for (const auto &item : std::as_const(thunks)) {
             c_data_thunks.push_back(item.data());
@@ -312,7 +317,6 @@ struct LoreHostRuntimeContext {
                     }
                 }
 
-                result.build_c_data();
                 hostDataList.push_back(result);
             }
         }
@@ -452,7 +456,8 @@ void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
     Lore_GetLibraryName(nameBuf, path);
 
     std::string name(nameBuf);
-    if (std::string_view(name).substr(name.size() - 4, 4) == "_HTL") {
+    if (auto name_view = std::string_view(name);
+        name_view.size() > 4 && name_view.substr(name.size() - 4, 4) == "_HTL") {
         name = name.substr(0, name.size() - 4);
     }
 
@@ -464,25 +469,14 @@ void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
         return &LoreHrtCtx.thunkDataList[it->second].c_data;
     }
 
-    auto it = LoreHrtCtx.hostNamesMap.find(path);
+    auto it = LoreHrtCtx.hostNamesMap.find(name);
     if (it == LoreHrtCtx.hostNamesMap.end()) {
         return nullptr;
     }
     return &LoreHrtCtx.hostDataList[it->second].c_data;
 }
 
-void *Lore_HrtGetLibraryThunks(const char *path, int isGuest) {
-    auto lib_data = (struct LORE_THUNK_LIBRARY_DATA *) Lore_HrtGetLibraryData(path, true);
-    if (!lib_data) {
-        return nullptr;
-    }
-    if (isGuest) {
-        return lib_data->guestThunks;
-    }
-    return lib_data->hostThunks;
-}
-
-void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks) {
+void *Lore_LoadHostLibrary(void *someAddr) {
     char buf[PATH_MAX];
     if (!Lore_RevealLibraryPath(buf, someAddr, true)) {
         fprintf(stderr, "lorehrt: %p: failed to reveal library path\n", someAddr);
@@ -501,9 +495,6 @@ void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks) {
         fprintf(stderr, "lorehrt: %s: failed to load host library \"%s\": %s\n", buf, lib_data->hl, dlerror());
         return nullptr;
     }
-
-    lib_data->hostThunkCount = thunkCount;
-    lib_data->hostThunks = thunks;
     return handle;
 }
 

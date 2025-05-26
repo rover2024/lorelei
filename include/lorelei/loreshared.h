@@ -19,14 +19,6 @@ struct LORE_THUNK_LIBRARY_DATA {
 
     int dependencyCount;
     const char **dependencies;
-
-    // will be set by GTL
-    int guestThunkCount;
-    void **guestThunks;
-
-    // will be set by HTL
-    int hostThunkCount;
-    void **hostThunks;
 };
 
 struct LORE_HOST_LIBRARY_DATA {

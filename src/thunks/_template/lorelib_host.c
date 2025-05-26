@@ -88,7 +88,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
         fprintf(stderr, "Unknown HTL: failed to get library path\n");
         abort();
     }
-    void *handle = Lore_LoadHostLibrary(LoreLib_Inititialize, LoreLib_ApiEnumSize, LoreLib_API_HTPs);
+    void *handle = Lore_LoadHostLibrary(LoreLib_Inititialize);
     if (!handle) {
         fprintf(stderr, "%s: HTL: failed to load host library\n", path);
         abort();

@@ -20,13 +20,11 @@ LORELEI_EXPORT void Lore_HrtSetThreadCallback(void *callback);
 
 LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, int isThunk);
 
-LORELEI_EXPORT void *Lore_HrtGetLibraryThunks(const char *path, int isGuest);
-
 
 //
 // Guest thunk utility APIs
 //
-LORELEI_EXPORT void *Lore_LoadHostLibrary(void *someAddr, int thunkCount, void **thunks);
+LORELEI_EXPORT void *Lore_LoadHostLibrary(void *someAddr);
 
 LORELEI_EXPORT void Lore_FreeHostLibrary(void *handle);
 
