@@ -33,12 +33,6 @@ function(lorelib_add_sub_project _subdir)
         set_target_properties(${LORELEI_GUEST_PROJECT} PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${LORELEI_GUEST_ARCH}-lore-guest
         )
-
-        if(LORELEI_INSTALL)
-            install(TARGETS ${LORELEI_GUEST_PROJECT}
-                LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${LORELEI_GUEST_ARCH}-lore-guest" OPTIONAL
-            )
-        endif()
     endif()
 
     # Host
@@ -53,18 +47,13 @@ function(lorelib_add_sub_project _subdir)
         set_target_properties(${LORELEI_HOST_PROJECT} PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${LORELEI_HOST_ARCH}-lore-host
         )
-
-        if(LORELEI_INSTALL)
-            install(TARGETS ${LORELEI_HOST_PROJECT}
-                LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${LORELEI_HOST_ARCH}-lore-host" OPTIONAL
-            )
-        endif()
     endif()
 
-    set(LORELEI_GUEST_SYMLINKS)
-    set(LORELEI_HOST_SYMLINKS)
-    set(LORELEI_TLC_OPTIONS)
-    set(LORELEI_TLC_IGNORE FALSE)
+    set(LORELIB_GUEST_SYMLINKS)
+    set(LORELIB_HOST_SYMLINKS)
+    set(LORELIB_TLC_OPTIONS)
+    set(LORELIB_TLC_IGNORE FALSE)
+    set(LORELIB_SKIP_INSTALL FALSE)
 
     # Add options
     if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/${_subdir}/options.cmake")
@@ -72,47 +61,65 @@ function(lorelib_add_sub_project _subdir)
     endif()
 
     if(LORELEI_ENABLE_GUEST)
-        if(LORELEI_GUEST_SYMLINKS)
-            foreach(_item IN LISTS LORELEI_GUEST_SYMLINKS)
+        if(LORELEI_INSTALL AND NOT LORELIB_SKIP_INSTALL)
+            install(TARGETS ${LORELEI_GUEST_PROJECT}
+                LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${LORELEI_GUEST_ARCH}-lore-guest" OPTIONAL
+            )
+        endif()
+
+        if(LORELIB_GUEST_SYMLINKS)
+            foreach(_item IN LISTS LORELIB_GUEST_SYMLINKS)
                 add_custom_command(TARGET ${LORELEI_GUEST_PROJECT} POST_BUILD
                     COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_GUEST_PROJECT}> ${_item}
                     WORKING_DIRECTORY $<TARGET_FILE_DIR:${LORELEI_GUEST_PROJECT}>
                 )
-                install(CODE "
-                    execute_process(
-                        COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_GUEST_PROJECT}> ${_item}
-                        WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${LORELEI_GUEST_ARCH}-lore-guest
-                    )
-                ")
+
+                if(LORELEI_INSTALL AND NOT LORELIB_SKIP_INSTALL)
+                    install(CODE "
+                        execute_process(
+                            COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_GUEST_PROJECT}> ${_item}
+                            WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${LORELEI_GUEST_ARCH}-lore-guest
+                        )
+                    ")
+                endif()
             endforeach()
         endif()
     endif()
 
     if(LORELEI_ENABLE_HOST)
-        if(LORELEI_HOST_SYMLINKS)
-            foreach(_item IN LISTS LORELEI_HOST_SYMLINKS)
+        if(LORELEI_INSTALL AND NOT LORELIB_SKIP_INSTALL)
+            install(TARGETS ${LORELEI_HOST_PROJECT}
+                LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${LORELEI_HOST_ARCH}-lore-host" OPTIONAL
+            )
+        endif()
+
+        if(LORELIB_HOST_SYMLINKS)
+            foreach(_item IN LISTS LORELIB_HOST_SYMLINKS)
                 add_custom_command(TARGET ${LORELEI_HOST_PROJECT} POST_BUILD
                     COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_HOST_PROJECT}> ${_item}
                     WORKING_DIRECTORY $<TARGET_FILE_DIR:${LORELEI_HOST_PROJECT}>
                 )
-                install(CODE "
-                    execute_process(
-                        COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_HOST_PROJECT}> ${_item}
-                        WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${LORELEI_HOST_ARCH}-lore-host
-                    )
-                ")
+
+                if(LORELEI_INSTALL AND NOT LORELIB_SKIP_INSTALL)
+                    install(CODE "
+                        execute_process(
+                            COMMAND ln -sf $<TARGET_FILE_NAME:${LORELEI_HOST_PROJECT}> ${_item}
+                            WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${LORELEI_HOST_ARCH}-lore-host
+                        )
+                    ")
+                endif()
             endforeach()
         endif()
     endif()
 
-    if(NOT LORELEI_TLC_IGNORE)
+    if(NOT LORELIB_TLC_IGNORE)
         set(_common_tlc_options
             -I.
             -I${LORELEI_SOURCE_DIR}/include
         )
 
         add_custom_command(TARGET generate_thunks POST_BUILD
-            COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.c -- ${_common_tlc_options} ${LORELEI_TLC_OPTIONS}
+            COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.c -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${_subdir}
         )
     endif()

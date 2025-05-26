@@ -45,11 +45,14 @@ public:
         if (!call)
             return;
 
+        // llvm::outs() << call->getBeginLoc().printToString(*Result.SourceManager) << "\n";
+
         const Expr *calleeExpr = call->getCallee()->IgnoreImpCasts();
         if (!calleeExpr)
             return;
 
-        QualType type = calleeExpr->getType();
+        QualType type = calleeExpr->getType().getCanonicalType();
+        // llvm::outs() << type->getTypeClassName() << ": " << type.getAsString() << "\n";
         if (!type->isFunctionPointerType() && !type->isBlockPointerType() && !type->isMemberFunctionPointerType())
             return;
 
@@ -118,6 +121,10 @@ public:
             if (!SM.isInMainFile(Loc)) {
                 continue;
             }
+
+            llvm::outs() << Loc.printToString(SM) << ": "
+                         << Lexer::getSourceText(CharSourceRange::getTokenRange(Loc), SM, LangOpts) << "\n";
+
             if (!SM.isMacroBodyExpansion(Loc) && !SM.isMacroArgExpansion(Loc)) {
                 continue;
             }

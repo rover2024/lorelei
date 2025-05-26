@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> macros;
     {
-        static std::regex re(R"(/\*__LORELEI_MACRO_BEGIN__\*/(.+?)/\*__LORELEI_MACRO_END__\*/)");
+        static std::regex re(R"(/\*__LORELEI_MACRO_BEGIN__\*/([\s\S]+?)/\*__LORELEI_MACRO_END__\*/)");
 
         auto begin = std::sregex_iterator(pp_str.begin(), pp_str.end(), re);
         auto end = std::sregex_iterator();
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         }
         std::string org_str = {std::istreambuf_iterator<char>(org_file), std::istreambuf_iterator<char>()};
 
-        static std::regex re(R"(/\*__LORELEI_MACRO_BEGIN__\*/(.+?)/\*__LORELEI_MACRO_END__\*/)");
+        static std::regex re(R"(/\*__LORELEI_MACRO_BEGIN__\*/([\s\S]+?)/\*__LORELEI_MACRO_END__\*/)");
         std::smatch match;
 
         auto cur = org_str.cbegin();

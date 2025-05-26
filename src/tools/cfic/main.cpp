@@ -76,7 +76,7 @@ public:
         if (!calleeExpr)
             return;
 
-        QualType type = calleeExpr->getType();
+        QualType type = calleeExpr->getType().getCanonicalType();
         if (!type->isFunctionPointerType() && !type->isBlockPointerType() && !type->isMemberFunctionPointerType())
             return;
 

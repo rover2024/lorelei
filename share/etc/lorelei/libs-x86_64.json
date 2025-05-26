@@ -19,19 +19,25 @@
             "name": "libOpenGL",
             "gtl": "@/lib/x86_64-lore-guest/libOpenGL.so",
             "htl": "@/lib/x86_64-lore-host/libOpenGL_HTL.so",
-            "hl": "/usr/lib/x86_64-linux-gnu/libOpenGL.so.0.0.0"
+            "hl": "/usr/lib/x86_64-linux-gnu/libOpenGL.so"
         },
         {
             "name": "libGL",
             "gtl": "@/lib/x86_64-lore-guest/libGL.so",
             "htl": "@/lib/x86_64-lore-host/libGL_HTL.so",
-            "hl": "/usr/lib/x86_64-linux-gnu/libGL.so.1.7.0"
+            "hl": "/usr/lib/x86_64-linux-gnu/libGL.so"
         },
         {
             "name": "libGLEW",
             "gtl": "@/lib/x86_64-lore-guest/libGLEW.so",
             "htl": "@/lib/x86_64-lore-host/libGLEW_HTL.so",
-            "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so.2.1"
+            "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so"
+        },
+        {
+            "name": "libGLX",
+            "gtl": "@/lib/x86_64-lore-guest/libGLX.so",
+            "htl": "@/lib/x86_64-lore-host/libGLX_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libGLX.so"
         },
         {
             "name": "libvorbis",
