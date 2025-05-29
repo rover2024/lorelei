@@ -50,7 +50,7 @@ if(LORELEI_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
-if(LORELEI_BUILD_TOOLS AND LORELEI_BUILD_THUNKS)
+if(LORELEI_BUILD_THUNKS)
     add_subdirectory(thunks)
 endif()
 

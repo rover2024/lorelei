@@ -1,5 +1,4 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#include <libavdevice/avdevice.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -20,8 +19,6 @@
 // Annotations
 //
 #ifdef LORELIB_VISUAL
-void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va_list arg4)
-    LORELIB_ANNOTATE("@vprintf:3,4");
 #endif
 
 

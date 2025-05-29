@@ -1,5 +1,15 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#include <libavcodec/avcodec.h>
+#include <libavcodec/bsf.h>
+#include <libavcodec/mediacodec.h>
+#include <libavcodec/avdct.h>
+#include <libavcodec/jni.h>
+#include <libavcodec/adts_parser.h>
+#include <libavcodec/dv_profile.h>
+#include <libavcodec/vorbis_parser.h>
+// #include <libavcodec/qsv.h>
+#include <libavcodec/ac3_parser.h>
+// #include <libavcodec/d3d11va.h>
+#include <libavcodec/dirac.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -20,8 +30,6 @@
 // Annotations
 //
 #ifdef LORELIB_VISUAL
-void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va_list arg4)
-    LORELIB_ANNOTATE("@vprintf:3,4");
 #endif
 
 

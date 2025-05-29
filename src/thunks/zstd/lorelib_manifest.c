@@ -1,5 +1,12 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#define ZSTD_STATIC_LINKING_ONLY
+#define ZDICT_STATIC_LINKING_ONLY
+#include <zstd.h>
+#include <zstd_errors.h>
+#include <zdict.h>
+
+#include "pool.h"
+#include "huf.h"
+#include "xxhash.h"
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -20,8 +27,6 @@
 // Annotations
 //
 #ifdef LORELIB_VISUAL
-void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va_list arg4)
-    LORELIB_ANNOTATE("@vprintf:3,4");
 #endif
 
 
@@ -30,6 +35,11 @@ void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va
 // Custom(Guest)
 //
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
+
+#  ifdef gzgetc
+#    undef gzgetc
+#  endif
+
 #endif
 
 

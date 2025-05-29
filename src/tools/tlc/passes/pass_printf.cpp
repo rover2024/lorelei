@@ -11,7 +11,7 @@ using namespace clang;
 
 namespace TLC {
 
-    static void start_Normal(ApiSource &Source, int FirstArg, bool scanf, bool va = false) {
+    static void start_Normal(ApiSource &Source, int FmtIdx, int VArgIdx, bool scanf, bool va = false) {
         auto HelperFunc = scanf ? "Lore_ExtractScanFArgs" : "Lore_ExtractPrintFArgs";
 
         auto ApiReturnType = Source.getApiReturnType();
@@ -24,6 +24,8 @@ namespace TLC {
         auto &HTP = Source.getFunctionSource(FunctionSource::HTP);
         auto &HTP_IMPL = Source.getFunctionSource(FunctionSource::HTP_IMPL);
 
+        int FixedArgCount = va ? (ApiArgTypes.size() - 1) : ApiArgTypes.size();
+
         // GTP
         if (!GTP.getFunctionDecl()) {
             // prolog
@@ -31,12 +33,12 @@ namespace TLC {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
-                    ss << "    " << HelperFunc << "(arg" << FirstArg << ", arg" << FirstArg + 1 << ", vargs1);\n";
+                    ss << "    " << HelperFunc << "(arg" << FmtIdx << ", arg" << VArgIdx << ", vargs1);\n";
                 } else {
                     ss << "    {\n";
                     ss << "        va_list ap;\n";
-                    ss << "        va_start(ap, arg" << FirstArg << ");\n";
-                    ss << "        " << HelperFunc << "(arg" << FirstArg << ", ap, vargs1);\n";
+                    ss << "        va_start(ap, arg" << VArgIdx - 1 << ");\n";
+                    ss << "        " << HelperFunc << "(arg" << FmtIdx << ", ap, vargs1);\n";
                     ss << "        va_end(ap);\n";
                     ss << "    }\n";
                 }
@@ -50,7 +52,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << GTP_IMPL.getName().str() << "(" + getCallArgsString(ApiArgTypes.size()) << ", vargs1);\n";
+                ss << GTP_IMPL.getName().str() << "(" + getCallArgsString(FixedArgCount) << ", vargs1);\n";
                 GTP.setBody(ss.str());
             }
         }
@@ -62,7 +64,7 @@ namespace TLC {
                 GTP_IMPL.setReturnValue({getTypeString(ApiReturnType), {}, {}});
 
                 SmallVector<FunctionSource::Param> Args;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -78,7 +80,7 @@ namespace TLC {
                 }
 
                 ss << "    void *args[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        (void *) &arg" << i + 1 << ",\n";
                 }
                 ss << "    };\n";
@@ -114,11 +116,11 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "    __auto_type arg" << i + 1 //
                        << " = *(__typeof__(" << getTypeString(ApiArgTypes[i]) << ") *) args[" << i << "];\n";
                 }
-                ss << "    __auto_type vargs1 = (struct LORE_VARG_ENTRY *) metadata[0];\n";
+                ss << "    __auto_type vargs1 = *(struct LORE_VARG_ENTRY **) metadata[0];\n";
                 if (!isVoid) {
                     ss << "    __auto_type ret_ref = (__typeof__(" << getTypeString(ApiReturnType) << ") *) ret;\n";
                 }
@@ -132,7 +134,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "*ret_ref = ";
                 }
-                ss << HTP_IMPL.getName().str() << "(" << getCallArgsString(ApiArgTypes.size()) << ", vargs1);\n";
+                ss << HTP_IMPL.getName().str() << "(" << getCallArgsString(FixedArgCount) << ", vargs1);\n";
                 HTP.setBody(ss.str());
             }
         }
@@ -144,7 +146,7 @@ namespace TLC {
                 HTP_IMPL.setReturnValue({getTypeString(ApiReturnType), {}, {}});
 
                 SmallVector<FunctionSource::Param> Args;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -155,7 +157,7 @@ namespace TLC {
             {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
                 }
                 ss << "    };\n";
@@ -177,7 +179,7 @@ namespace TLC {
         }
     }
 
-    static void start_GuestCallback(ApiSource &Source, int FirstArg, bool scanf, bool va = false) {
+    static void start_GuestCallback(ApiSource &Source, int FmtIdx, int VArgIdx, bool scanf, bool va = false) {
         auto HelperFunc = scanf ? "Lore_ExtractScanFArgs" : "Lore_ExtractPrintFArgs";
 
         auto ApiReturnType = Source.getApiReturnType();
@@ -190,16 +192,18 @@ namespace TLC {
         auto &HTP = Source.getFunctionSource(FunctionSource::HTP);
         auto &HTP_IMPL = Source.getFunctionSource(FunctionSource::HTP_IMPL);
 
+        int FixedArgCount = va ? (ApiArgTypes.size() - 1) : ApiArgTypes.size();
+
         // GTP
         if (!GTP.getFunctionDecl()) {
             // prolog
             {
                 std::stringstream ss;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "    __auto_type arg" << i + 1 //
                        << " = *(__typeof__(" << getTypeString(ApiArgTypes[i]) << ") *) args[" << i << "];\n";
                 }
-                ss << "    __auto_type vargs1 = (struct LORE_VARG_ENTRY *) metadata[0];\n";
+                ss << "    __auto_type vargs1 = *(struct LORE_VARG_ENTRY **) metadata[0];\n";
                 if (!isVoid) {
                     ss << "    __auto_type ret_ref = (__typeof__(" << getTypeString(ApiReturnType) << ") *) ret;\n";
                 }
@@ -213,7 +217,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "*ret_ref = ";
                 }
-                ss << GTP_IMPL.getName().str() << "(callback" << getCallArgsString(ApiArgTypes.size(), true)
+                ss << GTP_IMPL.getName().str() << "(callback" << getCallArgsString(FixedArgCount, true)
                    << ", vargs1);\n";
                 GTP.setBody(ss.str());
             }
@@ -227,7 +231,7 @@ namespace TLC {
 
                 SmallVector<FunctionSource::Param> Args;
                 Args.push_back({"void *", "callback", {}});
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -238,7 +242,7 @@ namespace TLC {
             {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
                 }
                 ss << "    };\n";
@@ -266,12 +270,12 @@ namespace TLC {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
-                    ss << "    " << HelperFunc << "(arg" << FirstArg << ", arg" << FirstArg + 1 << ", vargs1);\n";
+                    ss << "    " << HelperFunc << "(arg" << FmtIdx << ", arg" << VArgIdx << ", vargs1);\n";
                 } else {
                     ss << "    {\n";
                     ss << "        va_list ap;\n";
-                    ss << "        va_start(ap, arg" << FirstArg << ");\n";
-                    ss << "        " << HelperFunc << "(arg" << FirstArg << ", ap, vargs1);\n";
+                    ss << "        va_start(ap, arg" << VArgIdx - 1 << ");\n";
+                    ss << "        " << HelperFunc << "(arg" << FmtIdx << ", ap, vargs1);\n";
                     ss << "        va_end(ap);\n";
                     ss << "    }\n";
                 }
@@ -285,7 +289,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << HTP_IMPL.getName().str() << "(" + getCallArgsString(ApiArgTypes.size()) << ", vargs1);\n";
+                ss << HTP_IMPL.getName().str() << "(" + getCallArgsString(FixedArgCount) << ", vargs1);\n";
                 HTP.setBody(ss.str());
             }
         }
@@ -297,7 +301,7 @@ namespace TLC {
                 HTP_IMPL.setReturnValue({getTypeString(ApiReturnType), {}, {}});
 
                 SmallVector<FunctionSource::Param> Args;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -313,7 +317,7 @@ namespace TLC {
                 }
 
                 ss << "    void *args[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        (void *) &arg" << i + 1 << ",\n";
                 }
                 ss << "    };\n";
@@ -345,7 +349,7 @@ namespace TLC {
         }
     }
 
-    static void start_HostCallback(ApiSource &Source, int FirstArg, bool scanf, bool va = false) {
+    static void start_HostCallback(ApiSource &Source, int FmtIdx, int VArgIdx, bool scanf, bool va = false) {
         auto HelperFunc = scanf ? "Lore_ExtractScanFArgs" : "Lore_ExtractPrintFArgs";
 
         auto ApiReturnType = Source.getApiReturnType();
@@ -358,6 +362,8 @@ namespace TLC {
         auto &HTP = Source.getFunctionSource(FunctionSource::HTP);
         auto &HTP_IMPL = Source.getFunctionSource(FunctionSource::HTP_IMPL);
 
+        int FixedArgCount = va ? (ApiArgTypes.size() - 1) : ApiArgTypes.size();
+
         // GTP
         if (!GTP.getFunctionDecl()) {
             // prolog
@@ -365,12 +371,12 @@ namespace TLC {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
-                    ss << "    " << HelperFunc << "(arg" << FirstArg << ", arg" << FirstArg + 1 << ", vargs1);\n";
+                    ss << "    " << HelperFunc << "(arg" << FmtIdx << ", arg" << VArgIdx << ", vargs1);\n";
                 } else {
                     ss << "    {\n";
                     ss << "        va_list ap;\n";
-                    ss << "        va_start(ap, arg" << FirstArg << ");\n";
-                    ss << "        " << HelperFunc << "(arg" << FirstArg << ", ap, vargs1);\n";
+                    ss << "        va_start(ap, arg" << VArgIdx - 1 << ");\n";
+                    ss << "        " << HelperFunc << "(arg" << FmtIdx << ", ap, vargs1);\n";
                     ss << "        va_end(ap);\n";
                     ss << "    }\n";
                 }
@@ -384,7 +390,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << GTP_IMPL.getName().str() << "(" + getCallArgsString(ApiArgTypes.size()) << ", vargs1);\n";
+                ss << GTP_IMPL.getName().str() << "(" + getCallArgsString(FixedArgCount) << ", vargs1);\n";
                 GTP.setBody(ss.str());
             }
         }
@@ -396,7 +402,7 @@ namespace TLC {
                 GTP_IMPL.setReturnValue({getTypeString(ApiReturnType), {}, {}});
 
                 SmallVector<FunctionSource::Param> Args;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -412,7 +418,7 @@ namespace TLC {
                 }
 
                 ss << "    void *args[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        (void *) &arg" << i + 1 << ",\n";
                 }
                 ss << "    };\n";
@@ -448,11 +454,11 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "    __auto_type arg" << i + 1 //
                        << " = *(__typeof__(" << getTypeString(ApiArgTypes[i]) << ") *) args[" << i << "];\n";
                 }
-                ss << "    __auto_type vargs1 = (struct LORE_VARG_ENTRY *) metadata[0];\n";
+                ss << "    __auto_type vargs1 = *(struct LORE_VARG_ENTRY **) metadata[0];\n";
                 if (!isVoid) {
                     ss << "    __auto_type ret_ref = (__typeof__(" << getTypeString(ApiReturnType) << ") *) ret;\n";
                 }
@@ -466,7 +472,7 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "*ret_ref = ";
                 }
-                ss << HTP_IMPL.getName().str() << "(callback" << getCallArgsString(ApiArgTypes.size(), true)
+                ss << HTP_IMPL.getName().str() << "(callback" << getCallArgsString(FixedArgCount, true)
                    << ", vargs1);\n";
                 HTP.setBody(ss.str());
             }
@@ -480,7 +486,7 @@ namespace TLC {
 
                 SmallVector<FunctionSource::Param> Args;
                 Args.push_back({"void *", "callback", {}});
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     Args.push_back({getTypeString(ApiArgTypes[i]), {}, {}});
                 }
                 Args.push_back({"struct LORE_VARG_ENTRY *", "vargs1", {}});
@@ -491,7 +497,7 @@ namespace TLC {
             {
                 std::stringstream ss;
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
-                for (int i = 0; i < ApiArgTypes.size(); ++i) {
+                for (int i = 0; i < FixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
                 }
                 ss << "    };\n";
@@ -533,11 +539,15 @@ namespace TLC {
             if (auto Attr = FD->getAttr<clang::FormatAttr>(); Attr) {
                 auto AttrType = Attr->getType();
                 if (AttrType->getName() == "printf") {
-                    args->clear();
-                    args->push_back(std::to_string(Attr->getFormatIdx()));
-                    args->push_back(std::to_string(Attr->getFirstArg()));
-                    *priority = BeginPriority;
-                    return true;
+                    auto formatIdx = Attr->getFormatIdx();
+                    auto firstArg = Attr->getFirstArg();
+                    if (formatIdx > 0 && firstArg > 0) {
+                        args->clear();
+                        args->push_back(std::to_string(formatIdx));
+                        args->push_back(std::to_string(firstArg));
+                        *priority = BeginPriority;
+                        return true;
+                    }
                 }
             }
         }
@@ -566,17 +576,15 @@ namespace TLC {
         auto FirstArg = std::atoi(args[0].c_str());
         auto SecondArg = std::atoi(args[1].c_str());
 
-        (void) SecondArg;
-
         switch (api.getApiType()) {
             case ApiSource::Normal:
-                start_Normal(api, FirstArg, false);
+                start_Normal(api, FirstArg, SecondArg, false);
                 break;
             case ApiSource::GuestCallback:
-                start_GuestCallback(api, FirstArg, false);
+                start_GuestCallback(api, FirstArg, SecondArg, false);
                 break;
             case ApiSource::HostCallback:
-                start_HostCallback(api, FirstArg, false);
+                start_HostCallback(api, FirstArg, SecondArg, false);
                 break;
             default:
                 return false;
@@ -601,6 +609,26 @@ namespace TLC {
     };
 
     bool Pass_vprintf::test(const ApiSource &api, llvm::SmallVectorImpl<std::string> *args, int *priority) const {
+        auto FD = api.getOrgFunctionDecl();
+
+        if (FD) {
+            // Check if the FD has the "printf" attribute
+            if (auto Attr = FD->getAttr<clang::FormatAttr>(); Attr) {
+                auto AttrType = Attr->getType();
+                if (AttrType->getName() == "printf") {
+                    auto FormatIdx = Attr->getFormatIdx();
+                    auto FirstArg = Attr->getFirstArg();
+                    if (FormatIdx > 0 && FirstArg == 0) {
+                        args->clear();
+                        args->push_back(std::to_string(FormatIdx));
+                        args->push_back(std::to_string(FD->param_size()));
+                        *priority = BeginPriority;
+                        return true;
+                    }
+                }
+            }
+        }
+
         if (api.getName().contains("printf") && api.getType()->isFunctionProtoType()) {
             auto FPT = api.getType()->getAs<clang::FunctionProtoType>();
             if (FPT->getNumParams() > 1) {
@@ -628,17 +656,15 @@ namespace TLC {
         auto FirstArg = std::atoi(args[0].c_str());
         auto SecondArg = std::atoi(args[1].c_str());
 
-        (void) SecondArg;
-
         switch (api.getApiType()) {
             case ApiSource::Normal:
-                start_Normal(api, FirstArg, false, true);
+                start_Normal(api, FirstArg, SecondArg, false, true);
                 break;
             case ApiSource::GuestCallback:
-                start_GuestCallback(api, FirstArg, false, true);
+                start_GuestCallback(api, FirstArg, SecondArg, false, true);
                 break;
             case ApiSource::HostCallback:
-                start_HostCallback(api, FirstArg, false, true);
+                start_HostCallback(api, FirstArg, SecondArg, false, true);
                 break;
             default:
                 return false;
@@ -670,11 +696,15 @@ namespace TLC {
             if (auto Attr = FD->getAttr<clang::FormatAttr>(); Attr) {
                 auto AttrType = Attr->getType();
                 if (AttrType->getName() == "scanf") {
-                    args->clear();
-                    args->push_back(std::to_string(Attr->getFormatIdx()));
-                    args->push_back(std::to_string(Attr->getFirstArg()));
-                    *priority = BeginPriority;
-                    return true;
+                    auto FormatIdx = Attr->getFormatIdx();
+                    auto FirstArg = Attr->getFirstArg();
+                    if (FormatIdx > 0 && FirstArg > 0) {
+                        args->clear();
+                        args->push_back(std::to_string(FormatIdx));
+                        args->push_back(std::to_string(FirstArg));
+                        *priority = BeginPriority;
+                        return true;
+                    }
                 }
             }
         }
@@ -703,17 +733,15 @@ namespace TLC {
         auto FirstArg = std::atoi(args[0].c_str());
         auto SecondArg = std::atoi(args[1].c_str());
 
-        (void) SecondArg;
-
         switch (api.getApiType()) {
             case ApiSource::Normal:
-                start_Normal(api, FirstArg, true);
+                start_Normal(api, FirstArg, SecondArg, true);
                 break;
             case ApiSource::GuestCallback:
-                start_GuestCallback(api, FirstArg, true);
+                start_GuestCallback(api, FirstArg, SecondArg, true);
                 break;
             case ApiSource::HostCallback:
-                start_HostCallback(api, FirstArg, true);
+                start_HostCallback(api, FirstArg, SecondArg, true);
                 break;
             default:
                 return false;
@@ -738,6 +766,26 @@ namespace TLC {
     };
 
     bool Pass_vscanf::test(const ApiSource &api, llvm::SmallVectorImpl<std::string> *args, int *priority) const {
+        auto FD = api.getOrgFunctionDecl();
+
+        if (FD) {
+            // Check if the FD has the "scanf" attribute
+            if (auto Attr = FD->getAttr<clang::FormatAttr>(); Attr) {
+                auto AttrType = Attr->getType();
+                if (AttrType->getName() == "scanf") {
+                    auto FormatIdx = Attr->getFormatIdx();
+                    auto FirstArg = Attr->getFirstArg();
+                    if (FormatIdx > 0 && FirstArg == 0) {
+                        args->clear();
+                        args->push_back(std::to_string(FormatIdx));
+                        args->push_back(std::to_string(FD->param_size()));
+                        *priority = BeginPriority;
+                        return true;
+                    }
+                }
+            }
+        }
+
         if (api.getName().contains("scanf") && api.getType()->isFunctionProtoType()) {
             auto FPT = api.getType()->getAs<clang::FunctionProtoType>();
             if (FPT->getNumParams() > 1) {
@@ -765,17 +813,15 @@ namespace TLC {
         auto FirstArg = std::atoi(args[0].c_str());
         auto SecondArg = std::atoi(args[1].c_str());
 
-        (void) SecondArg;
-
         switch (api.getApiType()) {
             case ApiSource::Normal:
-                start_Normal(api, FirstArg, true, true);
+                start_Normal(api, FirstArg, SecondArg, true, true);
                 break;
             case ApiSource::GuestCallback:
-                start_GuestCallback(api, FirstArg, true, true);
+                start_GuestCallback(api, FirstArg, SecondArg, true, true);
                 break;
             case ApiSource::HostCallback:
-                start_HostCallback(api, FirstArg, true, true);
+                start_HostCallback(api, FirstArg, SecondArg, true, true);
                 break;
             default:
                 return false;

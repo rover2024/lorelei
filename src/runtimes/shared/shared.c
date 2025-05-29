@@ -66,6 +66,12 @@ int Lore_ExtractPrintFArgs(const char *format, va_list ap, struct LORE_VARG_ENTR
     while (p->type) {
         p++;
     }
+
+    // printf("FORMAT: %s, ARGS_CNT: %d\n", format, (int) (p - out));
+    // if (out->type) {
+    //     printf("TYPE: %d, VALUE: %p\n", out->type, out->p);
+    // }
+
     return p - out;
 }
 

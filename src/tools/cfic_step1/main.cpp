@@ -122,8 +122,8 @@ public:
                 continue;
             }
 
-            llvm::outs() << Loc.printToString(SM) << ": "
-                         << Lexer::getSourceText(CharSourceRange::getTokenRange(Loc), SM, LangOpts) << "\n";
+            // llvm::outs() << Loc.printToString(SM) << ": "
+            //              << Lexer::getSourceText(CharSourceRange::getTokenRange(Loc), SM, LangOpts) << "\n";
 
             if (!SM.isMacroBodyExpansion(Loc) && !SM.isMacroArgExpansion(Loc)) {
                 continue;

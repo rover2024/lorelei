@@ -118,15 +118,21 @@ function(lorelib_add_sub_project _subdir)
             -I${LORELEI_SOURCE_DIR}/include
         )
 
-        add_custom_command(TARGET generate_thunks POST_BUILD
-            COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.c -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${_subdir}
-        )
+        if(LORELEI_BUILD_TOOLS)
+            add_custom_target(thunks_${_subdir})
+            add_dependencies(thunks_all thunks_${_subdir})
+            add_custom_command(TARGET thunks_${_subdir} POST_BUILD
+                COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.c -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${_subdir}
+            )
+        endif()
     endif()
 endfunction()
 
-# Add target to generate thunks manually
-add_custom_target(generate_thunks)
+if(LORELEI_BUILD_TOOLS)
+    # Add target to generate thunks manually
+    add_custom_target(thunks_all)
+endif()
 
 # Add subdirectories
 lorelib_get_subdirs(${CMAKE_CURRENT_SOURCE_DIR} _subdirs)

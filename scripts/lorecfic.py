@@ -23,7 +23,9 @@ class CompileCommand:
 
     @property
     def args(self) -> List[str]:
-        return self.arguments or shlex.split(self.command) if self.command else []
+        if self.arguments is not None:
+            return self.arguments
+        return shlex.split(self.command) if self.command else []
     
     @staticmethod
     def from_json(path: str) -> List[CompileCommand]:
@@ -38,16 +40,36 @@ def get_name_without_ext(path: str) -> str:
     return os.path.splitext(os.path.basename(path))[0]
 
 
+def read_list_file_as_list(filename: str) -> list[str]:
+    with open(filename) as file:
+        symbols = [line.strip() for line in file if line.strip()]
+    res: list[str] = []
+    for symbol in symbols:
+        res.append(symbol)
+    return res
+
+
 def main():
     parser = argparse.ArgumentParser(description='Read compile commands and add CFIs.')
     parser.add_argument('tool_dir', type=str, help='Directory of Lorelei CFI tools.')
     parser.add_argument('callbacks_file', type=str, help='File contains list of callbacks.')
     parser.add_argument('compile_commands', type=str, help='Compile commands file path.')
+    parser.add_argument('--files', type=str, required=False, help='File contains list of file names to process.')
     args = parser.parse_args()
 
     tool_dir: str = os.path.abspath(args.tool_dir)
     callbacks_file: str = os.path.abspath(args.callbacks_file)
     compile_commands_file: str = os.path.abspath(args.compile_commands)
+
+    files: set[str] = set()
+    if args.files:
+        files_file: str = os.path.abspath(args.files)
+        if os.path.exists(files_file):
+            files_list = read_list_file_as_list(files_file)
+            for file in files_list:
+                if os.path.exists(file):
+                    file = os.path.normpath(os.path.abspath(file))
+                    files.add(file)
 
     cfic_step1_tool = os.path.join(tool_dir, 'lorecfic_step1')
     cfic_step2_tool = os.path.join(tool_dir, 'lorecfic_step2')
@@ -77,7 +99,13 @@ def main():
 
         dir: str = compile_command.directory
         filename: str = compile_command.file
-        source_file = filename if os.path.isabs(filename) else os.path.join(dir, filename)
+        source_file = os.path.normpath(filename if os.path.isabs(filename) else os.path.join(dir, filename))
+
+        print(f'[{i + 1}/{compile_commands_count}] Preprocessing {source_file}')
+
+        if len(files) > 0 and not source_file in files:
+            print('SKIPPED')
+            continue
 
         temp_file_org = os.path.join(os.path.dirname(source_file), f'{get_name_without_ext(filename)}__cfic_tmp_org__.c')
         temp_file_pp = os.path.join(os.path.dirname(source_file), f'{get_name_without_ext(filename)}__cfic_tmp_pp__.c')
@@ -117,9 +145,6 @@ def main():
                 args_cc.append(tokens[j])
                 j += 1
         
-
-        print(f'[{i + 1}/{compile_commands_count}] Preprocessing {source_file}')
-
         # 1. Run CFI step1
         if True:
             cmds = [ cfic_step1_tool, '-o', temp_file_org, source_file, '--' ] + args_no_output

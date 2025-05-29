@@ -8,6 +8,10 @@ compressBound
 crc32
 crc32_combine
 crc32_combine64
+crc32_combine_gen
+crc32_combine_gen64
+crc32_combine_op
+crc32_z
 deflate
 deflateBound
 deflateCopy
@@ -23,6 +27,7 @@ deflateResetKeep
 deflateSetDictionary
 deflateSetHeader
 deflateTune
+deflateUsed
 get_crc_table
 gzbuffer
 gzclearerr

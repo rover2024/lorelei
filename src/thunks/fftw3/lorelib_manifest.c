@@ -1,5 +1,5 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#include <fftw3.h>
+#include <api/api.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -20,8 +20,6 @@
 // Annotations
 //
 #ifdef LORELIB_VISUAL
-void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va_list arg4)
-    LORELIB_ANNOTATE("@vprintf:3,4");
 #endif
 
 
@@ -30,6 +28,9 @@ void __HINT_SDL_LogMessageV(int arg1, SDL_LogPriority arg2, const char *arg3, va
 // Custom(Guest)
 //
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
+const char fftw_version[] = "fftw-3.3.9";
+const char fftw_cc[] = "/usr/bin/gcc";
+const char fftw_codelet_optim[] = "";
 #endif
 
 
