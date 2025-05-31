@@ -1,0 +1,164 @@
+{
+    "thunks": [
+        {
+            "name": "libOpenGL",
+            "gtl": "@/lib/x86_64-lore-guest/libOpenGL.so",
+            "htl": "@/lib/aarch64-lore-host/libOpenGL_HTL.so",
+            "hl": "/usr/lib/aarch64-linux-gnu/libOpenGL.so"
+        },
+        {
+            "name": "libGL",
+            "gtl": "@/lib/x86_64-lore-guest/libGL.so",
+            "htl": "@/lib/aarch64-lore-host/libGL_HTL.so",
+            "hl": "/usr/lib/aarch64-linux-gnu/libGL.so"
+        },
+        {
+            "name": "libGLEW",
+            "gtl": "@/lib/x86_64-lore-guest/libGLEW.so",
+            "htl": "@/lib/aarch64-lore-host/libGLEW_HTL.so",
+            "hl": "/usr/lib/aarch64-linux-gnu/libGLEW.so"
+        },
+        {
+            "name": "libGLX",
+            "gtl": "@/lib/x86_64-lore-guest/libGLX.so",
+            "htl": "@/lib/aarch64-lore-host/libGLX_HTL.so",
+            "hl": "/usr/lib/aarch64-linux-gnu/libGLX.so"
+        },
+        {
+            "name": "libSDL2",
+            "alias": [
+                "libSDL2-2.0"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libSDL2.so",
+            "htl": "@/lib/aarch64-lore-host/libSDL2_HTL.so",
+            "hl": "/home/james/Documents/rover2024/SDL/build/install/lib/libSDL2-2.0.so"
+        },
+        {
+            "name": "libz",
+            "gtl": "@/lib/x86_64-lore-guest/libz.so",
+            "htl": "@/lib/aarch64-lore-host/libz_HTL.so",
+            "hl": "/home/james/Documents/rover2024/zlib/build/install/lib/libz.so"
+        },
+        {
+            "name": "libzstd",
+            "gtl": "@/lib/x86_64-lore-guest/libzstd.so",
+            "htl": "@/lib/aarch64-lore-host/libzstd_HTL.so",
+            "hl": "/home/james/Documents/rover2024/zstd/build/install/lib/libzstd.so"
+        },
+        {
+            "name": "libvorbis",
+            "gtl": "@/lib/x86_64-lore-guest/libvorbis.so",
+            "htl": "@/lib/aarch64-lore-host/libvorbis_HTL.so",
+            "hl": "/home/james/Documents/rover2024/vorbis/build/install/lib/libvorbis.so"
+        },
+        {
+            "name": "libvorbisenc",
+            "dependencies": [
+                "libvorbis"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libvorbisenc.so",
+            "htl": "@/lib/aarch64-lore-host/libvorbisenc_HTL.so",
+            "hl": "/home/james/Documents/rover2024/vorbis/build/install/lib/libvorbisenc.so"
+        },
+        {
+            "name": "libvorbisfile",
+            "dependencies": [
+                "libvorbis"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libvorbisfile.so",
+            "htl": "@/lib/aarch64-lore-host/libvorbisfile_HTL.so",
+            "hl": "/home/james/Documents/rover2024/vorbis/build/install/lib/libvorbisfile.so"
+        },
+        {
+            "name": "libavcodec",
+            "gtl": "@/lib/x86_64-lore-guest/libavcodec.so",
+            "htl": "@/lib/aarch64-lore-host/libavcodec_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libavcodec.so"
+        },
+        {
+            "name": "libavdevice",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libavdevice.so",
+            "htl": "@/lib/aarch64-lore-host/libavdevice_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libavdevice.so"
+        },
+        {
+            "name": "libavfilter",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libavfilter.so",
+            "htl": "@/lib/aarch64-lore-host/libavfilter_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libavfilter.so"
+        },
+        {
+            "name": "libavformat",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libavformat.so",
+            "htl": "@/lib/aarch64-lore-host/libavformat_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libavformat.so"
+        },
+        {
+            "name": "libavutil",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libavutil.so",
+            "htl": "@/lib/aarch64-lore-host/libavutil_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libavutil.so"
+        },
+        {
+            "name": "libswresample",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libswresample.so",
+            "htl": "@/lib/aarch64-lore-host/libswresample_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libswresample.so"
+        },
+        {
+            "name": "libswscale",
+            "dependencies": [
+                "libavcodec"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libswscale.so",
+            "htl": "@/lib/aarch64-lore-host/libswscale_HTL.so",
+            "hl": "/home/james/Documents/rover2024/FFmpeg/ffbuild/release/lib/libswscale.so"
+        },
+        {
+            "name": "libfftw3",
+            "gtl": "@/lib/x86_64-lore-guest/libfftw3.so",
+            "htl": "@/lib/aarch64-lore-host/libfftw3_HTL.so",
+            "hl": "/home/james/Documents/rover2024/fftw-3.3.10/build/install/lib/libfftw3.so"
+        },
+        {
+            "name": "libcrypto",
+            "gtl": "@/lib/x86_64-lore-guest/libcrypto.so",
+            "htl": "@/lib/aarch64-lore-host/libcrypto_HTL.so",
+            "hl": "/home/james/Documents/rover2024/openssl/build-debug/install/lib64/libcrypto.so"
+        },
+        {
+            "name": "libssl",
+            "dependencies": [
+                "libcrypto"
+            ],
+            "gtl": "@/lib/x86_64-lore-guest/libssl.so",
+            "htl": "@/lib/aarch64-lore-host/libssl_HTL.so",
+            "hl": "/home/james/Documents/rover2024/openssl/build-debug/install/lib64/libssl.so"
+        }
+    ],
+    "host": [
+        {
+            "name": "libGLdispatch",
+            "fileName": "libGLdispatch.so.0.0.0",
+            "thunks": [
+                "libOpenGL",
+                "libGL"
+            ]
+        }
+    ]
+}
