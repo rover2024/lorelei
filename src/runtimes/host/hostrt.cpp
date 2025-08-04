@@ -16,6 +16,7 @@
 #include <utility>
 #include <filesystem>
 #include <set>
+#include <string_view>
 
 #include <json11/json11.hpp>
 
@@ -39,6 +40,13 @@ static const char LORELEI_ARCH_NAME[] =
 #endif
     ;
 
+static bool string_starts_with(const std::string_view &str, const std::string_view &prefix) {
+    return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
+}
+
+static bool string_ends_with(const std::string_view &str, const std::string_view &suffix) {
+    return str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix;
+}
 
 struct LoreThunkLibraryData {
     std::string name;
@@ -124,7 +132,8 @@ struct LoreHostRuntimeContext {
 
         auto dataFile = getenv(ENV_LORELEI_LIBRARY_DATA_FILE);
         if (!dataFile) {
-            dataFilePath = rootPath / (std::string("etc/lorelei/libs-") + LORELEI_ARCH_NAME + ".json");
+            dataFilePath =
+                rootPath / (std::string("etc/lorelei/libs-") + LORELEI_ARCH_NAME + ".json");
         } else {
             dataFilePath = dataFile;
         }
@@ -374,7 +383,8 @@ struct LoreHostRuntimeContext {
 static LoreHostRuntimeContext LoreHrtCtx;
 
 #ifdef __linux__
-static unsigned int Lore_AuditObjOpen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie, const char *target) {
+static unsigned int Lore_AuditObjOpen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie,
+                                      const char *target) {
     printf("Loading dynamic library: %s %s\n", map->l_name, target);
     return LA_FLG_BINDTO | LA_FLG_BINDFROM;
 }
@@ -391,8 +401,8 @@ static unsigned int Lore_AuditPreinit(struct link_map *map, uintptr_t *cookie) {
 
 static int var_foo = 114514;
 
-static uintptr_t Lore_AuditSymBind64(Elf64_Sym *sym, unsigned int ndx, uintptr_t *refcook, uintptr_t *defcook,
-                                     unsigned int *flags, const char *symname) {
+static uintptr_t Lore_AuditSymBind64(Elf64_Sym *sym, unsigned int ndx, uintptr_t *refcook,
+                                     uintptr_t *defcook, unsigned int *flags, const char *symname) {
     printf("Looking up symbol 64: %s, org: %p\n", symname, (void *) sym->st_value);
     if (strcmp(symname, "var_foo") == 0) {
         return (uintptr_t) &var_foo;
@@ -405,8 +415,8 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
     switch (type) {
 #ifdef __linux__
         case LOREUSER_CT_LA_ObjOpen: {
-            *(unsigned int *) ret =
-                Lore_AuditObjOpen((link_map *) args[0], (Lmid_t) args[1], (uintptr_t *) args[2], (char *) args[3]);
+            *(unsigned int *) ret = Lore_AuditObjOpen((link_map *) args[0], (Lmid_t) args[1],
+                                                      (uintptr_t *) args[2], (char *) args[3]);
             break;
         }
 
@@ -419,9 +429,9 @@ void Lore_HandleExtraGuestCall(int type, void **args, void *ret) {
             break;
 
         case LOREUSER_CT_LA_SymBind:
-            *(uintptr_t *) ret =
-                Lore_AuditSymBind64((Elf64_Sym *) args[0], (unsigned int) (uintptr_t) args[1], (uintptr_t *) args[2],
-                                    (uintptr_t *) args[3], (unsigned int *) args[4], (char *) args[5]);
+            *(uintptr_t *) ret = Lore_AuditSymBind64(
+                (Elf64_Sym *) args[0], (unsigned int) (uintptr_t) args[1], (uintptr_t *) args[2],
+                (uintptr_t *) args[3], (unsigned int *) args[4], (char *) args[5]);
             break;
 #endif
         case LOREUSER_CT_GetLibraryData: {
@@ -456,8 +466,7 @@ void *Lore_HrtGetLibraryData(const char *path, int isThunk) {
     Lore_GetLibraryName(nameBuf, path);
 
     std::string name(nameBuf);
-    if (auto name_view = std::string_view(name);
-        name_view.size() > 4 && name_view.substr(name.size() - 4, 4) == "_HTL") {
+    if (string_ends_with(name, "_HTL")) {
         name = name.substr(0, name.size() - 4);
     }
 
@@ -492,17 +501,28 @@ void *Lore_LoadHostLibrary(void *someAddr) {
     // Load host
     auto handle = dlopen(lib_data->hl, RTLD_NOW);
     if (!handle) {
-        fprintf(stderr, "lorehrt: %s: failed to load host library \"%s\": %s\n", buf, lib_data->hl, dlerror());
+        fprintf(stderr, "lorehrt: %s: failed to load host library \"%s\": %s\n", buf, lib_data->hl,
+                dlerror());
         return nullptr;
     }
     return handle;
+}
+
+void *Lore_GetHostProcAddress(void *handle, const char *name) {
+    std::string_view nameView(name);
+    if (string_starts_with(nameView, "__FPVAR_")) {
+        auto addr = (uintptr_t *) dlsym(handle, name + 8);
+        return (void *) addr;
+    }
+    return dlsym(handle, name);
 }
 
 void Lore_FreeHostLibrary(void *handle) {
     dlclose(handle);
 }
 
-int Lore_HrtPThreadCreate(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) {
+int Lore_HrtPThreadCreate(pthread_t *thread, const pthread_attr_t *attr,
+                          void *(*start_routine)(void *), void *arg) {
     int ret;
     LoreHrtCtx.emuApis.NotifyPThreadCreate(thread, attr, start_routine, arg, &ret);
     *thread = LoreHrtCtx.emuApis.GetLastPThreadId();

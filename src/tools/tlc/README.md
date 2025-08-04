@@ -86,10 +86,7 @@ API Thunks and Callback Thunks may have to be p
 
 
 // Option macros
-// 1. the most pointer dereferences when replacing
-// function pointers in arguments
-#define LORELIB_GCB_AUTO_DEPTH 1
-#define LORELIB_HCB_AUTO_DEPTH 1
+// ...
 
 
 // Generated code

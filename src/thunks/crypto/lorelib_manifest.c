@@ -184,6 +184,3 @@
 #if defined(LORELIB_HTL_BUILD) || defined(LORELIB_VISUAL)
 #endif
 
-#ifdef LORELIB_BUILD
-#  include "lorelib_impl.c"
-#endif

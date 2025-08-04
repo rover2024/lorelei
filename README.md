@@ -4,7 +4,12 @@ Lorelei is a cross-ISA compatibility layer.
 
 ## Dependencies
 
-- llvm
+- LLVM LibTooling
 - ffcall
-- ffi
-- SDL2
+- json11
+
+## Install Requirements
+
+```sh
+sudo apt install libffcall-dev
+```

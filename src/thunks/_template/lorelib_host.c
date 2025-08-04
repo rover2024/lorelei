@@ -97,7 +97,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
 
     // 2. Get function addresses
     for (int i = 0; i < LoreLib_ApiEnumSize; ++i) {
-        void *proc = dlsym(handle, LoreLib_API_Names[i]);
+        void *proc = Lore_GetHostProcAddress(handle, LoreLib_API_Names[i]);
         if (!proc) {
             fprintf(stderr, "%s: HTL: failed to resolve API \"%s\" in host library\n", path, LoreLib_API_Names[i]);
             abort();
@@ -181,7 +181,7 @@ LORELEI_DECL_EXPORT void LoreLib_HTLExchangeCallbacks(void **args, void *ret, vo
     LoreLibCtx.ExecuteCallback(THUNK, FUNC, ARGS, RET, METADATA)
 #define LORELIB_LAST_GCB Lore_HRTThreadCallback
 #define LORELIB_HTL_BUILD
-#include "lorelib_manifest.c"
+#include "lorelib_impl.c"
 
 
 

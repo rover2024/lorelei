@@ -67,26 +67,26 @@ public:
 static TLCCGlobalContext GlobalContext;
 
 // 1. Match handler
-class FuncDeclHandler : public MatchFinder::MatchCallback {
+class DeclMatchFinder : public MatchFinder::MatchCallback {
 public:
-    FuncDeclHandler(SmallVectorImpl<const FunctionDecl *> &FunctionDecls) : FunctionDecls(FunctionDecls) {
+    DeclMatchFinder(SmallVectorImpl<const FunctionDecl *> &FunctionDecls) : Decls(FunctionDecls) {
     }
 
     virtual void run(const MatchFinder::MatchResult &Result) override {
         const FunctionDecl *func = Result.Nodes.getNodeAs<FunctionDecl>("functionDecl");
         if (!func)
             return;
-        FunctionDecls.push_back(func);
+        Decls.push_back(func);
     }
 
 private:
-    SmallVectorImpl<const FunctionDecl *> &FunctionDecls;
+    SmallVectorImpl<const FunctionDecl *> &Decls;
 };
 
 // 2. AST consumer
-class FuncDeclConsumer : public ASTConsumer {
+class DeclConsumer : public ASTConsumer {
 public:
-    FuncDeclConsumer(SmallVectorImpl<const FunctionDecl *> &FunctionDecls)
+    DeclConsumer(SmallVectorImpl<const FunctionDecl *> &FunctionDecls)
         : FunctionDecls(FunctionDecls), Handler(FunctionDecls) {
         Matcher.addMatcher(functionDecl().bind("functionDecl"), &Handler);
     }
@@ -98,7 +98,7 @@ public:
 private:
     SmallVectorImpl<const FunctionDecl *> &FunctionDecls;
     MatchFinder Matcher;
-    FuncDeclHandler Handler;
+    DeclMatchFinder Handler;
 };
 
 // 3. AST frontend action
@@ -154,7 +154,7 @@ public:
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
-        return std::make_unique<FuncDeclConsumer>(FunctionDecls);
+        return std::make_unique<DeclConsumer>(FunctionDecls);
     }
 
 private:

@@ -21,3 +21,5 @@ add_subdirectory(cfic_step2)
 add_subdirectory(cfic)
 
 add_subdirectory(tlc)
+
+add_subdirectory(tlc2)

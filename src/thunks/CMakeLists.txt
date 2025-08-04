@@ -1,3 +1,5 @@
+set(LORELEI_THUNK_SOURCE_EXTENSION c)
+
 # Macros
 function(lorelib_get_subdirs _dir _out)
     file(GLOB _subdirs RELATIVE ${_dir} ${_dir}/*)
@@ -23,7 +25,7 @@ function(lorelib_add_sub_project _subdir)
 
     # Guest
     if(LORELEI_ENABLE_GUEST)
-        add_library(${LORELEI_GUEST_PROJECT} SHARED _template/lorelib_guest.c)
+        add_library(${LORELEI_GUEST_PROJECT} SHARED _template/lorelib_guest.${LORELEI_THUNK_SOURCE_EXTENSION})
         target_link_options(${LORELEI_GUEST_PROJECT} PRIVATE "-Wl,-z,defs")
         target_link_libraries(${LORELEI_GUEST_PROJECT} PRIVATE loregrt dl)
         target_include_directories(${LORELEI_GUEST_PROJECT} PRIVATE
@@ -37,7 +39,7 @@ function(lorelib_add_sub_project _subdir)
 
     # Host
     if(LORELEI_ENABLE_HOST)
-        add_library(${LORELEI_HOST_PROJECT} SHARED _template/lorelib_host.c)
+        add_library(${LORELEI_HOST_PROJECT} SHARED _template/lorelib_host.${LORELEI_THUNK_SOURCE_EXTENSION})
         target_link_options(${LORELEI_HOST_PROJECT} PRIVATE "-Wl,-z,defs")
         target_link_libraries(${LORELEI_HOST_PROJECT} PRIVATE lorehrt dl)
         target_include_directories(${LORELEI_HOST_PROJECT} PRIVATE
@@ -122,7 +124,7 @@ function(lorelib_add_sub_project _subdir)
             add_custom_target(thunks_${_subdir})
             add_dependencies(thunks_all thunks_${_subdir})
             add_custom_command(TARGET thunks_${_subdir} POST_BUILD
-                COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.c -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
+                COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.${LORELEI_THUNK_SOURCE_EXTENSION} -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${_subdir}
             )
         endif()

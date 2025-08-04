@@ -157,7 +157,7 @@ static void LoreLib_ExecuteHostCallback(void *thunk, void *callback, void **args
     LoreLib_ExecuteHostCallback(THUNK, FUNC, ARGS, RET, METADATA)
 #define LORELIB_LAST_HCB Lore_GRTThreadCallback
 #define LORELIB_GTL_BUILD
-#include "lorelib_manifest.c"
+#include "lorelib_impl.c"
 
 
 

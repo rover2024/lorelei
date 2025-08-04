@@ -37,9 +37,9 @@ extern "C" {
 //
 // Emulator APIs
 //
-LORELEI_DECL_EXPORT void Lore_HandleExtraGuestCall(int type, void **args, void *ret);
+LORELEI_EXPORT void Lore_HandleExtraGuestCall(int type, void **args, void *ret);
 
-LORELEI_DECL_EXPORT void Lore_HostHelper(int id, void **args, void *ret);
+LORELEI_EXPORT void Lore_HostHelper(int id, void **args, void *ret);
 
 //
 // Host Library APIs

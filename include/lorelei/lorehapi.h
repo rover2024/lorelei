@@ -26,6 +26,8 @@ LORELEI_EXPORT void *Lore_HrtGetLibraryData(const char *path, int isThunk);
 //
 LORELEI_EXPORT void *Lore_LoadHostLibrary(void *someAddr);
 
+LORELEI_EXPORT void *Lore_GetHostProcAddress(void *handle, const char *name);
+
 LORELEI_EXPORT void Lore_FreeHostLibrary(void *handle);
 
 #endif
