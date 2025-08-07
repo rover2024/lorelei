@@ -11,6 +11,7 @@ namespace Util {
     std::vector<std::string_view> SplitString(const std::string &str, const std::string &delim);
 
     std::string JoinString(const std::vector<std::string> &vec, const std::string &delim);
+
 }
 
 #endif // UTIL_H

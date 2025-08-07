@@ -1,7 +1,7 @@
-project(loreshared LANGUAGES C)
+project(loreshared LANGUAGES ASM)
 
 file(GLOB_RECURSE _src *.h *.hpp *.c *.cpp)
-add_library(${PROJECT_NAME} STATIC ${_src})
+add_library(${PROJECT_NAME} OBJECT ${_src})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../../../include>

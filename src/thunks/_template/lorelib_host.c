@@ -10,6 +10,8 @@
 #include <lorelei/loreuser.h>
 #include <lorelei/lorehapi_p.h>
 
+#include <lorelib_common/callback.h>
+
 #include "lorelib_defs.h"
 
 //
@@ -63,6 +65,15 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize];
 
 
 //
+// Declare thunk asm declarations
+//
+#define _F(NAME, SIGNATURE) LORELIB_GCB_THUNK_ASM_DECL(NAME)
+LORELIB_GCB_FOREACH(_F)
+#undef _F
+
+
+
+//
 // Declare context
 //
 struct LoreLib_Context {
@@ -99,7 +110,8 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
     for (int i = 0; i < LoreLib_ApiEnumSize; ++i) {
         void *proc = Lore_GetHostProcAddress(handle, LoreLib_API_Names[i]);
         if (!proc) {
-            fprintf(stderr, "%s: HTL: failed to resolve API \"%s\" in host library\n", path, LoreLib_API_Names[i]);
+            fprintf(stderr, "%s: HTL: failed to resolve API \"%s\" in host library\n", path,
+                    LoreLib_API_Names[i]);
             abort();
         }
         LoreLib_API_HTPs[i] = proc;
@@ -177,7 +189,7 @@ LORELEI_DECL_EXPORT void LoreLib_HTLExchangeCallbacks(void **args, void *ret, vo
 #define LORELIB_BOUNDARY  LoreLibCtx.AddressBoundary
 #define LORELIB_API(FUNC) ((__typeof__(&FUNC)) LoreLib_API_HTPs[LoreLib_Api_##FUNC])
 #define LORELIB_GCB(FUNC) LoreLib_GCB_GTPs[LoreLib_GCB_##FUNC]
-#define LORELIB_INVOKE_GCB(THUNK, FUNC, ARGS, RET, METADATA)                                                           \
+#define LORELIB_INVOKE_GCB(THUNK, FUNC, ARGS, RET, METADATA)                                       \
     LoreLibCtx.ExecuteCallback(THUNK, FUNC, ARGS, RET, METADATA)
 #define LORELIB_LAST_GCB Lore_HRTThreadCallback
 #define LORELIB_HTL_BUILD
@@ -198,6 +210,9 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize] = {
     LORELIB_HCB_FOREACH(_F)
 #undef _F
 };
+#define _F(NAME, SIGNATURE) LORELIB_GCB_THUNK_ASM_IMPL(NAME)
+LORELIB_GCB_FOREACH(_F)
+#undef _F
 
 
 
