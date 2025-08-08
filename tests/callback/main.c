@@ -4,18 +4,17 @@
 
 #include <lorelib_common/callback.h>
 
-__thread void *Lore_HRTThreadCallback;
-
-LORELIB_GCB_THUNK_ASM_IMPL(foo)
-LORELIB_GCB_THUNK_ASM_ALLOCATOR(foo)
-
 typedef int (*FOO)(int a, int b);
 
 static __attribute__((used)) int __HTP_GCB_foo(int a, int b) {
-    printf("Saved callback: %p\n", Lore_HRTThreadCallback);
-    printf("foo(%d, %d) = %d\n", a, b, ((FOO) Lore_HRTThreadCallback)(a, b));
+    LORELIB_GCB_GET_LAST_CALLBACK(callback)
+
+    printf("Saved callback: %p\n", callback);
+    printf("foo(%d, %d) = %d\n", a, b, ((FOO) callback)(a, b));
     return a + b;
 }
+
+LORELIB_GCB_THUNK_ALLOCATOR(foo)
 
 static int foo(int a, int b) {
     return a + b;

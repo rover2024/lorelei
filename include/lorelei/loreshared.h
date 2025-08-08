@@ -159,37 +159,20 @@ LORELEI_EXPORT void Lore_AVCall(void *func, void **args, void *ret, const char *
 ///
 ///     typedef int (*CMP)(const void *, const void *);
 ///
-///     // Callback thunk for CMP
+///     // Callback thunk for CMP (Compiled with -ffixed-r11)
 ///     static int __thunk_CMP(const void *a, const void *b) {
-///         void *callback = Lore_HRTThreadCallback;
+///         void *callback;
+///         asm volatile("mov %%r11, %0" :"=r"(callback)::"memory");
 ///
 ///         // Return to guest code
 ///         // ...
-///     }
-///
-///     // GCC-Arm64 doesn't support naked functions
-///     __asm__(".text                                                  \n\t"
-///             ".type __qsort_THUNK_ASM, @function                     \n\t"
-///             "__qsort_THUNK_ASM:                                     \n\t"
-///                 "movq    -8(%r10), %r10                             \n\t"
-///                 "movq   Lore_HRTThreadCallback@gottpoff(%rip), %rax \n\t"
-///                 "movq   %r10, %fs:(%rax)                            \n\t"
-///                 "jmp    __thunk_CMP"
-///     );
-///
-///
-///     // Thunk entry getter for CMP
-///     static inline void *__qsort_THUNK_ASM_get() {
-///         void *addr;
-///         __asm__("lea __qsort_thunk_entry(%%rip), %0" : "=r"(addr));
-///         return addr;
 ///     }
 ///
 ///     // Trampoline allocator for CMP
 ///     static CMP __qsort_thunk_alloc(CMP cmp) {
 ///         static struct LORE_CALLBACK_TRAMPOLINE_CONTEXT *trampoline = NULL;
 ///         if (!trampoline) {
-///             trampoline = Lore_AllocCallbackTrampoline(1, __qsort_THUNK_ASM_get());
+///             trampoline = Lore_AllocCallbackTrampoline(1, __thunk_CMP);
 ///         }
 ///         struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0];
 ///         while (t->saved_callback) {
@@ -213,11 +196,11 @@ LORELEI_EXPORT void Lore_AVCall(void *func, void **args, void *ret, const char *
 
 struct LORE_CALLBACK_TRAMPOLINE {
     void *saved_callback;
-    char thunk_instr[16]; // lea -7(%rip), %r10; jmp jump_instr
+    char thunk_instr[16]; // lea -7(%rip), %r11; jmp jump_instr
 };
 
 struct LORE_CALLBACK_TRAMPOLINE_CONTEXT {
-    char jump_instr[16]; // mov target, %rax; jmp *%rax
+    char jump_instr[32]; // mov -8(%r11), %r11; mov target, %rax; jmp *%rax
     size_t count;        // length of the "trampoline"
     struct LORE_CALLBACK_TRAMPOLINE trampoline[];
 };

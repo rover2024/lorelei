@@ -64,10 +64,13 @@ if(NOT DEFINED LORELEI_HOST_ARCH)
 
     if(_arch MATCHES "x86_64|amd64")
         set(LORELEI_HOST_ARCH "x86_64")
+        set(LORELEI_CALLBACK_REGISTER "r11")
     elseif(_arch MATCHES "aarch64|arm64")
         set(LORELEI_HOST_ARCH "aarch64")
+        set(LORELEI_CALLBACK_REGISTER "x16")
     elseif(_arch MATCHES "riscv64")
         set(LORELEI_HOST_ARCH "riscv64")
+        set(LORELEI_CALLBACK_REGISTER "t1")
     endif()
 endif()
 

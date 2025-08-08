@@ -4,44 +4,53 @@
 
 #ifdef __x86_64__
 // Generate:
-//     Save current Entry to R10 and jump to address Entry-N
+//     Save current Entry to R11 and jump to address Entry-N
 static void generate_thunk(void *buf, int64_t N) {
-    char *instr = buf;
+    struct instr {
+        struct {
+            char op[3];
+            int32_t displacement;
+        } __attribute__((packed)) lea; // leaq -N(%rip), %r11
+        struct {
+            char op[1];
+            int32_t offset;
+        } __attribute__((packed)) jmp_rel32; // jmp N(%rip)
+    } __attribute__((packed));
 
-    // _start:
-    // leaq -7(%rip), %r10
-    instr[0] = 0x4c; // REX.W prefix
-    instr[1] = 0x8d; // LEA opcode
-    instr[2] = 0x15; // ModR/M: r10 with RIP-relative addressing
-    instr[3] = 0xF9; // RIP-relative displacement (little-endian)
-    instr[4] = 0xFF; // -7 in 32-bit: 0xFFFFFFF9
-    instr[5] = 0xFF;
-    instr[6] = 0xFF;
+    struct instr *instr = (struct instr *) buf;
+    instr->lea.op[0] = 0x4C; // REX.W prefix
+    instr->lea.op[1] = 0x8D; // LEA opcode
+    instr->lea.op[2] = 0x1D; // ModR/M: r11 with RIP-relative addressing
+    instr->lea.displacement = -7;
 
-    // jmp _start-N
-    instr[7] = 0xe9; // JMP rel32 opcode
-
-    int32_t offset = -12 - (int32_t) N;
-    instr[8] = (offset) & 0xFF;
-    instr[9] = (offset >> 8) & 0xFF;
-    instr[10] = (offset >> 16) & 0xFF;
-    instr[11] = (offset >> 24) & 0xFF;
+    instr->jmp_rel32.op[0] = 0xE9;     // JMP opcode
+    instr->jmp_rel32.offset = -12 - N; // N bytes from last instruction
 }
 
 // Generate:
 //     Jump to address Entry
 static void generate_jump(void *buf, void *target) {
-    char *instr = buf;
+    struct instr {
+        char mov[4]; // mov -0x8(%r11),%r11
+        struct {
+            char op[2];
+            uint64_t imm;
+        } __attribute__((packed)) mov_target; // movabs $target, %rax
+        char jmp[2];                          // jmp *%rax
+    } __attribute__((packed));
 
-    // movq $target, %rax
-    *instr++ = 0x48;
-    *instr++ = 0xB8;
-    *(uint64_t *) instr = (uint64_t) target;
-    instr += 8;
+    struct instr *instr = (struct instr *) buf;
+    instr->mov[0] = 0x4D; // REX.W prefix
+    instr->mov[1] = 0x8B; // MOV opcode
+    instr->mov[2] = 0x5B; // ModR/M: r11 with RIP-relative addressing
+    instr->mov[3] = 0xF8; // -8
 
-    // jmp *%rax
-    *instr++ = 0xFF;
-    *instr++ = 0xE0;
+    instr->mov_target.op[0] = 0x48;            // REX.W prefix
+    instr->mov_target.op[1] = 0xB8;            // MOV opcode
+    instr->mov_target.imm = (uint64_t) target; // target address
+
+    instr->jmp[0] = 0xFF; // JMP opcode
+    instr->jmp[1] = 0xE0; // ModR/M: indirect jump with RAX
 }
 #elif defined(__aarch64__)
 // Generate:
@@ -66,62 +75,49 @@ static void generate_thunk(void *buf, size_t N) {
 // Generate:
 //     Jump to address Entry
 static void generate_jump(void *buf, void *target) {
-    uint64_t *code = buf;
-    uint64_t target_addr = (uint64_t) target;
-
-    // MOVZ X17, #imm16, LSL #0
-    uint64_t low16 = target_addr & 0xFFFF;
-    code[0] = 0xD2800000 | (low16 << 5) | 0x11;
-
-    if (target_addr & 0xFFFF0000) {
-        // MOVK X17, #imm16, LSL #16
-        uint64_t mid16 = (target_addr >> 16) & 0xFFFF;
-        code[1] = 0xF2800000 | (mid16 << 5) | (1 << 21) | 0x11;
-
-        // BR X17
-        code[2] = 0xD61F0220;
-    } else {
-        // BR X17
-        code[1] = 0xD61F0220;
-    }
+    struct instr {
+        uint32_t ldr_x16;
+        uint32_t ldr_x17;
+        uint32_t br_x17;
+        uint64_t target_addr;
+    } __attribute__((packed));
+    struct instr *instr = (struct instr *) buf;
+    instr->ldr_x16 = 0xF85F8210; // ldr x16, [x16, #-8]
+    instr->ldr_x17 = 0x58000051; // ldr x17, 8 <pc+8>
+    instr->br_x17 = 0xD61F0200;  // br x17
+    instr->target_addr = (uint64_t) target;
 }
 
-#elif defined(__riscv64)
+#elif defined(__riscv)
 // Generate:
-//     Save current Entry to t0 and jump to address Entry-N
+//     Save current Entry to t1 and jump to address Entry-N
 static void generate_thunk(char *buf, size_t N) {
     uint32_t *instr = (uint32_t *) buf;
     int32_t imm = -(int32_t) N;
 
     // _start:
-    // AUIPC t0, 0
-    instr[0] = 0x00000297;
+    // auipc t1, 0
+    instr[0] = 0x00000317;
 
-    // ADDI t0, t0, imm_low
-    int32_t imm_low = imm & 0xFFF;
-    instr[1] = (imm_low << 20) | (5 << 15) | (0 << 12) | (5 << 7) | 0x13;
-
-    // JALR zero, 0(t0)
-    instr[2] = (0 << 20) | (5 << 15) | (0 << 12) | (0 << 7) | 0x67;
+    // jal x0, offset
+    int32_t offset = (-4 - N) / 2;
+    instr[1] = 0x0000006F | ((offset & 0xFFFFF) << 12);
 }
 
 // Generate:
 //     Jump to address Entry
 static void generate_jump(void *buf, void *target) {
-    uint32_t *code = buf;
-    uint64_t addr = (uint64_t) target;
-
-    // 1. AUIPC T1, offset[31:12]
-    int32_t offset_hi = (addr - (uint64_t) buf) >> 12;
-    code[0] = 0x00000317 | ((offset_hi & 0xFFFFF) << 12);
-
-    // 2. ADDI T1, T1, offset[11:0]
-    int32_t offset_lo = addr & 0xFFF;
-    code[1] = 0x00030313; // addi t1, t1, 0
-    code[1] |= (offset_lo & 0xFFF) << 20;
-
-    // 3. JALR zero, t1
-    code[2] = 0x00030067; // jalr zero, t1, 0
+    struct instr {
+        uint32_t auipc_t0;
+        uint32_t ld_t0_12;
+        uint32_t jr_t0;
+        uint64_t target_addr;
+    } __attribute__((packed));
+    struct instr *instr = (struct instr *) buf;
+    instr->auipc_t0 = 0x00000297; // auipc t0, 0
+    instr->ld_t0_12 = 0x00C2B283; // ld t0, 12(t0)
+    instr->jr_t0 = 0x00028067;    // jr t0
+    instr->target_addr = (uint64_t) target;
 }
 #endif
 
