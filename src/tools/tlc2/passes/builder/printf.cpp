@@ -52,6 +52,10 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
                     ss << "    " << helperFunc << "(arg" << fmtIdx << ", arg" << vargIdx
@@ -78,6 +82,13 @@ namespace TLC {
                    << ", vargs1);\n";
                 GTP.body().push_back(ID, ss.str());
             }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                GTP.epilog().push_back(ID, ss.str());
+            }
         }
 
         // GTP_IMPL
@@ -89,7 +100,6 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-
                 if (!isVoid) {
                     ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
                 }
@@ -117,7 +127,6 @@ namespace TLC {
 
             // epilog
             {
-
                 std::stringstream ss;
                 if (!isVoid) {
                     ss << "    return ret;\n";
@@ -166,6 +175,10 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
                 for (int i = 0; i < fixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
@@ -189,6 +202,13 @@ namespace TLC {
                        << ", va_ret);\n";
                 }
                 HTP_IMPL.body().push_back(ID, ss.str());
+            }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                HTP_IMPL.epilog().push_back(ID, ss.str());
             }
         }
     }
@@ -245,6 +265,10 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
                 for (int i = 0; i < fixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
@@ -268,6 +292,13 @@ namespace TLC {
                 }
                 GTP_IMPL.body().push_back(ID, ss.str());
             }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                GTP_IMPL.epilog().push_back(ID, ss.str());
+            }
         }
 
         // HTP
@@ -275,6 +306,15 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+                   << "    LORELIB_GET_LAST_GCB(callback);\n"
+                   << "#else\n"
+                   << "    void *callback = LORELIB_LAST_GCB;\n"
+                   << "#endif\n";
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
                     ss << "    " << helperFunc << "(arg" << fmtIdx << ", arg" << vargIdx
@@ -297,9 +337,16 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << HTP_IMPL.rep().name() << "(" + getCallArgsString(fixedArgCount)
+                ss << HTP_IMPL.rep().name() << "(callback" + getCallArgsString(fixedArgCount, true)
                    << ", vargs1);\n";
                 HTP.body().push_back(ID, ss.str());
+            }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                HTP.epilog().push_back(ID, ss.str());
             }
         }
 
@@ -312,7 +359,6 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-
                 if (!isVoid) {
                     ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
                 }
@@ -333,9 +379,8 @@ namespace TLC {
             // body
             {
                 std::stringstream ss;
-                ss << "    LORELIB_INVOKE_GCB(LORELIB_GCB(" << thunk.name()
-                   << "), LORELIB_LAST_GCB, args, " << (isVoid ? "NULL" : "&ret")
-                   << ", metadata);\n";
+                ss << "    LORELIB_INVOKE_GCB(LORELIB_GCB(" << thunk.name() << "), callback, args, "
+                   << (isVoid ? "NULL" : "&ret") << ", metadata);\n";
                 HTP_IMPL.body().push_back(ID, ss.str());
             }
 
@@ -367,6 +412,15 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+                   << "    LORELIB_GET_LAST_HCB(callback);\n"
+                   << "#else\n"
+                   << "    void *callback = LORELIB_LAST_HCB;\n"
+                   << "#endif\n";
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY vargs1[100];\n";
                 if (va) {
                     ss << "    " << helperFunc << "(arg" << fmtIdx << ", arg" << vargIdx
@@ -389,9 +443,16 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << GTP_IMPL.rep().name() << "(" + getCallArgsString(fixedArgCount)
+                ss << GTP_IMPL.rep().name() << "(callback" + getCallArgsString(fixedArgCount, true)
                    << ", vargs1);\n";
                 GTP.body().push_back(ID, ss.str());
+            }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                GTP.epilog().push_back(ID, ss.str());
             }
         }
 
@@ -404,7 +465,6 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-
                 if (!isVoid) {
                     ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
                 }
@@ -425,15 +485,13 @@ namespace TLC {
             // body
             {
                 std::stringstream ss;
-                ss << "    LORELIB_INVOKE_HCB(LORELIB_HCB(" << thunk.name()
-                   << "), LORELIB_LAST_HCB, args, " << (isVoid ? "NULL" : "&ret")
-                   << ", metadata);\n";
+                ss << "    LORELIB_INVOKE_HCB(LORELIB_HCB(" << thunk.name() << "), callback, args, "
+                   << (isVoid ? "NULL" : "&ret") << ", metadata);\n";
                 GTP_IMPL.body().push_back(ID, ss.str());
             }
 
             // epilog
             {
-
                 std::stringstream ss;
                 if (!isVoid) {
                     ss << "    return ret;\n";
@@ -484,6 +542,10 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
+
                 ss << "    struct LORE_VARG_ENTRY argv1[] = {\n";
                 for (int i = 0; i < fixedArgCount; ++i) {
                     ss << "        LORE_VARG(arg" << i + 1 << "),\n";
@@ -506,6 +568,13 @@ namespace TLC {
                        << ", va_ret);\n";
                 }
                 HTP_IMPL.body().push_back(ID, ss.str());
+            }
+
+            // epilog
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                HTP_IMPL.epilog().push_back(ID, ss.str());
             }
         }
     }

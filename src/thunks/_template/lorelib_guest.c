@@ -76,15 +76,6 @@ static struct LoreLib_Context LoreLibCtx = {0};
 
 
 //
-// Declare thunk asm declarations
-//
-#define _F(NAME, SIGNATURE) LORELIB_HCB_THUNK_ASM_DECL(NAME)
-LORELIB_HCB_FOREACH(_F)
-#undef _F
-
-
-
-//
 // Constructor/Destructor
 //
 static void __attribute__((constructor)) LoreLib_Inititialize() {
@@ -188,9 +179,6 @@ static void *LoreLib_HCB_GTPs[LoreLib_HCBEnumSize] = {
     LORELIB_HCB_FOREACH(_F)
 #undef _F
 };
-#define _F(NAME, SIGNATURE) LORELIB_HCB_THUNK_ASM_IMPL(NAME)
-LORELIB_HCB_FOREACH(_F)
-#undef _F
 
 
 

@@ -65,15 +65,6 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize];
 
 
 //
-// Declare thunk asm declarations
-//
-#define _F(NAME, SIGNATURE) LORELIB_GCB_THUNK_ASM_DECL(NAME)
-LORELIB_GCB_FOREACH(_F)
-#undef _F
-
-
-
-//
 // Declare context
 //
 struct LoreLib_Context {
@@ -210,9 +201,6 @@ static void *LoreLib_HCB_HTPs[LoreLib_HCBEnumSize] = {
     LORELIB_HCB_FOREACH(_F)
 #undef _F
 };
-#define _F(NAME, SIGNATURE) LORELIB_GCB_THUNK_ASM_IMPL(NAME)
-LORELIB_GCB_FOREACH(_F)
-#undef _F
 
 
 

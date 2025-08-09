@@ -72,7 +72,7 @@ namespace TLC {
             return _annotations;
         }
 
-        std::string text(bool guest) const;
+        std::string text(bool guest, bool decl = false) const;
 
         const IntOrString &attr(llvm::StringRef key) const {
             auto it = _attrs.find(key);

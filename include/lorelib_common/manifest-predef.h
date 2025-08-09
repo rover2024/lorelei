@@ -7,7 +7,8 @@
 #  define LORELIB_EXPORT
 #endif
 
-#define LORELIB_POINTER_LVALUE (*((void **) 114514))
+#define LORELIB_POINTER_LVALUE   (*((void **) 114514))
+#define LORELIB_IS_GUEST_ADDR(X) ((size_t) (X) < (size_t) LORELIB_BOUNDARY)
 
 //
 // Helper macros
@@ -27,6 +28,7 @@
 //
 
 #if defined(LORELIB_VISUAL)
+#  define LORELIB_BOUNDARY NULL
 // guest
 #  define LORELIB_HTP(FUNC) NULL
 #  define LORELIB_INVOKE_HTP(FUNC, ARGS, RET, METADATA)

@@ -66,9 +66,12 @@ namespace TLC {
         }
     }
 
-    std::string ThunkDefinition::text(bool guest) const {
+    std::string ThunkDefinition::text(bool guest, bool decl) const {
         auto &TP = _fds[guest ? FunctionDefinition::GTP : FunctionDefinition::HTP];
         auto &TP_IMPL = _fds[guest ? FunctionDefinition::GTP_IMPL : FunctionDefinition::HTP_IMPL];
+        if (decl) {
+            return "static " + TP_IMPL.declText({}) + ";\n" + "static " + TP.declText({});
+        }
         std::array Sources{
             sourceForward(guest).toRawText(),
             TP_IMPL.rep().decl() ? std::string() : TP_IMPL.text(),

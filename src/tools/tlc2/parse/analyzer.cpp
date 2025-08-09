@@ -40,14 +40,14 @@ namespace TLC {
             ///     void ___GTP_GCB_foo(void *callback, int a, double b);       // GTP_IMPL (4)
             ///
             ///     void  __HTP_GCB_foo(int a, double b);                       // HTP      (1)
-            ///     void ___HTP_GCB_foo(int a, double b);                       // HTP_IMPL (2)
+            ///     void ___HTP_GCB_foo(void *callback, int a, double b);       // HTP_IMPL (2)
             /// \endcode
 
             /// \brief Host callback thunks
             /// \example: void (*foo)(int a, double b);
             /// \code
             ///     void  __GTP_HCB_foo(int a, double b);                       // GTP      (1)
-            ///     void ___GTP_HCB_foo(int a, double b);                       // GTP_IMPL (2)
+            ///     void ___GTP_HCB_foo(void *callback, int a, double b);       // GTP_IMPL (2)
             ///
             ///     void  __HTP_HCB_foo(void *callback, void **args,
             ///                         void **ret,     void **metadata);       // HTP      (3)
@@ -116,7 +116,20 @@ namespace TLC {
                         break;
                     }
                     case ThunkDefinition::HostCallbackThunk: {
-                        target = FunctionDeclRep::fromQualType(type, "___GTP_HCB_" + name).get();
+                        auto FTV = FunctionTypeView(type);
+                        SmallVector<TypeRep> argTypes;
+                        SmallVector<std::string> argNames;
+                        argTypes.push_back("void *");
+                        argNames.push_back("callback");
+                        int i = 0;
+                        for (const auto &T : FTV.argTypes()) {
+                            argTypes.push_back(TypeRep(T));
+                            argNames.push_back("arg" + std::to_string(++i));
+                        }
+                        target =
+                            FunctionDeclRep(FunctionTypeRep(FTV.returnType(), std::move(argTypes),
+                                                            FTV.isVariadic()),
+                                            "___GTP_HCB_" + name, argNames);
                         break;
                     }
                     default:
@@ -181,7 +194,20 @@ namespace TLC {
                         break;
                     }
                     case ThunkDefinition::GuestCallbackThunk: {
-                        target = FunctionDeclRep::fromQualType(type, "___HTP_GCB_" + name).get();
+                        auto FTV = FunctionTypeView(type);
+                        SmallVector<TypeRep> argTypes;
+                        SmallVector<std::string> argNames;
+                        argTypes.push_back("void *");
+                        argNames.push_back("callback");
+                        int i = 0;
+                        for (const auto &T : FTV.argTypes()) {
+                            argTypes.push_back(TypeRep(T));
+                            argNames.push_back("arg" + std::to_string(++i));
+                        }
+                        target =
+                            FunctionDeclRep(FunctionTypeRep(FTV.returnType(), std::move(argTypes),
+                                                            FTV.isVariadic()),
+                                            "___HTP_GCB_" + name, argNames);
                         break;
                     }
                     case ThunkDefinition::HostCallbackThunk: {
@@ -669,6 +695,21 @@ namespace TLC {
         /// STEP: Generate variables section
         // TODO
 
+        /// STEP: Generate guest function thunks (decl)
+        for (const auto &pair : _thunks[ThunkDefinition::GuestFunctionThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(true, true) << "\n";
+        }
+        for (const auto &pair : _thunks[ThunkDefinition::GuestCallbackThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(true, true) << "\n";
+        }
+        for (const auto &pair : _thunks[ThunkDefinition::HostCallbackThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(true, true) << "\n";
+        }
+        os << "\n";
+
         /// STEP: Generate guest function thunks
         for (const auto &pair : _thunks[ThunkDefinition::GuestFunctionThunk]) {
             auto &thunk = pair.second;
@@ -678,7 +719,7 @@ namespace TLC {
             auto &thunk = pair.second;
             os << thunk.text(true) << "\n";
         }
-        for (const auto &pair : _thunks[ThunkDefinition::GuestCallbackThunk]) {
+        for (const auto &pair : _thunks[ThunkDefinition::HostCallbackThunk]) {
             auto &thunk = pair.second;
             os << thunk.text(true) << "\n";
         }
@@ -709,6 +750,21 @@ namespace TLC {
 
         os << "//\n// Generated(Host)\n//\n";
         os << "#if defined(LORELIB_VISUAL) || defined(LORELIB_HTL_BUILD)\n";
+
+        /// STEP: Generate host function thunks (decl)
+        for (const auto &pair : _thunks[ThunkDefinition::GuestFunctionThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(false, true) << "\n";
+        }
+        for (const auto &pair : _thunks[ThunkDefinition::GuestCallbackThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(false, true) << "\n";
+        }
+        for (const auto &pair : _thunks[ThunkDefinition::HostCallbackThunk]) {
+            auto &thunk = pair.second;
+            os << thunk.text(false, true) << "\n";
+        }
+        os << "\n";
 
         /// STEP: Generate host function thunks
         for (const auto &pair : _thunks[ThunkDefinition::GuestFunctionThunk]) {

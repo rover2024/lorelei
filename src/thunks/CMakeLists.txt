@@ -26,6 +26,7 @@ function(lorelib_add_sub_project _subdir)
     # Guest
     if(LORELEI_ENABLE_GUEST)
         add_library(${LORELEI_GUEST_PROJECT} SHARED _template/lorelib_guest.${LORELEI_THUNK_SOURCE_EXTENSION})
+        target_compile_options(${LORELEI_GUEST_PROJECT} PRIVATE "-ffixed-r11")
         target_link_options(${LORELEI_GUEST_PROJECT} PRIVATE "-Wl,-z,defs")
         target_link_libraries(${LORELEI_GUEST_PROJECT} PRIVATE loregrt dl)
         target_include_directories(${LORELEI_GUEST_PROJECT} PRIVATE
@@ -40,6 +41,7 @@ function(lorelib_add_sub_project _subdir)
     # Host
     if(LORELEI_ENABLE_HOST)
         add_library(${LORELEI_HOST_PROJECT} SHARED _template/lorelib_host.${LORELEI_THUNK_SOURCE_EXTENSION})
+        target_compile_options(${LORELEI_GUEST_PROJECT} PRIVATE "-ffixed-${LORELEI_CALLBACK_REGISTER}")
         target_link_options(${LORELEI_HOST_PROJECT} PRIVATE "-Wl,-z,defs")
         target_link_libraries(${LORELEI_HOST_PROJECT} PRIVATE lorehrt dl)
         target_include_directories(${LORELEI_HOST_PROJECT} PRIVATE

@@ -55,7 +55,6 @@ namespace TLC {
             // prolog
             {
                 std::stringstream ss;
-
                 if (!isVoid) {
                     ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
                 }
@@ -138,12 +137,10 @@ namespace TLC {
             }
 
             // epilog
-            {
-                if (!isVoid) {
-                    std::stringstream ss;
-                    ss << "    return ret;\n";
-                    HTP_IMPL.epilog().push_back(ID, ss.str());
-                }
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                HTP_IMPL.epilog().push_back(ID, ss.str());
             }
         }
     }
@@ -191,13 +188,11 @@ namespace TLC {
         // GTP_IMPL
         if (!GTP_IMPL.rep().decl()) {
             // prolog
-
             if (!isVoid) {
                 std::stringstream ss;
                 ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
                 GTP_IMPL.prolog().push_back(ID, ss.str());
             }
-
 
             // body
             {
@@ -222,12 +217,18 @@ namespace TLC {
         // HTP
         if (!HTP.rep().decl()) {
             // prolog
-            if (!isVoid) {
+            {
                 std::stringstream ss;
-                ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+                   << "    LORELIB_GET_LAST_GCB(callback);\n"
+                   << "#else\n"
+                   << "    void *callback = LORELIB_LAST_GCB;\n"
+                   << "#endif\n";
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
                 HTP.prolog().push_back(ID, ss.str());
             }
-
 
             // body
             {
@@ -236,8 +237,8 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << HTP_IMPL.rep().name() << "(" << getCallArgsString(thunkArgTypes.size())
-                   << ");\n";
+                ss << HTP_IMPL.rep().name() << "(callback"
+                   << getCallArgsString(thunkArgTypes.size(), true) << ");\n";
 
                 HTP.body().push_back(ID, ss.str());
             }
@@ -263,15 +264,14 @@ namespace TLC {
                     ss << "        (void *) &arg" << i + 1 << ",\n";
                 }
                 ss << "    };\n";
-
                 HTP_IMPL.prolog().push_back(ID, ss.str());
             }
 
             // body
             {
                 std::stringstream ss;
-                ss << "    LORELIB_INVOKE_GCB(LORELIB_GCB(" << thunk.name()
-                   << "), LORELIB_LAST_GCB, args, " << (isVoid ? "NULL" : "&ret") << ", NULL);\n";
+                ss << "    LORELIB_INVOKE_GCB(LORELIB_GCB(" << thunk.name() << "), callback, args, "
+                   << (isVoid ? "NULL" : "&ret") << ", NULL);\n";
                 HTP_IMPL.body().push_back(ID, ss.str());
             }
 
@@ -296,9 +296,16 @@ namespace TLC {
         // GTP
         if (!GTP.rep().decl()) {
             // prolog
-            if (!isVoid) {
+            {
                 std::stringstream ss;
-                ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+                   << "    LORELIB_GET_LAST_HCB(callback);\n"
+                   << "#else\n"
+                   << "    void *callback = LORELIB_LAST_HCB;\n"
+                   << "#endif\n";
+                if (!isVoid) {
+                    ss << "    __typeof__(" << getTypeString(thunkRetType) << ") ret;\n";
+                }
                 GTP.prolog().push_back(ID, ss.str());
             }
 
@@ -309,8 +316,8 @@ namespace TLC {
                 if (!isVoid) {
                     ss << "ret = ";
                 }
-                ss << GTP_IMPL.rep().name() << "(" << getCallArgsString(thunkArgTypes.size())
-                   << ");\n";
+                ss << GTP_IMPL.rep().name() << "(callback"
+                   << getCallArgsString(thunkArgTypes.size(), true) << ");\n";
 
                 GTP.body().push_back(ID, ss.str());
             }
@@ -343,8 +350,8 @@ namespace TLC {
             // body
             {
                 std::stringstream ss;
-                ss << "    LORELIB_INVOKE_HCB(LORELIB_HCB(" << thunk.name()
-                   << "), LORELIB_LAST_HCB, args, " << (isVoid ? "NULL" : "&ret") << ", NULL);\n";
+                ss << "    LORELIB_INVOKE_HCB(LORELIB_HCB(" << thunk.name() << "), callback, args, "
+                   << (isVoid ? "NULL" : "&ret") << ", NULL);\n";
                 GTP_IMPL.body().push_back(ID, ss.str());
             }
 
@@ -412,12 +419,10 @@ namespace TLC {
             }
 
             // epilog
-            {
-                if (!isVoid) {
-                    std::stringstream ss;
-                    ss << "    return ret;\n";
-                    HTP_IMPL.epilog().push_back(ID, ss.str());
-                }
+            if (!isVoid) {
+                std::stringstream ss;
+                ss << "    return ret;\n";
+                HTP_IMPL.epilog().push_back(ID, ss.str());
             }
         }
     }
