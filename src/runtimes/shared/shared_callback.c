@@ -84,7 +84,7 @@ static void generate_jump(void *buf, void *target) {
     struct instr *instr = (struct instr *) buf;
     instr->ldr_x16 = 0xF85F8210; // ldr x16, [x16, #-8]
     instr->ldr_x17 = 0x58000051; // ldr x17, 8 <pc+8>
-    instr->br_x17 = 0xD61F0200;  // br x17
+    instr->br_x17 = 0xD61F0220;  // br x17
     instr->target_addr = (uint64_t) target;
 }
 
