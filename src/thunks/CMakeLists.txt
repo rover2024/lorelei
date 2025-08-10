@@ -126,7 +126,7 @@ function(lorelib_add_sub_project _subdir)
             add_custom_target(thunks_${_subdir})
             add_dependencies(thunks_all thunks_${_subdir})
             add_custom_command(TARGET thunks_${_subdir} POST_BUILD
-                COMMAND $<TARGET_FILE:loretlc> -c symbols.txt lorelib_manifest.${LORELEI_THUNK_SOURCE_EXTENSION} -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
+                COMMAND $<TARGET_FILE:loretlc2> -c symbols.txt lorelib_manifest.${LORELEI_THUNK_SOURCE_EXTENSION} -- ${_common_tlc_options} ${LORELIB_TLC_OPTIONS}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${_subdir}
             )
         endif()

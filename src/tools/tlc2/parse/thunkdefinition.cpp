@@ -50,13 +50,7 @@ namespace TLC {
                     SmallVector<StringRef> passArgs;
                     passArgsStr.split(passArgs, ',');
                     for (auto arg : std::as_const(passArgs)) {
-                        int num;
-                        if (std::from_chars(arg.data(), arg.data() + arg.size(), num).ec !=
-                            std::errc()) {
-                            anno.arguments.push_back(num);
-                        } else {
-                            anno.arguments.push_back(arg.str());
-                        }
+                        anno.arguments.push_back(IntOrString::fromAnyString(arg.str()));
                     }
                 } else {
                     anno.name = theAttr;
@@ -70,7 +64,7 @@ namespace TLC {
         auto &TP = _fds[guest ? FunctionDefinition::GTP : FunctionDefinition::HTP];
         auto &TP_IMPL = _fds[guest ? FunctionDefinition::GTP_IMPL : FunctionDefinition::HTP_IMPL];
         if (decl) {
-            return "static " + TP_IMPL.declText({}) + ";\n" + "static " + TP.declText({});
+            return "static " + TP_IMPL.declText({}) + ";\n" + "static " + TP.declText({}) + ";";
         }
         std::array Sources{
             sourceForward(guest).toRawText(),

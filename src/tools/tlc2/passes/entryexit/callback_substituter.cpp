@@ -76,7 +76,7 @@ namespace TLC {
             return false;
         }
 
-        static Var buildVar(QualType qt) {
+        static Var buildVar(QualType qt, std::set<std::string> &visitedTypes) {
             bool is_ptr = false;
             if (qt->isPointerType()) {
                 auto pointee = qt->getPointeeType();
@@ -108,7 +108,13 @@ namespace TLC {
                         continue;
                     }
 
-                    auto field = buildVar(type);
+                    auto typeString = getTypeString(type);
+                    if (visitedTypes.count(typeString)) {
+                        return {};
+                    }
+                    visitedTypes.insert(typeString);
+
+                    auto field = buildVar(type, visitedTypes);
                     if (field.type == Var::NotInterested) {
                         continue;
                     }
@@ -241,7 +247,8 @@ namespace TLC {
                     continue;
                 }
 
-                auto argVar = buildVar(type);
+                std::set<std::string> visitedTypes;
+                auto argVar = buildVar(type, visitedTypes);
                 if (argVar.type == Var::NotInterested) {
                     continue;
                 }
@@ -357,11 +364,11 @@ namespace TLC {
 
                 auto callbackHandler =
                     analyzer->callbackName(type.getCanonicalType().getAsString(), isGuest);
-                if (callbackHandler.empty()) {
-                    return createStringError(
-                        std::errc::not_supported,
-                        "callback handler not found for type: ", type.getAsString().c_str());
-                }
+                // if (callbackHandler.empty()) {
+                //     return createStringError(
+                //         std::errc::not_supported,
+                //         "callback handler not found for type: ", type.getAsString().c_str());
+                // }
 
                 ss << (isGuest ? "LORELIB_HCB_THUNK_ALLOCATOR" : "LORELIB_GCB_THUNK_ALLOCATOR")
                    << "(" << (isGuest ? "__GTP_HCB_" : "__HTP_GCB_") << callbackHandler << ", "

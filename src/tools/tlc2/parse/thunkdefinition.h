@@ -59,6 +59,8 @@ namespace TLC {
         }
         const clang::FunctionDecl *declOrHint() const {
             if (_type == GuestFunctionThunk) {
+                if (_hint)
+                    return _hint;
                 return _fds[FunctionDefinition::GTP].rep().decl();
             }
             return _hint;
