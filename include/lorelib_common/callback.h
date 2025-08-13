@@ -36,11 +36,13 @@
 //
 // Thunk allocator
 //
+#define LORELIB_GCB_THUNK_COUNT 40
+
 #define LORELIB_GCB_THUNK_ALLOCATOR(NAME, TARGET)                                                  \
     static __typeof__(&TARGET) NAME(void *input) {                                                 \
         static __thread struct LORE_CALLBACK_TRAMPOLINE_CONTEXT *trampoline = NULL;                \
         if (!trampoline) {                                                                         \
-            trampoline = Lore_AllocCallbackTrampoline(1, TARGET);                                  \
+            trampoline = Lore_AllocCallbackTrampoline(LORELIB_GCB_THUNK_COUNT, TARGET);            \
         }                                                                                          \
         struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0];                           \
         while (t->saved_callback) {                                                                \
@@ -57,7 +59,7 @@
     static __typeof__(&TARGET) NAME(void *input) {                                                 \
         static __thread struct LORE_CALLBACK_TRAMPOLINE_CONTEXT *trampoline = NULL;                \
         if (!trampoline) {                                                                         \
-            trampoline = Lore_AllocCallbackTrampoline(1, TARGET);                                  \
+            trampoline = Lore_AllocCallbackTrampoline(LORELIB_GCB_THUNK_COUNT, TARGET);            \
         }                                                                                          \
         struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0];                           \
         while (t->saved_callback) {                                                                \
@@ -88,7 +90,7 @@ struct LoreLib_CallbackContext {
     if (LORELIB_IS_GUEST_ADDR(FP)) {                                                               \
         (CTX).p_fp = (void **) &(FP);                                                              \
         (CTX).org_fp = FP;                                                                         \
-        (FP) = ALLOCATOR(FP);                                                                      \
+        *(void **) (&FP) = ALLOCATOR(FP);                                                          \
     } else {                                                                                       \
         (CTX).org_fp = NULL;                                                                       \
     }

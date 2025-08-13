@@ -1,7 +1,4 @@
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
+#include <pixman-1/pixman.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>

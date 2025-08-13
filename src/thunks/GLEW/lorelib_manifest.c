@@ -13,6 +13,7 @@
 //
 #define LORELIB_GCB_AUTO_DEPTH 1
 #define LORELIB_HCB_AUTO_DEPTH 1
+#define LORELIB_CALLBACK_REPLACE
 
 
 
@@ -37,4 +38,3 @@
 //
 #if defined(LORELIB_HTL_BUILD) || defined(LORELIB_VISUAL)
 #endif
-

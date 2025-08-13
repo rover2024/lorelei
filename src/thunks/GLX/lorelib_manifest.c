@@ -83,6 +83,7 @@ extern const __glXGLCoreFunctions __GLXGL_CORE_FUNCTIONS;
 //
 #define LORELIB_GCB_AUTO_DEPTH 1
 #define LORELIB_HCB_AUTO_DEPTH 1
+#define LORELIB_CALLBACK_REPLACE
 
 
 

@@ -1,0 +1,8 @@
+if(LORELEI_ENABLE_GUEST)
+    set(LORELIB_GUEST_SYMLINKS libcurl.so.4 libcurl.so.4.6.0)
+endif()
+
+if(LORELEI_ENABLE_HOST)
+endif()
+
+set(LORELIB_TLC_OPTIONS)

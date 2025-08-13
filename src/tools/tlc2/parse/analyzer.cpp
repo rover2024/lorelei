@@ -372,21 +372,29 @@ namespace TLC {
                 if (char prefix[] = "GCB_"; realName.starts_with("GCB_")) {
                     // __HINT_GCB_xxx
                     realName = realName.substr(sizeof(prefix) - 1);
-                    if (fpTypes.count(typeName))
-                        declaredFuncMaps[ThunkDefinition::GuestCallbackThunk][realName.str()]
-                            .hintDecl = FD;
+                    if (true || fpTypes.count(typeName)) {
+                        auto &target =
+                            declaredFuncMaps[ThunkDefinition::GuestCallbackThunk][realName.str()];
+                        target.hintDecl = FD;
+                        target.type = FD->getType();
+                    }
+
                 } else if (char prefix[] = "HCB_"; realName.starts_with("HCB_")) {
                     // __HINT_HCB_xxx
                     realName = realName.substr(sizeof(prefix) - 1);
-                    if (fpTypes.count(typeName))
-                        declaredFuncMaps[ThunkDefinition::HostCallbackThunk][realName.str()]
-                            .hintDecl = FD;
+                    if (true || fpTypes.count(typeName)) {
+                        auto &target =
+                            declaredFuncMaps[ThunkDefinition::HostCallbackThunk][realName.str()];
+                        target.hintDecl = FD;
+                        target.type = FD->getType();
+                    }
                 } else {
                     // __HINT_xxx
                     auto it =
                         declaredFuncMaps[ThunkDefinition::GuestFunctionThunk].find(realName.str());
                     if (it != declaredFuncMaps[ThunkDefinition::GuestFunctionThunk].end()) {
                         it->second.hintDecl = FD;
+                        it->second.type = FD->getType();
                     }
                 }
             }
@@ -394,6 +402,9 @@ namespace TLC {
 
         /// STEP: Collect existing thunk definitions
         for (const auto &FD : std::as_const(_fds)) {
+            if (!FD->hasBody()) {
+                continue;
+            }
             const auto &name = FD->getName();
 
             // thunks
@@ -687,6 +698,16 @@ namespace TLC {
         os << "#include \"" << inputFileName << "\"\n";
         os << "\n";
         os << "#include <lorelib_common/callback.h>\n";
+        os << "\n";
+
+        /// STEP: Generate __FPVAR_xxx function declarations
+        for (const auto &pair : _thunks[ThunkDefinition::GuestFunctionThunk]) {
+            auto &thunk = pair.second;
+            if (StringRef(thunk.name()).starts_with("__FPVAR_")) {
+                os << "extern " << thunk.function(FunctionDefinition::GTP).declText(thunk.name())
+                   << ";\n";
+            }
+        }
         os << "\n";
 
         os << "//\n// Generated(Guest)\n//\n";

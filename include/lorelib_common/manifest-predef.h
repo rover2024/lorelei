@@ -7,7 +7,11 @@
 #  define LORELIB_EXPORT
 #endif
 
-#define LORELIB_POINTER_LVALUE   (*((void **) 114514))
+#define LORELIB_POINTER_LVALUE (*((void **) 114514))
+
+#ifdef LORELIB_IS_GUEST_ADDR
+#  undef LORELIB_IS_GUEST_ADDR
+#endif
 #define LORELIB_IS_GUEST_ADDR(X) ((size_t) (X) < (size_t) LORELIB_BOUNDARY)
 
 //

@@ -104,17 +104,23 @@ namespace TLC {
                 for (const auto &T : recType->getDecl()->fields()) {
                     auto type = T->getType().getCanonicalType();
                     if (type->isFunctionPointerType()) {
-                        var.fps[T->getNameAsString()] = type;
+                        var.fps[T->getNameAsString()] = type->getPointeeType().getCanonicalType();
                         continue;
                     }
 
                     auto typeString = getTypeString(type);
                     if (visitedTypes.count(typeString)) {
+                        if (!hasFP(type)) {
+                            continue;
+                        }
                         return {};
                     }
-                    visitedTypes.insert(typeString);
+                    auto it = visitedTypes.insert(typeString);
 
                     auto field = buildVar(type, visitedTypes);
+
+                    visitedTypes.erase(it.first);
+
                     if (field.type == Var::NotInterested) {
                         continue;
                     }
@@ -153,27 +159,29 @@ namespace TLC {
                 // parent = "parent"
                 // __auto_type p_field_ctx = &p_parent_ctx->field;
                 // parent = ""
-                // __auto_type p_field_ctx = &ctx->field;
+                // __auto_type p_field_ctx = &ctx.field;
                 ss << indent(level) << "__auto_type p_" << name << "_ctx = &"
-                   << (parent.empty() ? std::string("ctx") : ("p_" + parent + "_ctx")) + "->" + name
+                   << (parent.empty() ? std::string("ctx.") : ("p_" + parent + "_ctx->")) + name
                    << ";\n";
 
-                // if (true) {
+                // if (1) {
                 // if (p_field) {
-                ss << indent(level) << "if (" << (field.type == Var::Field ? "true" : ("p_" + name))
+                ss << indent(level) << "if (" << (field.type == Var::Field ? "1" : ("p_" + name))
                    << ") {\n";
 
                 std::string newAncestorName = ancestorName + "____" + name;
                 ss << buildInitSource(field, name, newAncestorName, allocators, level + 1);
 
                 // }
-                ss << indent(level) << "}";
+                ss << indent(level) << "}\n";
             }
             for (const auto &fp : var.fps) {
                 const auto &name = fp.first;
                 std::string allocatorName = ancestorName + "____" + name + "_xx_ThunkAlloc";
-                ss << indent(level) << "LoreLib_CallbackContext_init(p_" << parent << "_ctx->"
-                   << name << ", p_" << parent << ", " << allocatorName << ");\n";
+                ss << indent(level) << "LoreLib_CallbackContext_init("
+                   << (parent.empty() ? "ctx." : ("p_" + parent + "_ctx->")) << name << ", "
+                   << (parent.empty() ? name : ("p_" + parent + "->" + name)) << ", "
+                   << allocatorName << ");\n";
                 allocators[allocatorName] = fp.second;
             }
             return ss.str();
@@ -197,42 +205,43 @@ namespace TLC {
                 // parent = "parent"
                 // __auto_type p_field_ctx = &p_parent_ctx->field;
                 // parent = ""
-                // __auto_type p_field_ctx = &ctx->field;
+                // __auto_type p_field_ctx = &ctx.field;
                 ss << indent(level) << "__auto_type p_" << name << "_ctx = &"
-                   << (parent.empty() ? std::string("ctx") : ("p_" + parent + "_ctx")) + "->" + name
+                   << (parent.empty() ? std::string("ctx.") : ("p_" + parent + "_ctx->")) + name
                    << ";\n";
 
-                // if (true) {
+                // if (1) {
                 // if (p_field) {
-                ss << indent(level) << "if (" << (field.type == Var::Field ? "true" : ("p_" + name))
+                ss << indent(level) << "if (" << (field.type == Var::Field ? "1" : ("p_" + name))
                    << ") {\n";
 
                 ss << buildFiniSource(field, name, level + 1);
 
                 // }
-                ss << indent(level) << "}";
+                ss << indent(level) << "}\n";
             }
             for (const auto &fp : var.fps) {
                 const auto &name = fp.first;
-                ss << indent(level) << "LoreLib_CallbackContext_fini(p_" << parent << "_ctx->"
-                   << name << ");\n";
+                ss << indent(level) << "LoreLib_CallbackContext_fini("
+                   << (parent.empty() ? "ctx." : ("p_" + parent + "_ctx->")) << name << ");\n";
             }
             return ss.str();
         }
 
-        static std::string buildStructSource(const Var &var, const std::string &name, int level) {
+        static std::string buildStructSource(const Var &var, const std::string &name,
+                                             const std::string &typeName, int level) {
             std::stringstream ss;
-            ss << indent(level) << "struct {\n";
+            ss << indent(level) << "struct " << typeName << " {\n";
             for (const auto &pair : var.fields) {
                 auto &fieldName = pair.first;
                 auto &field = pair.second;
-                ss << buildStructSource(field, fieldName, level + 1);
+                ss << buildStructSource(field, fieldName, {}, level + 1) << "\n";
             }
             for (const auto &fp : var.fps) {
                 const auto &fpName = fp.first;
                 ss << indent(level + 1) << "struct LoreLib_CallbackContext " << fpName << ";\n";
             }
-            ss << indent(level) << "}" << name << ";\n";
+            ss << indent(level) << "} " << name << ";";
             return ss.str();
         }
 
@@ -243,7 +252,7 @@ namespace TLC {
                 auto type = argType.getCanonicalType();
                 auto name = "arg" + std::to_string(++i);
                 if (type->isFunctionPointerType()) {
-                    var.fps[name] = type;
+                    var.fps[name] = type->getPointeeType().getCanonicalType();
                     continue;
                 }
 
@@ -257,7 +266,11 @@ namespace TLC {
                 }
                 var.fields.insert(std::make_pair(name, std::move(argVar)));
             }
-            rootVar = std::move(var);
+            if (!var.fields.empty() || !var.fps.empty()) {
+                rootVar = std::move(var);
+            } else {
+                rootVar = Var(Var::NotInterested);
+            }
         }
     };
 
@@ -305,53 +318,17 @@ namespace TLC {
         }
 
         std::string ctxStructName = TP.rep().name() + "_xx_LocalContext";
-        {
-            std::stringstream ss;
-            ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
-               << "    struct " << ctxStructName << " ctx;\n"
-               << "    " << ctxStructName << "_Init(&ctx"
-               << getCallArgsString(thunkArgTypes.size(), true) << ");\n"
-               << "#endif\n";
-            TP.bodyForward().push_back(ID, ss.str());
-        }
-
-        {
-            std::stringstream ss;
-            ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
-               << "    " << ctxStructName << "_Fini(&ctx);\n"
-               << "#endif\n";
-            TP.bodyBackward().push_back(ID, ss.str());
-        }
 
         std::map<std::string, QualType> thunksToGen;
-        std::string structSource;
+
         std::string initSource;
+        initSource = builder.buildInitSource(builder.rootVar, {}, TP.rep().name(), thunksToGen, 2);
+
         std::string finiSource;
+        finiSource = builder.buildFiniSource(builder.rootVar, {}, 2);
 
-        structSource = builder.buildStructSource(builder.rootVar, ctxStructName, 0);
-
-        {
-            std::stringstream ss;
-            ss << "static inline void " << ctxStructName << "_Init(" << ctxStructName << " *ctx";
-            int i = 0;
-            for (const auto &argType : thunkArgTypes) {
-                ++i;
-                ss << ", __typeof__(" << getTypeString(argType) << ") arg" << i;
-            }
-            ss << ") {\n";
-            ss << builder.buildInitSource(builder.rootVar, {}, TP.rep().name(), thunksToGen, 1);
-            ss << "}";
-            initSource = ss.str();
-        }
-
-        {
-            std::stringstream ss;
-            ss << "static inline void " << ctxStructName << "_Fini(" << ctxStructName
-               << " *ctx) {\n";
-            ss << builder.buildFiniSource(builder.rootVar, {}, 1);
-            ss << "}";
-            finiSource = ss.str();
-        }
+        std::string structSource;
+        structSource = builder.buildStructSource(builder.rootVar, {}, ctxStructName, 0);
 
         std::string allocatorsSource;
         {
@@ -360,30 +337,52 @@ namespace TLC {
             std::stringstream ss;
             for (const auto &pair : thunksToGen) {
                 const auto &name = pair.first;
-                const auto &type = pair.second;
+                auto type = pair.second.getCanonicalType();
 
-                auto callbackHandler =
-                    analyzer->callbackName(type.getCanonicalType().getAsString(), isGuest);
-                // if (callbackHandler.empty()) {
-                //     return createStringError(
-                //         std::errc::not_supported,
-                //         "callback handler not found for type: ", type.getAsString().c_str());
-                // }
+                auto callbackHandler = analyzer->callbackName(getTypeString(type), isGuest);
+                if (callbackHandler.empty()) {
+                    return createStringError(std::errc::not_supported,
+                                             "callback handler not found for type: %s",
+                                             getTypeString(type).c_str());
+                }
 
                 ss << (isGuest ? "LORELIB_HCB_THUNK_ALLOCATOR" : "LORELIB_GCB_THUNK_ALLOCATOR")
-                   << "(" << (isGuest ? "__GTP_HCB_" : "__HTP_GCB_") << callbackHandler << ", "
-                   << name << ")\n";
+                   << "(" << name << ", " << (isGuest ? "__GTP_HCB_" : "__HTP_GCB_")
+                   << callbackHandler << ")\n";
             }
             allocatorsSource = ss.str();
         }
 
+        // forward source
+        {
+            std::stringstream ss;
+            ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+               << "    struct " << ctxStructName << " ctx;\n"
+               << "    {\n"
+               << initSource //
+               << "    }\n"
+               << "#endif\n";
+            TP.bodyForward().push_front(ID, ss.str());
+        }
+
+        // backward source
+        {
+            std::stringstream ss;
+            ss << "#ifdef LORELIB_CALLBACK_REPLACE\n"
+               << "    {\n"
+               << finiSource //
+               << "    }\n"
+               << "#endif\n";
+            TP.bodyBackward().push_back(ID, ss.str());
+        }
+
+        // global forward source
         std::array sources = {
             std::string("#ifdef LORELIB_CALLBACK_REPLACE"),
             allocatorsSource,
             structSource,
-            initSource,
-            finiSource,
             std::string("#endif"),
+            std::string(),
         };
         thunk.sourceForward(isGuest).push_back(ID, llvm::join(sources, "\n"));
 

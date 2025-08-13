@@ -8,12 +8,18 @@
         },
         {
             "name": "libGL",
+            "dependencies": [
+                "libGLX"
+            ],
             "gtl": "@/lib/x86_64-lore-guest/libGL.so",
             "htl": "@/lib/x86_64-lore-host/libGL_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libGL.so"
         },
         {
             "name": "libGLEW",
+            "dependencies": [
+                "libGL"
+            ],
             "gtl": "@/lib/x86_64-lore-guest/libGLEW.so",
             "htl": "@/lib/x86_64-lore-host/libGLEW_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so"
@@ -149,6 +155,18 @@
             "gtl": "@/lib/x86_64-lore-guest/libssl.so",
             "htl": "@/lib/x86_64-lore-host/libssl_HTL.so",
             "hl": "/home/overworld/Documents/rover2024/openssl/build-debug/install/lib64/libssl.so"
+        },
+        {
+            "name": "libpixman",
+            "gtl": "@/lib/x86_64-lore-guest/libpixman.so",
+            "htl": "@/lib/x86_64-lore-host/libpixman_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libpixman-1.so.0"
+        },
+        {
+            "name": "libcurl",
+            "gtl": "@/lib/x86_64-lore-guest/libcurl.so",
+            "htl": "@/lib/x86_64-lore-host/libcurl_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libcurl.so"
         }
     ],
     "host": [

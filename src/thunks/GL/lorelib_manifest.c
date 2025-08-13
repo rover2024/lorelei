@@ -16,6 +16,7 @@
 //
 #define LORELIB_GCB_AUTO_DEPTH 1
 #define LORELIB_HCB_AUTO_DEPTH 1
+#define LORELIB_CALLBACK_REPLACE
 
 
 
@@ -33,7 +34,7 @@
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
 static void __attribute__((constructor)) LoreLib_Init2() {
     // ### FIXME: implement GLX and GLEW
-    dlopen("libGLX.so", RTLD_NOW | RTLD_GLOBAL);
+    (void) dlopen("libGLX.so", RTLD_NOW | RTLD_GLOBAL);
 }
 #endif
 
