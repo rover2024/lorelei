@@ -1,5 +1,7 @@
 #include "loreshared.h"
 
+#include <stdio.h>
+
 #include <sys/mman.h>
 
 #ifdef __x86_64__
@@ -138,6 +140,7 @@ struct LORE_CALLBACK_TRAMPOLINE_CONTEXT *Lore_AllocCallbackTrampoline(size_t cou
     trampoline->count = count;
     for (int i = 0; i < count; i++) {
         struct LORE_CALLBACK_TRAMPOLINE *thunk = &trampoline->trampoline[i];
+        thunk->saved_callback = NULL;
         generate_thunk(thunk->thunk_instr, (intptr_t) thunk->thunk_instr - (intptr_t) trampoline);
     }
     return trampoline;

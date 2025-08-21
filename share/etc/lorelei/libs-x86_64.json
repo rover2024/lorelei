@@ -145,7 +145,7 @@
             "name": "libcrypto",
             "gtl": "@/lib/x86_64-lore-guest/libcrypto.so",
             "htl": "@/lib/x86_64-lore-host/libcrypto_HTL.so",
-            "hl": "/home/overworld/Documents/rover2024/openssl/build-debug/install/lib64/libcrypto.so"
+            "hl": "/home/overworld/Documents/rover2024/openssl/build/install/lib64/libcrypto.so"
         },
         {
             "name": "libssl",
@@ -154,7 +154,7 @@
             ],
             "gtl": "@/lib/x86_64-lore-guest/libssl.so",
             "htl": "@/lib/x86_64-lore-host/libssl_HTL.so",
-            "hl": "/home/overworld/Documents/rover2024/openssl/build-debug/install/lib64/libssl.so"
+            "hl": "/home/overworld/Documents/rover2024/openssl/build/install/lib64/libssl.so"
         },
         {
             "name": "libpixman",

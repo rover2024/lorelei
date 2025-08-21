@@ -140,7 +140,7 @@ namespace TLC {
             return std::string(level * 4, ' ');
         }
 
-        static std::string buildInitSource(const Var &var, const std::string &parent,
+        static std::string buildInitSource(bool isGCB, const Var &var, const std::string &parent,
                                            const std::string &ancestorName,
                                            std::map<std::string, QualType> &allocators, int level) {
             std::stringstream ss;
@@ -170,7 +170,7 @@ namespace TLC {
                    << ") {\n";
 
                 std::string newAncestorName = ancestorName + "____" + name;
-                ss << buildInitSource(field, name, newAncestorName, allocators, level + 1);
+                ss << buildInitSource(isGCB, field, name, newAncestorName, allocators, level + 1);
 
                 // }
                 ss << indent(level) << "}\n";
@@ -178,7 +178,9 @@ namespace TLC {
             for (const auto &fp : var.fps) {
                 const auto &name = fp.first;
                 std::string allocatorName = ancestorName + "____" + name + "_xx_ThunkAlloc";
-                ss << indent(level) << "LoreLib_CallbackContext_init("
+                ss << indent(level)
+                   << (isGCB ? "LoreLib_CallbackContext_init("
+                             : "LoreLib_CallbackContext_init_HCB(")
                    << (parent.empty() ? "ctx." : ("p_" + parent + "_ctx->")) << name << ", "
                    << (parent.empty() ? name : ("p_" + parent + "->" + name)) << ", "
                    << allocatorName << ");\n";
@@ -297,7 +299,7 @@ namespace TLC {
 
         auto thunkRetType = typeView.returnType();
         auto thunkArgTypes = typeView.argTypes();
-        bool isGuest = thunk.type() == ThunkDefinition::HostCallbackThunk;
+        bool isGuest = thunk.type() == ThunkDefinition::GuestCallbackThunk;
 
         FunctionDefinition &TP =
             thunk.function(isGuest ? FunctionDefinition::GTP : FunctionDefinition::HTP);
@@ -322,7 +324,8 @@ namespace TLC {
         std::map<std::string, QualType> thunksToGen;
 
         std::string initSource;
-        initSource = builder.buildInitSource(builder.rootVar, {}, TP.rep().name(), thunksToGen, 2);
+        initSource =
+            builder.buildInitSource(!isGuest, builder.rootVar, {}, TP.rep().name(), thunksToGen, 2);
 
         std::string finiSource;
         finiSource = builder.buildFiniSource(builder.rootVar, {}, 2);

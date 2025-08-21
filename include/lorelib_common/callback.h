@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#include <sys/mman.h>
+
 #include <lorelei/loreshared.h>
 
 
@@ -61,13 +63,13 @@
         if (!trampoline) {                                                                         \
             trampoline = Lore_AllocCallbackTrampoline(LORELIB_GCB_THUNK_COUNT, TARGET);            \
         }                                                                                          \
-        struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0];                           \
+        struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0] + 1;                       \
         while (t->saved_callback) {                                                                \
             if (t->saved_callback == input) {                                                      \
                 return (void *) t->thunk_instr;                                                    \
             }                                                                                      \
             t++;                                                                                   \
-        }                                                                                          \
+        }                                    printf("%p %p\n", stdout, stderr);                                                      \
         t->saved_callback = input;                                                                 \
         return (void *) t->thunk_instr;                                                            \
     }
@@ -88,6 +90,15 @@ struct LoreLib_CallbackContext {
 
 #define LoreLib_CallbackContext_init(CTX, FP, ALLOCATOR)                                           \
     if (LORELIB_IS_GUEST_ADDR(FP)) {                                                               \
+        (CTX).p_fp = (void **) &(FP);                                                              \
+        (CTX).org_fp = FP;                                                                         \
+        *(void **) (&FP) = ALLOCATOR(FP);                                                          \
+    } else {                                                                                       \
+        (CTX).org_fp = NULL;                                                                       \
+    }
+
+#define LoreLib_CallbackContext_init_HCB(CTX, FP, ALLOCATOR)                                       \
+    if (!LORELIB_IS_GUEST_ADDR(FP)) {                                                              \
         (CTX).p_fp = (void **) &(FP);                                                              \
         (CTX).org_fp = FP;                                                                         \
         *(void **) (&FP) = ALLOCATOR(FP);                                                          \
