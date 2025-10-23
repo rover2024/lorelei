@@ -12,6 +12,8 @@
 
 namespace TLC {
 
+    class Analyzer;
+
     class ThunkDefinition;
 
     /// Base class for all passes in the TLC pipeline.
@@ -39,6 +41,10 @@ namespace TLC {
         }
 
     public:
+        /// Initialize the pass, maybe some indexes can be built here.
+        /// \param analyzer The analyzer instance.
+        virtual void initialize(Analyzer *analyzer);
+
         /// Test the ThunkDefinition to see if it is valid for this pass.
         /// \param td The ThunkDefinition to test.
         /// \param args The pass arguments for further processing.
@@ -93,6 +99,7 @@ namespace TLC {
     public:
         enum Type {
             PT_CallbackSubstituter,
+            PT_TypeConverter,
         };
         EntryExitPass(Type type, std::string id) : Pass(Stage::EntryExit, type, std::move(id)) {
         }

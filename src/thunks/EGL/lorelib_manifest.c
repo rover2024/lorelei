@@ -1,10 +1,9 @@
 #include <dlfcn.h>
 #include <stdio.h>
 
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/glx.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <EGL/eglplatform.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -18,7 +17,7 @@
 //
 #define LORELIB_GCB_AUTO_DEPTH 1
 #define LORELIB_HCB_AUTO_DEPTH 1
-// #define LORELIB_CALLBACK_REPLACE
+#define LORELIB_CALLBACK_REPLACE
 
 
 
@@ -34,9 +33,6 @@
 // Custom(Guest)
 //
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
-static void ___GTP_glDebugMessageCallback(GLDEBUGPROC callback, const void *userParam) { }
-static void ___GTP_glDebugMessageCallbackAMD(GLDEBUGPROCAMD callback, void *userParam) { }
-static void ___GTP_glDebugMessageCallbackARB(GLDEBUGPROCARB callback, const void *userParam) { }
 #endif
 
 

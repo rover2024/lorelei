@@ -7,45 +7,52 @@
 typedef struct glvnd_mutex glvnd_mutex_t;
 
 typedef struct {
-    GLXFBConfig * (* ptr_glXChooseFBConfig) (Display *dpy, int screen, const int *attrib_list, int *nelements);
-    XVisualInfo * (* ptr_glXChooseVisual) (Display *dpy, int screen, int *attribList);
-    void (* ptr_glXCopyContext) (Display *dpy, GLXContext src, GLXContext dst, unsigned long mask);
-    GLXContext (* ptr_glXCreateContext) (Display *dpy, XVisualInfo *vis, GLXContext shareList, Bool direct);
-    GLXPixmap (* ptr_glXCreateGLXPixmap) (Display *dpy, XVisualInfo *visual, Pixmap pixmap);
-    GLXContext (* ptr_glXCreateNewContext) (Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list, Bool direct);
-    GLXPbuffer (* ptr_glXCreatePbuffer) (Display *dpy, GLXFBConfig config, const int *attrib_list);
-    GLXPixmap (* ptr_glXCreatePixmap) (Display *dpy, GLXFBConfig config, Pixmap pixmap, const int *attrib_list);
-    GLXWindow (* ptr_glXCreateWindow) (Display *dpy, GLXFBConfig config, Window win, const int *attrib_list);
-    void (* ptr_glXDestroyContext) (Display *dpy, GLXContext ctx);
-    void (* ptr_glXDestroyGLXPixmap) (Display *dpy, GLXPixmap pixmap);
-    void (* ptr_glXDestroyPbuffer) (Display *dpy, GLXPbuffer pbuf);
-    void (* ptr_glXDestroyPixmap) (Display *dpy, GLXPixmap pixmap);
-    void (* ptr_glXDestroyWindow) (Display *dpy, GLXWindow win);
-    const char * (* ptr_glXGetClientString) (Display *dpy, int name);
-    int (* ptr_glXGetConfig) (Display *dpy, XVisualInfo *visual, int attrib, int *value);
-    GLXContext (* ptr_glXGetCurrentContext) (void);
-    GLXDrawable (* ptr_glXGetCurrentDrawable) (void);
-    GLXDrawable (* ptr_glXGetCurrentReadDrawable) (void);
-    int (* ptr_glXGetFBConfigAttrib) (Display *dpy, GLXFBConfig config, int attribute, int *value);
-    GLXFBConfig * (* ptr_glXGetFBConfigs) (Display *dpy, int screen, int *nelements);
-    __GLXextFuncPtr (* ptr_glXGetProcAddress) (const GLubyte *procName);
-    __GLXextFuncPtr (* ptr_glXGetProcAddressARB) (const GLubyte *procName);
-    void (* ptr_glXGetSelectedEvent) (Display *dpy, GLXDrawable draw, unsigned long *event_mask);
-    XVisualInfo * (* ptr_glXGetVisualFromFBConfig) (Display *dpy, GLXFBConfig config);
-    Bool (* ptr_glXIsDirect) (Display *dpy, GLXContext ctx);
-    Bool (* ptr_glXMakeContextCurrent) (Display *dpy, GLXDrawable draw, GLXDrawable read, GLXContext ctx);
-    Bool (* ptr_glXMakeCurrent) (Display *dpy, GLXDrawable drawable, GLXContext ctx);
-    int (* ptr_glXQueryContext) (Display *dpy, GLXContext ctx, int attribute, int *value);
-    void (* ptr_glXQueryDrawable) (Display *dpy, GLXDrawable draw, int attribute, unsigned int *value);
-    Bool (* ptr_glXQueryExtension) (Display *dpy, int *errorb, int *event);
-    const char * (* ptr_glXQueryExtensionsString) (Display *dpy, int screen);
-    const char * (* ptr_glXQueryServerString) (Display *dpy, int screen, int name);
-    Bool (* ptr_glXQueryVersion) (Display *dpy, int *maj, int *min);
-    void (* ptr_glXSelectEvent) (Display *dpy, GLXDrawable draw, unsigned long event_mask);
-    void (* ptr_glXSwapBuffers) (Display *dpy, GLXDrawable drawable);
-    void (* ptr_glXUseXFont) (Font font, int first, int count, int list);
-    void (* ptr_glXWaitGL) (void);
-    void (* ptr_glXWaitX) (void);
+    GLXFBConfig *(*ptr_glXChooseFBConfig)(Display *dpy, int screen, const int *attrib_list,
+                                          int *nelements);
+    XVisualInfo *(*ptr_glXChooseVisual)(Display *dpy, int screen, int *attribList);
+    void (*ptr_glXCopyContext)(Display *dpy, GLXContext src, GLXContext dst, unsigned long mask);
+    GLXContext (*ptr_glXCreateContext)(Display *dpy, XVisualInfo *vis, GLXContext shareList,
+                                       Bool direct);
+    GLXPixmap (*ptr_glXCreateGLXPixmap)(Display *dpy, XVisualInfo *visual, Pixmap pixmap);
+    GLXContext (*ptr_glXCreateNewContext)(Display *dpy, GLXFBConfig config, int render_type,
+                                          GLXContext share_list, Bool direct);
+    GLXPbuffer (*ptr_glXCreatePbuffer)(Display *dpy, GLXFBConfig config, const int *attrib_list);
+    GLXPixmap (*ptr_glXCreatePixmap)(Display *dpy, GLXFBConfig config, Pixmap pixmap,
+                                     const int *attrib_list);
+    GLXWindow (*ptr_glXCreateWindow)(Display *dpy, GLXFBConfig config, Window win,
+                                     const int *attrib_list);
+    void (*ptr_glXDestroyContext)(Display *dpy, GLXContext ctx);
+    void (*ptr_glXDestroyGLXPixmap)(Display *dpy, GLXPixmap pixmap);
+    void (*ptr_glXDestroyPbuffer)(Display *dpy, GLXPbuffer pbuf);
+    void (*ptr_glXDestroyPixmap)(Display *dpy, GLXPixmap pixmap);
+    void (*ptr_glXDestroyWindow)(Display *dpy, GLXWindow win);
+    const char *(*ptr_glXGetClientString)(Display *dpy, int name);
+    int (*ptr_glXGetConfig)(Display *dpy, XVisualInfo *visual, int attrib, int *value);
+    GLXContext (*ptr_glXGetCurrentContext)(void);
+    GLXDrawable (*ptr_glXGetCurrentDrawable)(void);
+    GLXDrawable (*ptr_glXGetCurrentReadDrawable)(void);
+    int (*ptr_glXGetFBConfigAttrib)(Display *dpy, GLXFBConfig config, int attribute, int *value);
+    GLXFBConfig *(*ptr_glXGetFBConfigs)(Display *dpy, int screen, int *nelements);
+    __GLXextFuncPtr (*ptr_glXGetProcAddress)(const GLubyte *procName);
+    __GLXextFuncPtr (*ptr_glXGetProcAddressARB)(const GLubyte *procName);
+    void (*ptr_glXGetSelectedEvent)(Display *dpy, GLXDrawable draw, unsigned long *event_mask);
+    XVisualInfo *(*ptr_glXGetVisualFromFBConfig)(Display *dpy, GLXFBConfig config);
+    Bool (*ptr_glXIsDirect)(Display *dpy, GLXContext ctx);
+    Bool (*ptr_glXMakeContextCurrent)(Display *dpy, GLXDrawable draw, GLXDrawable read,
+                                      GLXContext ctx);
+    Bool (*ptr_glXMakeCurrent)(Display *dpy, GLXDrawable drawable, GLXContext ctx);
+    int (*ptr_glXQueryContext)(Display *dpy, GLXContext ctx, int attribute, int *value);
+    void (*ptr_glXQueryDrawable)(Display *dpy, GLXDrawable draw, int attribute,
+                                 unsigned int *value);
+    Bool (*ptr_glXQueryExtension)(Display *dpy, int *errorb, int *event);
+    const char *(*ptr_glXQueryExtensionsString)(Display *dpy, int screen);
+    const char *(*ptr_glXQueryServerString)(Display *dpy, int screen, int name);
+    Bool (*ptr_glXQueryVersion)(Display *dpy, int *maj, int *min);
+    void (*ptr_glXSelectEvent)(Display *dpy, GLXDrawable draw, unsigned long event_mask);
+    void (*ptr_glXSwapBuffers)(Display *dpy, GLXDrawable drawable);
+    void (*ptr_glXUseXFont)(Font font, int first, int count, int list);
+    void (*ptr_glXWaitGL)(void);
+    void (*ptr_glXWaitX)(void);
 } __glXGLCoreFunctions;
 
 /**
@@ -66,7 +73,8 @@ typedef struct {
  * \param ptr A mutex to lock before accessing \p ptr, or NULL.
  * \return A pointer to the requested function.
  */
-extern __GLXextFuncPtr __glXGLLoadGLXFunction(const char *name, __GLXextFuncPtr *ptr, glvnd_mutex_t *mutex);
+extern __GLXextFuncPtr __glXGLLoadGLXFunction(const char *name, __GLXextFuncPtr *ptr,
+                                              glvnd_mutex_t *mutex);
 
 extern const __glXGLCoreFunctions __GLXGL_CORE_FUNCTIONS;
 
@@ -99,6 +107,41 @@ extern const __glXGLCoreFunctions __GLXGL_CORE_FUNCTIONS;
 // Custom(Guest)
 //
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
+
+#include <stdlib.h>
+#include <assert.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
+static __thread Display *last_guest_display;
+
+static Display *__TYPECONV_G_G2H_X11Display(Display *display) {
+    XSync(display, 0);
+    last_guest_display = display;
+    return display;
+}
+
+static Display *__TYPECONV_G_H2G_X11Display(Display *display) {
+    return display;
+}
+
+static XVisualInfo *__TYPECONV_G_G2H_X11VisualInfo(XVisualInfo *visualInfo) {
+    return visualInfo;
+}
+
+static XVisualInfo *__TYPECONV_G_H2G_X11VisualInfo(XVisualInfo *guest_info_trans) {
+    int nitems_return = 0;
+    assert(last_guest_display);
+    XVisualInfo* info = XGetVisualInfo(last_guest_display, VisualScreenMask | VisualIDMask, guest_info_trans, &nitems_return);
+    last_guest_display = NULL;
+    
+    // ERROR("Failed to find matching XVisualInfo");
+    assert(nitems_return == 1); 
+
+    assert(info);
+    return info;
+}
+
 #endif
 
 
@@ -107,5 +150,27 @@ extern const __glXGLCoreFunctions __GLXGL_CORE_FUNCTIONS;
 // Custom(Host)
 //
 #if defined(LORELIB_HTL_BUILD) || defined(LORELIB_VISUAL)
-#endif
 
+extern Display *X11Mappings_Display_G2H(Display *display);
+extern Display *X11Mappings_Display_H2G(Display *display);
+
+extern XVisualInfo *X11Mappings_VisualInfo_G2H(XVisualInfo *display);
+extern XVisualInfo *X11Mappings_VisualInfo_H2G(XVisualInfo *display);
+
+static Display *__TYPECONV_H_G2H_X11Display(Display *display) {
+    return X11Mappings_Display_G2H(display);
+}
+
+static Display *__TYPECONV_H_H2G_X11Display(Display *display) {
+    return X11Mappings_Display_H2G(display);
+}
+
+static XVisualInfo *__TYPECONV_H_G2H_X11VisualInfo(XVisualInfo *visualInfo) {
+    return X11Mappings_VisualInfo_G2H(visualInfo);
+}
+
+static XVisualInfo *__TYPECONV_H_H2G_X11VisualInfo(XVisualInfo *visualInfo) {
+    return X11Mappings_VisualInfo_H2G(visualInfo);
+}
+
+#endif

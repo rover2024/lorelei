@@ -1,5 +1,5 @@
 if(LORELEI_ENABLE_GUEST)
-    set(LORELIB_GUEST_SYMLINKS libGL.so.1)
+    set(LORELIB_GUEST_SYMLINKS libEGL.so.1)
     target_link_libraries(${LORELEI_GUEST_PROJECT} PRIVATE GLX)
     target_link_options(${LORELEI_GUEST_PROJECT} PRIVATE -Wl,--no-as-needed)
 endif()

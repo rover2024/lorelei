@@ -18,4 +18,7 @@ namespace TLC {
         return passes[stage];
     }
 
+    void Pass::initialize(Analyzer *analyzer) {
+    }
+
 }

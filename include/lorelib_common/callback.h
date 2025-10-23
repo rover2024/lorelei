@@ -38,7 +38,9 @@
 //
 // Thunk allocator
 //
-#define LORELIB_GCB_THUNK_COUNT 40
+#ifndef LORELIB_GCB_THUNK_COUNT
+#  define LORELIB_GCB_THUNK_COUNT 20
+#endif
 
 #define LORELIB_GCB_THUNK_ALLOCATOR(NAME, TARGET)                                                  \
     static __typeof__(&TARGET) NAME(void *input) {                                                 \
@@ -57,11 +59,15 @@
         return (void *) t->thunk_instr;                                                            \
     }
 
+#ifndef LORELIB_HCB_THUNK_COUNT
+#  define LORELIB_HCB_THUNK_COUNT 20
+#endif
+
 #define LORELIB_HCB_THUNK_ALLOCATOR(NAME, TARGET)                                                  \
     static __typeof__(&TARGET) NAME(void *input) {                                                 \
         static __thread struct LORE_CALLBACK_TRAMPOLINE_CONTEXT *trampoline = NULL;                \
         if (!trampoline) {                                                                         \
-            trampoline = Lore_AllocCallbackTrampoline(LORELIB_GCB_THUNK_COUNT, TARGET);            \
+            trampoline = Lore_AllocCallbackTrampoline(LORELIB_HCB_THUNK_COUNT, TARGET);            \
         }                                                                                          \
         struct LORE_CALLBACK_TRAMPOLINE *t = &trampoline->trampoline[0] + 1;                       \
         while (t->saved_callback) {                                                                \
@@ -69,7 +75,7 @@
                 return (void *) t->thunk_instr;                                                    \
             }                                                                                      \
             t++;                                                                                   \
-        }                                    printf("%p %p\n", stdout, stderr);                                                      \
+        }                                                                                          \
         t->saved_callback = input;                                                                 \
         return (void *) t->thunk_instr;                                                            \
     }

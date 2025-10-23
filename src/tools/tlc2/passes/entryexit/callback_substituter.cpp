@@ -344,9 +344,9 @@ namespace TLC {
 
                 auto callbackHandler = analyzer->callbackName(getTypeString(type), isGuest);
                 if (callbackHandler.empty()) {
-                    return createStringError(std::errc::not_supported,
-                                             "callback handler not found for type: %s",
-                                             getTypeString(type).c_str());
+                    return createStringError(
+                        std::errc::not_supported, "%s callback handler not found for type: %s",
+                        isGuest ? "guest" : "host", getTypeString(type).c_str());
                 }
 
                 ss << (isGuest ? "LORELIB_HCB_THUNK_ALLOCATOR" : "LORELIB_GCB_THUNK_ALLOCATOR")

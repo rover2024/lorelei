@@ -13,6 +13,10 @@
 #include "loreshared.h"
 
 void *Lore_LoadHostThunkLibrary(void *someAddr) {
+    // printf("123456\n");
+    // asm volatile("int $0x03");
+    // printf("abcdef\n");
+
     char buf[PATH_MAX];
     if (!Lore_RevealLibraryPath(buf, someAddr, 1)) {
         fprintf(stderr, "loregrt: %p: failed to reveal library path\n", someAddr);
@@ -50,7 +54,8 @@ void *Lore_LoadHostThunkLibrary(void *someAddr) {
     // Load host thunk
     void *host_thunk_handle = Lore_LoadLibrary(lib_data->htl, RTLD_NOW);
     if (!host_thunk_handle) {
-        fprintf(stderr, "loregrt: %s: failed to load HTL \"%s\": %s\n", buf, lib_data->htl, Lore_GetErrorMessage());
+        fprintf(stderr, "loregrt: %s: failed to load HTL \"%s\": %s\n", buf, lib_data->htl,
+                Lore_GetErrorMessage());
         return NULL;
     }
 
@@ -91,6 +96,26 @@ void *Lore_GetHostThunkProcAddress(void *handle, const char *name) {
     return Lore_GetProcAddress(handle, realName);
 }
 
+static void *ConvertHostProcAddress_helper(const char *host_library_path,
+                                           const struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data,
+                                           const char *name) {
+    const char *path = thunk_lib_data->gtl;
+    void *guest_handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
+    if (!guest_handle) {
+        guest_handle = dlopen(path, RTLD_NOW);
+        if (!guest_handle) {
+            fprintf(stderr, "loregrt: %s: failed to load thunk library \"%s\"\n", host_library_path,
+                    path);
+            return NULL;
+        }
+    }
+    void *func = dlsym(guest_handle, name);
+    if (!func) {
+        return NULL;
+    }
+    return func;
+}
+
 void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
     const char *host_library_path = Lore_GetModulePath(addr, 0);
     if (!host_library_path) {
@@ -98,10 +123,16 @@ void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
         return NULL;
     }
 
+    // Try to find the reverse mapping
     struct LORE_HOST_LIBRARY_DATA *lib_data = Lore_GetLibraryData(host_library_path, 0);
     if (!lib_data) {
-        fprintf(stderr, "loregrt: %s: failed to get library data\n", host_library_path);
-        return NULL;
+        // The reverse mapping is not found, assume the guest thunk library has the same name
+        struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data = Lore_GetLibraryData(host_library_path, 1);
+        if (!thunk_lib_data) {
+            fprintf(stderr, "loregrt: %s: failed to get library data\n", host_library_path);
+            return NULL;
+        }
+        return ConvertHostProcAddress_helper(host_library_path, thunk_lib_data, name);
     }
 
     const char **thunks = lib_data->thunks;
@@ -109,25 +140,17 @@ void *Lore_ConvertHostProcAddress(const char *name, void *addr) {
         const char *thunkName = thunks[i];
         struct LORE_THUNK_LIBRARY_DATA *thunk_lib_data = Lore_GetLibraryData(thunkName, 1);
         if (!thunk_lib_data) {
-            fprintf(stderr, "loregrt: %s: failed to get data of thunk library \"%s\"\n", host_library_path, thunkName);
-            continue;
+            fprintf(stderr, "loregrt: %s: failed to get data of thunk library \"%s\"\n",
+                    host_library_path, thunkName);
+            return NULL;
         }
-        const char *path = thunk_lib_data->gtl;
-        void *guest_handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
-        if (!guest_handle) {
-            guest_handle = dlopen(path, RTLD_NOW);
-            if (!guest_handle) {
-                fprintf(stderr, "loregrt: %s: failed to load thunk library \"%s\"\n", host_library_path, path);
-                continue;
-            }
-        }
-        void *func = dlsym(guest_handle, name);
+        void *func = ConvertHostProcAddress_helper(host_library_path, thunk_lib_data, name);
         if (!func) {
             continue;
         }
         return func;
     }
-    fprintf(stderr, "loregrt: %s: failed to convert host function \"%s\" at %p to guest function\n", host_library_path,
-            name, addr);
+    fprintf(stderr, "loregrt: %s: failed to convert host function \"%s\" at %p to guest function\n",
+            host_library_path, name, addr);
     return NULL;
 }

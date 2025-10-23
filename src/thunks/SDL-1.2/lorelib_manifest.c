@@ -1,10 +1,5 @@
+#include <SDL/SDL.h>
 #include <dlfcn.h>
-#include <stdio.h>
-
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/glx.h>
 
 #include <lorelei/loreshared.h>
 #include <lorelei/loreuser.h>
@@ -18,7 +13,6 @@
 //
 #define LORELIB_GCB_AUTO_DEPTH 1
 #define LORELIB_HCB_AUTO_DEPTH 1
-// #define LORELIB_CALLBACK_REPLACE
 
 
 
@@ -34,9 +28,15 @@
 // Custom(Guest)
 //
 #if defined(LORELIB_GTL_BUILD) || defined(LORELIB_VISUAL)
-static void ___GTP_glDebugMessageCallback(GLDEBUGPROC callback, const void *userParam) { }
-static void ___GTP_glDebugMessageCallbackAMD(GLDEBUGPROCAMD callback, void *userParam) { }
-static void ___GTP_glDebugMessageCallbackARB(GLDEBUGPROCARB callback, const void *userParam) { }
+
+static void * __GTP_SDL_LoadObject(const char *arg1) { return dlopen(arg1, RTLD_NOW); }
+
+static void __GTP_SDL_UnloadObject(void *arg1) { dlclose(arg1); }
+
+static void * __GTP_SDL_LoadFunction(void * arg1, const char * arg2) { return dlsym(arg1, arg2); }
+
+static char * __GTP_SDL_GetError() { return dlerror(); }
+
 #endif
 
 

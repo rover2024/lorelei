@@ -8,27 +8,21 @@
         },
         {
             "name": "libGL",
-            "dependencies": [
-                "libGLX"
-            ],
             "gtl": "@/lib/x86_64-lore-guest/libGL.so",
             "htl": "@/lib/x86_64-lore-host/libGL_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libGL.so"
-        },
-        {
-            "name": "libGLEW",
-            "dependencies": [
-                "libGL"
-            ],
-            "gtl": "@/lib/x86_64-lore-guest/libGLEW.so",
-            "htl": "@/lib/x86_64-lore-host/libGLEW_HTL.so",
-            "hl": "/usr/lib/x86_64-linux-gnu/libGLEW.so"
         },
         {
             "name": "libGLX",
             "gtl": "@/lib/x86_64-lore-guest/libGLX.so",
             "htl": "@/lib/x86_64-lore-host/libGLX_HTL.so",
             "hl": "/usr/lib/x86_64-linux-gnu/libGLX.so"
+        },
+        {
+            "name": "libEGL",
+            "gtl": "@/lib/x86_64-lore-guest/libEGL.so",
+            "htl": "@/lib/x86_64-lore-host/libEGL_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libEGL.so"
         },
         {
             "name": "libSDL2",
@@ -38,6 +32,12 @@
             "gtl": "@/lib/x86_64-lore-guest/libSDL2.so",
             "htl": "@/lib/x86_64-lore-host/libSDL2_HTL.so",
             "hl": "/home/overworld/Documents/rover2024/SDL/build/install/lib/libSDL2-2.0.so"
+        },
+        {
+            "name": "libSDL-1.2",
+            "gtl": "@/lib/x86_64-lore-guest/libSDL-1.2.so",
+            "htl": "@/lib/x86_64-lore-host/libSDL-1.2_HTL.so",
+            "hl": "/home/overworld/Documents/rover2024/SDL-1.2/build/install/lib/libSDL.so"
         },
         {
             "name": "libz",
@@ -166,7 +166,19 @@
             "name": "libcurl",
             "gtl": "@/lib/x86_64-lore-guest/libcurl.so",
             "htl": "@/lib/x86_64-lore-host/libcurl_HTL.so",
-            "hl": "/usr/lib/x86_64-linux-gnu/libcurl.so"
+            "hl": "/usr/lib/x86_64·-linux-gnu/libcurl.so"
+        },
+        {
+            "name": "libX11",
+            "gtl": "@/lib/x86_64-lore-guest/libX11.so",
+            "htl": "@/lib/x86_64-lore-host/libX11_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libX11.so"
+        },
+        {
+            "name": "libvulkan",
+            "gtl": "@/lib/x86_64-lore-guest/libvulkan.so",
+            "htl": "@/lib/x86_64-lore-host/libvulkan_HTL.so",
+            "hl": "/usr/lib/x86_64-linux-gnu/libvulkan.so.1"
         }
     ],
     "host": [

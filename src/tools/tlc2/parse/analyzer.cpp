@@ -299,68 +299,6 @@ namespace TLC {
             }
         }
 
-        /// STEP: Collect callbacks in function arguments and return types
-        std::map<std::string, QualType> fpTypes;
-        {
-            std::set<std::string> visitedTypes;
-            for (const auto &pair :
-                 std::as_const(declaredFuncMaps[ThunkDefinition::GuestFunctionThunk])) {
-                FunctionTypeView rep(pair.second.type);
-
-                SmallVector<QualType> stack;
-                stack.push_back(rep.returnType());
-                for (const auto &argType : rep.argTypes()) {
-                    stack.push_back(argType);
-                }
-                while (!stack.empty()) {
-                    auto type = stack.pop_back_val().getCanonicalType();
-                    while (true) {
-                        if (type->isPointerType()) {
-                            type = type->getPointeeType();
-                            continue;
-                        }
-                        if (type->isArrayType()) {
-                            type = type->getAsArrayTypeUnsafe()->getElementType();
-                            continue;
-                        }
-                        break;
-                    }
-
-                    type = type.getCanonicalType();
-                    auto Name = getTypeString(type);
-                    if (visitedTypes.count(Name)) {
-                        continue;
-                    }
-                    visitedTypes.insert(Name);
-
-                    //  Function pointer
-                    if (type->isFunctionProtoType()) {
-                        auto FPT = type->getAs<FunctionProtoType>();
-                        if (auto RetType = FPT->getReturnType(); !RetType->isVoidType())
-                            stack.push_back(FPT->getReturnType());
-                        for (const auto &T : FPT->param_types()) {
-                            stack.push_back(T);
-                        }
-                        fpTypes[Name] = type;
-                        continue;
-                    }
-                    if (type->isFunctionNoProtoType()) {
-                        auto FNT = type->getAs<FunctionNoProtoType>();
-                        stack.push_back(FNT->getReturnType());
-                        fpTypes[Name] = type;
-                        continue;
-                    }
-                    if (type->isRecordType()) {
-                        auto recType = type->getAs<RecordType>();
-                        for (const auto &T : recType->getDecl()->fields()) {
-                            stack.push_back(T->getType());
-                        }
-                        continue;
-                    }
-                }
-            }
-        }
-
         /// STEP: Collect hint declarations
         for (const auto &FD : std::as_const(_fds)) {
             const auto &name = FD->getName();
@@ -369,25 +307,20 @@ namespace TLC {
             if (char prefix[] = "__HINT_"; name.starts_with(prefix)) {
                 auto realName = name.substr(sizeof(prefix) - 1);
                 auto typeName = getTypeString(FD->getType().getCanonicalType());
-                if (char prefix[] = "GCB_"; realName.starts_with("GCB_")) {
+                if (char prefix[] = "GCB_"; realName.starts_with(prefix)) {
                     // __HINT_GCB_xxx
                     realName = realName.substr(sizeof(prefix) - 1);
-                    if (true || fpTypes.count(typeName)) {
-                        auto &target =
-                            declaredFuncMaps[ThunkDefinition::GuestCallbackThunk][realName.str()];
-                        target.hintDecl = FD;
-                        target.type = FD->getType();
-                    }
-
-                } else if (char prefix[] = "HCB_"; realName.starts_with("HCB_")) {
+                    auto &target =
+                        declaredFuncMaps[ThunkDefinition::GuestCallbackThunk][realName.str()];
+                    target.hintDecl = FD;
+                    target.type = FD->getType();
+                } else if (char prefix[] = "HCB_"; realName.starts_with(prefix)) {
                     // __HINT_HCB_xxx
                     realName = realName.substr(sizeof(prefix) - 1);
-                    if (true || fpTypes.count(typeName)) {
-                        auto &target =
-                            declaredFuncMaps[ThunkDefinition::HostCallbackThunk][realName.str()];
-                        target.hintDecl = FD;
-                        target.type = FD->getType();
-                    }
+                    auto &target =
+                        declaredFuncMaps[ThunkDefinition::HostCallbackThunk][realName.str()];
+                    target.hintDecl = FD;
+                    target.type = FD->getType();
                 } else {
                     // __HINT_xxx
                     auto it =
@@ -446,6 +379,80 @@ namespace TLC {
                         it->second.thunks[thunkType] = FD;
                     }
                 }
+            }
+        }
+
+        /// STEP: Collect callbacks in function arguments and return types
+        std::map<std::string, QualType> fpTypes;
+        {
+            std::set<std::string> visitedTypes;
+            const auto &collectCallback = [&](const FunctionTypeView &rep) {
+                SmallVector<QualType> stack;
+                stack.push_back(rep.returnType());
+                for (const auto &argType : rep.argTypes()) {
+                    stack.push_back(argType);
+                }
+                while (!stack.empty()) {
+                    auto type = stack.pop_back_val().getCanonicalType();
+                    while (true) {
+                        if (type->isPointerType()) {
+                            type = type->getPointeeType();
+                            continue;
+                        }
+                        if (type->isArrayType()) {
+                            type = type->getAsArrayTypeUnsafe()->getElementType();
+                            continue;
+                        }
+                        break;
+                    }
+
+                    type = type.getCanonicalType();
+                    auto Name = getTypeString(type);
+                    if (visitedTypes.count(Name)) {
+                        continue;
+                    }
+                    visitedTypes.insert(Name);
+
+                    //  Function pointer
+                    if (type->isFunctionProtoType()) {
+                        auto FPT = type->getAs<FunctionProtoType>();
+                        if (auto RetType = FPT->getReturnType(); !RetType->isVoidType())
+                            stack.push_back(FPT->getReturnType());
+                        for (const auto &T : FPT->param_types()) {
+                            stack.push_back(T);
+                        }
+                        fpTypes[Name] = type;
+                        continue;
+                    }
+                    if (type->isFunctionNoProtoType()) {
+                        auto FNT = type->getAs<FunctionNoProtoType>();
+                        stack.push_back(FNT->getReturnType());
+                        fpTypes[Name] = type;
+                        continue;
+                    }
+                    if (type->isRecordType()) {
+                        auto recType = type->getAs<RecordType>();
+                        for (const auto &T : recType->getDecl()->fields()) {
+                            stack.push_back(T->getType());
+                        }
+                        continue;
+                    }
+                }
+            };
+            for (const auto &pair :
+                 std::as_const(declaredFuncMaps[ThunkDefinition::GuestFunctionThunk])) {
+                FunctionTypeView rep(pair.second.type);
+                collectCallback(rep);
+            }
+            for (const auto &pair :
+                 std::as_const(declaredFuncMaps[ThunkDefinition::GuestCallbackThunk])) {
+                FunctionTypeView rep(pair.second.type);
+                collectCallback(rep);
+            }
+            for (const auto &pair :
+                 std::as_const(declaredFuncMaps[ThunkDefinition::HostCallbackThunk])) {
+                FunctionTypeView rep(pair.second.type);
+                collectCallback(rep);
             }
         }
 
@@ -622,6 +629,17 @@ namespace TLC {
 
     void Analyzer::analyze() {
         auto defaultBuilderPass = Pass::passMap(Pass::Builder).at("standard");
+        // initialize
+        {
+            Pass::Stage stages[] = {Pass::Builder, Pass::EntryExit, Pass::Decoration};
+            for (const auto stage : stages) {
+                for (const auto &pair : Pass::passMap(stage)) {
+                    pair.second->initialize(this);
+                }
+            }
+        }
+
+        // run
         for (int type = ThunkDefinition::GuestFunctionThunk; type < ThunkDefinition::NumTypes;
              type++) {
             /// STEP: run builder passes, default pass is "standard"

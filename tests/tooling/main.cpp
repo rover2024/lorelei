@@ -17,6 +17,7 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/SHA256.h>
 #include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Support/Error.h>
 
 using namespace clang;
 using namespace clang::ast_matchers;
@@ -25,48 +26,97 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-class CFICCGlobalContext {
+class InputFile {
+public:
+    InputFile() = default;
+    ~InputFile() = default;
+
+public:
+    llvm::Error load(const std::filesystem::path &path) {
+        auto buffer = llvm::MemoryBuffer::getFile(path.string());
+        if (std::error_code ec = buffer.getError()) {
+            return llvm::createStringError(ec, "Failed to open file: %s", ec.message().c_str());
+        }
+
+        decltype(_symbols) symbols;
+        {
+            std::istringstream iss(buffer->get()->getBuffer().str());
+            std::string line;
+            int i = 0;
+            while (std::getline(iss, line)) {
+                line = StringRef(line).trim().str();
+                if (line.empty()) {
+                    continue;
+                }
+                symbols.insert(line);
+            }
+        }
+        _symbols = std::move(symbols);
+        return llvm::Error::success();
+    }
+
+    const std::set<std::string> &symbols() const {
+        return _symbols;
+    }
+
+protected:
+    std::set<std::string> _symbols;
+};
+
+class MyGlobalContext {
 public:
     std::filesystem::path WorkingDirectory;
 
+    class InputFile InputFile;
     std::string OutputPath;
 };
 
-static CFICCGlobalContext GlobalContext;
+static MyGlobalContext GlobalContext;
 
 // 1. Match handler
-class FPExprHandler : public MatchFinder::MatchCallback {
+class MyMatchHandler : public MatchFinder::MatchCallback {
 public:
-    FPExprHandler(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions) {
+    MyMatchHandler(SmallVectorImpl<const CallExpr *> &Expressions,
+                   SmallVectorImpl<const FunctionDecl *> &FDs)
+        : Expressions(Expressions), FDs(FDs) {
     }
 
     virtual void run(const MatchFinder::MatchResult &Result) override {
         const CallExpr *call = Result.Nodes.getNodeAs<CallExpr>("call");
-        if (!call)
+        if (call) {
+            const Expr *calleeExpr = call->getCallee()->IgnoreImpCasts();
+            if (!calleeExpr)
+                return;
+
+            QualType type = calleeExpr->getType().getCanonicalType();
+            if (!type->isFunctionPointerType() && !type->isBlockPointerType() &&
+                !type->isMemberFunctionPointerType())
+                return;
+
+            Expressions.push_back(call);
             return;
+        }
 
-        // llvm::outs() << call->getBeginLoc().printToString(*Result.SourceManager) << "\n";
 
-        const Expr *calleeExpr = call->getCallee()->IgnoreImpCasts();
-        if (!calleeExpr)
+        const FunctionDecl *func = Result.Nodes.getNodeAs<FunctionDecl>("functionDecl");
+        if (func) {
+            FDs.push_back(func);
             return;
-
-        QualType type = calleeExpr->getType().getCanonicalType();
-        // llvm::outs() << type->getTypeClassName() << ": " << type.getAsString() << "\n";
-        if (!type->isFunctionPointerType() && !type->isBlockPointerType() && !type->isMemberFunctionPointerType())
-            return;
-
-        Expressions.push_back(call);
+        }
     }
 
 private:
     SmallVectorImpl<const CallExpr *> &Expressions;
+    SmallVectorImpl<const FunctionDecl *> &FDs;
 };
 
 // 2. AST consumer
-class FPExprConsumer : public ASTConsumer {
+class MyASTConsumer : public ASTConsumer {
 public:
-    FPExprConsumer(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions), Handler(Expressions) {
+    MyASTConsumer(SmallVectorImpl<const CallExpr *> &Expressions,
+                  SmallVectorImpl<const FunctionDecl *> &FDs)
+        : Handler(Expressions, FDs) {
+        Matcher.addMatcher(functionDecl().bind("functionDecl"), &Handler);
         Matcher.addMatcher(callExpr().bind("call"), &Handler);
     }
 
@@ -75,15 +125,14 @@ public:
     }
 
 private:
-    SmallVectorImpl<const CallExpr *> &Expressions;
     MatchFinder Matcher;
-    FPExprHandler Handler;
+    MyMatchHandler Handler;
 };
 
 // 3. AST frontend action
-class CFICAction : public ASTFrontendAction {
+class MyFrontendAction : public ASTFrontendAction {
 public:
-    CFICAction() {
+    MyFrontendAction() {
     }
 
     void EndSourceFileAction() override {
@@ -93,41 +142,54 @@ public:
         LangOptions LangOpts = Rewrite.getLangOpts();
         ASTContext &Context = getCompilerInstance().getASTContext();
 
-        for (const CallExpr *call : std::as_const(Expressions)) {
-            auto Loc = call->getBeginLoc();
+        // for (const CallExpr *call : std::as_const(Expressions)) {
+        //     auto Loc = call->getBeginLoc();
 
-            // Ignore expressions in header files
-            if (!SM.isInMainFile(Loc)) {
+        //     // Ignore expressions in header files
+        //     if (!SM.isInMainFile(Loc)) {
+        //         continue;
+        //     }
+
+        //     auto calleeExpr = call->getCallee()->IgnoreImpCasts();
+        //     auto type = calleeExpr->getType().getCanonicalType()->getPointeeType();
+        //     llvm::outs() << Loc.printToString(SM) << ": " << type.getAsString() << "\n";
+        // }
+
+        for (const FunctionDecl *FD : std::as_const(FDs)) {
+            auto Name = FD->getNameAsString();
+            if (!GlobalContext.InputFile.symbols().count(Name)) {
                 continue;
             }
-
-            auto calleeExpr = call->getCallee()->IgnoreImpCasts();
-            auto type = calleeExpr->getType().getCanonicalType()->getPointeeType();
-
-            llvm::outs() << Loc.printToString(SM) << ": " << type.getAsString() << "\n";
+            FD->print(llvm::outs());
+            llvm::outs() << ";\n";
         }
     }
 
-    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                   StringRef InFile) override {
         Rewrite.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-        return std::make_unique<FPExprConsumer>(Expressions);
+        return std::make_unique<MyASTConsumer>(Expressions, FDs);
     }
 
 private:
     SmallVector<const CallExpr *, 20> Expressions;
+    SmallVector<const FunctionDecl *, 20> FDs;
     Rewriter Rewrite;
 };
 
 
-static cl::OptionCategory FPExprCategory("cfi compiler step1");
+static cl::OptionCategory MyCategory("my tooling");
 
-static cl::opt<std::string> OutputOption("o", cl::desc("Specify output file"), cl::value_desc("output file"),
-                                         cl::cat(FPExprCategory));
+static cl::opt<std::string> InputOption("i", cl::desc("Specify input file"),
+                                        cl::value_desc("input file"), cl::cat(MyCategory));
+
+static cl::opt<std::string> OutputOption("o", cl::desc("Specify output file"),
+                                         cl::value_desc("output file"), cl::cat(MyCategory));
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 
 int main(int argc, const char *argv[]) {
-    auto ExpectedParser = CommonOptionsParser::create(argc, argv, FPExprCategory);
+    auto ExpectedParser = CommonOptionsParser::create(argc, argv, MyCategory);
     if (!ExpectedParser) {
         llvm::errs() << ExpectedParser.takeError();
         return 0;
@@ -135,9 +197,12 @@ int main(int argc, const char *argv[]) {
 
     GlobalContext.WorkingDirectory = fs::current_path();
 
+    if (auto InputPath = InputOption.getValue(); !InputPath.empty()) {
+        std::ignore = GlobalContext.InputFile.load(InputPath);
+    }
     GlobalContext.OutputPath = OutputOption.getValue();
 
     auto &OptionsParser = ExpectedParser.get();
     ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-    return Tool.run(newFrontendActionFactory<CFICAction>().get());
+    return Tool.run(newFrontendActionFactory<MyFrontendAction>().get());
 }
