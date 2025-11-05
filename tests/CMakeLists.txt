@@ -1,6 +1,4 @@
-add_subdirectory(vacall)
-
-add_subdirectory(callback)
+add_subdirectory(auto)
 
 if(LORELEI_BUILD_TOOLS)
     add_subdirectory(tooling)

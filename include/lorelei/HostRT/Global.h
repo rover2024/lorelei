@@ -1,0 +1,12 @@
+#ifndef LOREHOSTRT_GLOBAL_H
+#define LOREHOSTRT_GLOBAL_H
+
+#include <lorelei/Core/Global.h>
+
+#ifndef LOREHOSTRT_LIBRARY
+#  define LOREHOSTRT_EXPORT
+#else
+#  define LOREHOSTRT_EXPORT LORECORE_DECL_EXPORT
+#endif
+
+#endif // LOREHOSTRT_GLOBAL_H

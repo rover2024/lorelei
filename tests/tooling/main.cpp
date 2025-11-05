@@ -26,53 +26,6 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-class InputFile {
-public:
-    InputFile() = default;
-    ~InputFile() = default;
-
-public:
-    llvm::Error load(const std::filesystem::path &path) {
-        auto buffer = llvm::MemoryBuffer::getFile(path.string());
-        if (std::error_code ec = buffer.getError()) {
-            return llvm::createStringError(ec, "Failed to open file: %s", ec.message().c_str());
-        }
-
-        decltype(_symbols) symbols;
-        {
-            std::istringstream iss(buffer->get()->getBuffer().str());
-            std::string line;
-            int i = 0;
-            while (std::getline(iss, line)) {
-                line = StringRef(line).trim().str();
-                if (line.empty()) {
-                    continue;
-                }
-                symbols.insert(line);
-            }
-        }
-        _symbols = std::move(symbols);
-        return llvm::Error::success();
-    }
-
-    const std::set<std::string> &symbols() const {
-        return _symbols;
-    }
-
-protected:
-    std::set<std::string> _symbols;
-};
-
-class MyGlobalContext {
-public:
-    std::filesystem::path WorkingDirectory;
-
-    class InputFile InputFile;
-    std::string OutputPath;
-};
-
-static MyGlobalContext GlobalContext;
-
 // 1. Match handler
 class MyMatchHandler : public MatchFinder::MatchCallback {
 public:
@@ -136,33 +89,6 @@ public:
     }
 
     void EndSourceFileAction() override {
-        fs::current_path(GlobalContext.WorkingDirectory);
-
-        SourceManager &SM = Rewrite.getSourceMgr();
-        LangOptions LangOpts = Rewrite.getLangOpts();
-        ASTContext &Context = getCompilerInstance().getASTContext();
-
-        // for (const CallExpr *call : std::as_const(Expressions)) {
-        //     auto Loc = call->getBeginLoc();
-
-        //     // Ignore expressions in header files
-        //     if (!SM.isInMainFile(Loc)) {
-        //         continue;
-        //     }
-
-        //     auto calleeExpr = call->getCallee()->IgnoreImpCasts();
-        //     auto type = calleeExpr->getType().getCanonicalType()->getPointeeType();
-        //     llvm::outs() << Loc.printToString(SM) << ": " << type.getAsString() << "\n";
-        // }
-
-        for (const FunctionDecl *FD : std::as_const(FDs)) {
-            auto Name = FD->getNameAsString();
-            if (!GlobalContext.InputFile.symbols().count(Name)) {
-                continue;
-            }
-            FD->print(llvm::outs());
-            llvm::outs() << ";\n";
-        }
     }
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
@@ -194,13 +120,6 @@ int main(int argc, const char *argv[]) {
         llvm::errs() << ExpectedParser.takeError();
         return 0;
     }
-
-    GlobalContext.WorkingDirectory = fs::current_path();
-
-    if (auto InputPath = InputOption.getValue(); !InputPath.empty()) {
-        std::ignore = GlobalContext.InputFile.load(InputPath);
-    }
-    GlobalContext.OutputPath = OutputOption.getValue();
 
     auto &OptionsParser = ExpectedParser.get();
     ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());

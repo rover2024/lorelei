@@ -551,7 +551,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_int(ap)                                                                                                     \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -560,7 +560,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_unsigned_int(ap)                                                                                            \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -569,7 +569,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_long(ap)                                                                                                    \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -578,7 +578,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_unsigned_long(ap)                                                                                           \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -587,7 +587,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_long_long(ap)                                                                                               \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -596,7 +596,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_unsigned_long_long(ap)                                                                                      \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -605,7 +605,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_float(ap)                                                                                                   \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -614,7 +614,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_double(ap)                                                                                                  \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -623,7 +623,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_string(ap)                                                                                                  \
     ({                                                                                                                 \
         char *_val = va_arg(va, char *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -632,7 +632,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #define va_pointer(ap)                                                                                                 \
     ({                                                                                                                 \
         void *_val = va_arg(va, void *);                                                                               \
-        struct LORE_VARG_ENTRY entry = {.type = LORE_VT_POINTER};                                                      \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
         entry.p = _val;                                                                                                \
         (*entries) = entry;                                                                                            \
         entries++;                                                                                                     \
@@ -641,7 +641,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 
 
 // internal vsnprintf
-int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct LORE_VARG_ENTRY *entries)
+int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct CVargEntry *entries)
 {
   unsigned int flags, width, precision, n;
   size_t idx = 0U;
@@ -920,7 +920,7 @@ int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const 
   out((char)0, buffer, idx < maxlen ? idx : maxlen - 1U, maxlen);
 
   {
-    struct LORE_VARG_ENTRY terminate_null;
+    struct CVargEntry terminate_null;
     terminate_null.type = 0;
     terminate_null.p = NULL;
     *entries = terminate_null;
@@ -933,7 +933,7 @@ int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const 
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// int _vprintf(const char *format, va_list va, struct LORE_VARG_ENTRY *entries) {
+// int _vprintf(const char *format, va_list va, struct CVargEntry *entries) {
 //   char buffer[1];
 //   const int ret = _vsnprintf(_out_char, buffer, (size_t)-1, format, va, entries);
 //   return ret;

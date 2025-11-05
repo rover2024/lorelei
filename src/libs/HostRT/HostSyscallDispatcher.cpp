@@ -1,0 +1,424 @@
+#include "HostSyscallDispatcher.h"
+
+#include <vector>
+#include <cstdlib>
+#include <cstring>
+
+#include <dlfcn.h>
+
+#ifdef __linux__
+#  include <link.h>
+#endif
+
+#include <stdcorelib/support/logging.h>
+
+#include <lorelei/Core/Bridge/SyscallBridge.h>
+#include <lorelei/Core/ThunkTools/VariadicAdaptor.h>
+
+namespace lore {
+
+    using SubID = SyscallBridge<>::CallSubID;
+
+    using Convention = Bridge<>::Convention;
+
+    static HostSyscallDispatcher *m_instance = nullptr;
+
+    struct ThreadContext {
+        std::vector<BridgeTask *> tasks;
+
+        ThunkInfo lastThunkInfo;
+        CThunkInfo *lastCThunkInfo = nullptr;
+
+        ~ThreadContext() {
+            if (lastCThunkInfo) {
+                ThunkInfo::freeCThunkInfo(lastCThunkInfo);
+            }
+        }
+    };
+
+    static thread_local ThreadContext thread_ctx;
+
+    static void before_call(void *proc, int conv, void *opaque) {
+        // TODO
+    }
+
+    static void after_call(void *proc, int conv, void *opaque) {
+        // TODO
+    }
+
+    static void prepare_arg_entry(char fmt, CVargEntry *entry, void *arg) {
+        switch (fmt) {
+            case 'c':
+                entry->type = CVargType_Char;
+                entry->c = *(char *) arg;
+                break;
+            case 'C':
+                entry->type = CVargType_UChar;
+                entry->uc = *(unsigned char *) arg;
+                break;
+            case 's':
+                entry->type = CVargType_Short;
+                entry->s = *(short *) arg;
+                break;
+            case 'S':
+                entry->type = CVargType_UShort;
+                entry->us = *(unsigned short *) arg;
+                break;
+            case 'i':
+                entry->type = CVargType_Int;
+                entry->i = *(int *) arg;
+                break;
+            case 'I':
+                entry->type = CVargType_UInt;
+                entry->u = *(unsigned int *) arg;
+                break;
+            case 'l':
+                entry->type = CVargType_Long;
+                entry->l = *(long *) arg;
+                break;
+            case 'u':
+                entry->type = CVargType_ULong;
+                entry->ul = *(unsigned long *) arg;
+                break;
+            case 'L':
+                entry->type = CVargType_LongLong;
+                entry->ll = *(long long *) arg;
+                break;
+            case 'U':
+                entry->type = CVargType_ULongLong;
+                entry->ull = *(unsigned long long *) arg;
+                break;
+            case 'f':
+                entry->type = CVargType_Float;
+                entry->f = *(float *) arg;
+                break;
+            case 'F':
+                entry->type = CVargType_Double;
+                entry->d = *(double *) arg;
+                break;
+            case 'p':
+                entry->type = CVargType_Pointer;
+                entry->p = *(void **) arg;
+                break;
+            default:
+                entry->type = CVargType_Void;
+                break;
+        }
+    }
+
+    static void prepare_ret_entry(char fmt, CVargEntry *entry) {
+        switch (fmt) {
+            case 'c':
+                entry->type = CVargType_Char;
+                break;
+            case 'C':
+                entry->type = CVargType_UChar;
+                break;
+            case 's':
+                entry->type = CVargType_Short;
+                break;
+            case 'S':
+                entry->type = CVargType_UShort;
+                break;
+            case 'i':
+                entry->type = CVargType_Int;
+                break;
+            case 'I':
+                entry->type = CVargType_UInt;
+                break;
+            case 'l':
+                entry->type = CVargType_Long;
+                break;
+            case 'u':
+                entry->type = CVargType_ULong;
+                break;
+            case 'L':
+                entry->type = CVargType_LongLong;
+                break;
+            case 'U':
+                entry->type = CVargType_ULongLong;
+                break;
+            case 'f':
+                entry->type = CVargType_Float;
+                break;
+            case 'F':
+                entry->type = CVargType_Double;
+                break;
+            case 'p':
+                entry->type = CVargType_Pointer;
+                break;
+            default:
+                entry->type = CVargType_Void;
+                break;
+        }
+    }
+
+    // fmt: <ret>_<a1><a2>...
+    static void do_fmt_call(void *func, const char *fmt, void **args, void *ret) {
+        const auto len = std::strlen(fmt);
+
+        CVargEntry ret_entry;
+        prepare_ret_entry(fmt[0], &ret_entry);
+
+        auto vargs = (CVargEntry *) alloca(sizeof(CVargEntry) * (len - 2));
+        for (int i = 0; i < len - 2; i++) {
+            auto fmt_char = fmt[i + 2];
+            prepare_arg_entry(fmt_char, &vargs[i], args[i]);
+        }
+        VariadicAdaptor::call(func, len - 2, vargs, 0, nullptr, &ret_entry);
+    }
+
+    HostSyscallDispatcher::HostSyscallDispatcher() {
+        if (m_instance) {
+            fprintf(stderr, "HostSyscallDispatcher can only be instantiated once!!!");
+            std::abort();
+        }
+        m_instance = this;
+    }
+
+    HostSyscallDispatcher::~HostSyscallDispatcher() {
+        m_instance = nullptr;
+    }
+
+    HostSyscallDispatcher *HostSyscallDispatcher::instance() {
+        return m_instance;
+    }
+
+    static HostSyscallDispatcher::RunTaskEntry s_runTaskEntry = nullptr;
+
+    void HostSyscallDispatcher::setRunTaskEntry(RunTaskEntry runTask) {
+        s_runTaskEntry = runTask;
+    }
+
+    uint64_t HostSyscallDispatcher::dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2,
+                                                  uint64_t a3, uint64_t a4, uint64_t a5,
+                                                  uint64_t a6) {
+        uint64_t &sub_id = a1;
+        switch (sub_id) {
+            // check health
+            case SubID::SUBID_CHECK_HEALTH: {
+                return 0;
+            }
+
+            case SubID::SUBID_LOG_MESSAGE: {
+                auto level = (int) (uintptr_t) a2;
+
+                struct CLogContext {
+                    int line;
+                    const char *file;
+                    const char *function;
+                    const char *category;
+                };
+                auto context = (const CLogContext *) a2;
+                auto msg = (const char *) a3;
+                stdc::LogContext new_ctx(context->file, context->line, context->function,
+                                         context->category);
+                stdc::Logger(new_ctx).log(level, msg);
+                return 0;
+            }
+
+            // load library
+            case SubID::SUBID_LOAD_LIBRARY: {
+                auto a = (void **) a2;
+                auto ret = (void **) a3;
+
+                auto path = (const char *) a[0];
+                auto flags = (int) (uintptr_t) a[1];
+                *ret = dlopen(path, flags);
+
+                return 0;
+            }
+
+            // free library
+            case SubID::SUBID_FREE_LIBRARY: {
+                auto a = (void **) a2;
+                auto ret = (int *) a3;
+
+                auto handle = a[0];
+                *ret = dlclose(handle);
+
+                return 0;
+            }
+
+            // get proc address
+            case SubID::SUBID_GET_PROC_ADDRESS: {
+                auto a = (void **) a2;
+                auto ret = (void **) a3;
+
+                auto handle = a[0];
+                auto name = (const char *) a[1];
+                void *sym = dlsym(handle, name);
+                if (!sym) {
+                    sym = dlsym(RTLD_DEFAULT, name);
+                }
+                *ret = sym;
+
+                return 0;
+            }
+
+            // get error message
+            case SubID::SUBID_GET_ERROR_MESSAGE: {
+                auto ret = (char **) a2;
+                *ret = dlerror();
+                return 0;
+            }
+
+            // get module path
+            case SubID::SUBID_GET_MODULE_PATH: {
+                auto a = (void **) a2;
+                auto ret = (char **) a3;
+
+                void *opaque = a[0];
+                auto isHandle = (bool) (intptr_t) a[1];
+                if (isHandle) {
+#ifdef __linux__
+                    struct link_map *lm;
+                    if (dlinfo(opaque, RTLD_DI_LINKMAP, &lm) == 0) {
+                        if (lm->l_name && lm->l_name[0] != '\0') {
+                            *ret = lm->l_name;
+                        } else {
+                            *ret = nullptr;
+                        }
+                    } else {
+                        *ret = nullptr;
+                    }
+#else
+                    *ret = nullptr;
+#endif
+                } else {
+                    Dl_info info;
+                    if (dladdr(opaque, &info) == 0) {
+                        *ret = nullptr;
+                    } else {
+                        *ret = (char *) info.dli_fname;
+                    }
+                }
+
+                return 0;
+            }
+
+            // invoke proc
+            case SubID::SUBID_INVOKE_PROC: {
+                auto proc = (void *) a2;
+                auto conv = (int) (uintptr_t) a3;
+                auto opaque = (void **) a4;
+                auto task = (BridgeTask *) a5;
+
+                auto &tasks = thread_ctx.tasks;
+                tasks.push_back(task);
+
+                switch (conv) {
+                    case Convention::CONV_STANDARD: {
+                        using Func = void (*)(void * /*args*/, void * /*ret*/, void * /*metadata*/);
+                        auto func = (Func) proc;
+                        auto args = opaque[0];
+                        auto ret = opaque[1];
+                        auto metadata = opaque[2];
+                        before_call(proc, conv, opaque);
+                        func(args, ret, metadata);
+                        after_call(proc, conv, opaque);
+                        break;
+                    }
+
+                    case Convention::CONV_STANDARD_CALLBACK: {
+                        using Func = void (*)(void * /*callback*/, void * /*args*/, void * /*ret*/,
+                                              void * /*metadata*/);
+                        auto func = (Func) proc;
+                        auto callback = opaque[0];
+                        auto args = opaque[1];
+                        auto ret = opaque[2];
+                        auto metadata = opaque[3];
+                        before_call(proc, conv, opaque);
+                        func(callback, args, ret, metadata);
+                        after_call(proc, conv, opaque);
+                        break;
+                    }
+
+                    case Convention::CONV_FORMAT: {
+                        auto fmt = (const char *) opaque[0];
+                        auto args = (void **) opaque[1];
+                        auto ret = (void *) opaque[2];
+                        before_call(proc, conv, opaque);
+                        do_fmt_call(proc, fmt, args, ret);
+                        after_call(proc, conv, opaque);
+                        break;
+                    }
+
+                    case Convention::CONV_THREAD_ENTRY: {
+                        using Func = void *(*) (void * /*arg*/);
+                        auto func = (Func) proc;
+                        auto arg = opaque[0];
+                        auto ret = (void **) opaque[1];
+                        before_call(proc, conv, opaque);
+                        *ret = func(arg);
+                        after_call(proc, conv, opaque);
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+
+                tasks.pop_back();
+                return 0;
+            }
+
+            // get thunk info
+            case SubID::SUBID_GET_THUNK_INFO: {
+                auto a = (void **) a2;
+                auto ret = (CThunkInfo **) a3;
+
+                auto path = (const char *) a[0];
+                auto isReserve = (bool) (uintptr_t) a[1];
+
+                auto &ctx = thread_ctx;
+                if (isReserve) {
+                    auto it = _config.reversedThunk(path);
+                    if (!it.first) {
+                        *ret = nullptr;
+                    } else {
+                        ctx.lastThunkInfo = {};
+                        ctx.lastThunkInfo.reversed = it.second;
+                        if (ctx.lastCThunkInfo) {
+                            ThunkInfo::freeCThunkInfo(ctx.lastCThunkInfo);
+                        }
+                        ctx.lastCThunkInfo = ctx.lastThunkInfo.toCThunkInfo();
+                        *ret = ctx.lastCThunkInfo;
+                    }
+                } else {
+                    auto it = _config.forwardThunk(path);
+                    if (!it.first) {
+                        *ret = nullptr;
+                    } else {
+                        ctx.lastThunkInfo = {};
+                        ctx.lastThunkInfo.forward = it.second;
+                        if (ctx.lastCThunkInfo) {
+                            ThunkInfo::freeCThunkInfo(ctx.lastCThunkInfo);
+                        }
+                        ctx.lastCThunkInfo = ctx.lastThunkInfo.toCThunkInfo();
+                        *ret = ctx.lastCThunkInfo;
+                    }
+                }
+            }
+
+            default: {
+                break;
+            }
+        }
+        return -1;
+    }
+
+    BridgeTask *HostSyscallDispatcher::currentTask_impl() const {
+        auto &tasks = thread_ctx.tasks;
+        if (tasks.empty()) {
+            return nullptr;
+        }
+        return tasks.back();
+    }
+
+    uint64_t HostSyscallDispatcher::runTask_impl() {
+        assert(s_runTaskEntry);
+        return s_runTaskEntry(currentTask_impl());
+    }
+
+}

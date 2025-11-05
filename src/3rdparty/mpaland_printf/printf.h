@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "loreshared.h"
+#include <lorelei-c/Core/VariadicAdaptor_c.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,9 +44,9 @@ static inline void _out_null(char character, void *buffer, size_t idx, size_t ma
 // }
 
 int _vsnprintf(out_fct_type out, char *buffer, const size_t maxlen, const char *format, va_list va,
-               struct LORE_VARG_ENTRY *entries);
+               struct CVargEntry *entries);
 
-int _vprintf(const char *format, va_list va, struct LORE_VARG_ENTRY *entries);
+int _vprintf(const char *format, va_list va, struct CVargEntry *entries);
 
 #ifdef __cplusplus
 }
