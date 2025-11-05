@@ -26,38 +26,42 @@ namespace lorethunk::proc {
             NumCallback,
     };
 
-    template <auto T>
-    static inline HostFunction getHostFunctionIndex();
+    namespace {
 
-#define _F(NAME)                                                                                                       \
-    template <>                                                                                                        \
-    static inline HostFunction getHostFunctionIndex<NAME>() {                                                          \
-        return HostFunction_##NAME;                                                                                    \
+        template <auto T>
+        inline HostFunction getHostFunctionIndex();
+
+#define _F(NAME)                                                                                   \
+    template <>                                                                                    \
+    inline HostFunction getHostFunctionIndex<NAME>() {                                             \
+        return HostFunction_##NAME;                                                                \
     }
-    LORETHUNK_HOST_FUNCTION_FOREACH(_F)
+        LORETHUNK_HOST_FUNCTION_FOREACH(_F)
 #undef _F
 
-    template <auto T>
-    static inline GuestFunction getGuestFunctionIndex();
+        template <auto T>
+        inline GuestFunction getGuestFunctionIndex();
 
-#define _F(NAME)                                                                                                       \
-    template <>                                                                                                        \
-    static inline GuestFunction getGuestFunctionIndex<NAME>() {                                                        \
-        return GuestFunction_##NAME;                                                                                   \
+#define _F(NAME)                                                                                   \
+    template <>                                                                                    \
+    inline GuestFunction getGuestFunctionIndex<NAME>() {                                           \
+        return GuestFunction_##NAME;                                                               \
     }
-    LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
+        LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
 #undef _F
 
-    template <class T>
-    static inline Callback getCallbackIndex();
+        template <class T>
+        inline Callback getCallbackIndex();
 
-#define _F(NAME, SIGNATURE)                                                                                            \
-    template <>                                                                                                        \
-    static inline Callback getCallbackIndex<SIGNATURE>() {                                                             \
-        return Callback_##NAME;                                                                                        \
+#define _F(NAME, SIGNATURE)                                                                        \
+    template <>                                                                                    \
+    inline Callback getCallbackIndex<SIGNATURE>() {                                                \
+        return Callback_##NAME;                                                                    \
     }
-    LORETHUNK_CALLBACK_FOREACH(_F)
+        LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
+
+    }
 
     // Implemented in the generated codes
     static CStaticProcInfo hostFunctions_GTPs[NumHostFunction + 1];
@@ -120,21 +124,21 @@ extern "C" {
 LORETHUNK_EXPORT void __LORETHUNK_initialize(CStaticProcInfoContext *ctx) {
     using namespace lorethunk::proc;
 
-    copyProcs(ctx->gtpEntries[CProcKind_HostFunction].arr, staticProcInfoContext.gtpEntries[CProcKind_HostFunction].arr,
-              NumHostFunction);
+    copyProcs(ctx->gtpEntries[CProcKind_HostFunction].arr,
+              staticProcInfoContext.gtpEntries[CProcKind_HostFunction].arr, NumHostFunction);
     copyProcs(ctx->gtpEntries[CProcKind_GuestFunction].arr,
               staticProcInfoContext.gtpEntries[CProcKind_GuestFunction].arr, NumGuestFunction);
-    copyProcs(ctx->gtpEntries[CProcKind_HostCallback].arr, staticProcInfoContext.gtpEntries[CProcKind_HostCallback].arr,
-              NumCallback);
+    copyProcs(ctx->gtpEntries[CProcKind_HostCallback].arr,
+              staticProcInfoContext.gtpEntries[CProcKind_HostCallback].arr, NumCallback);
     copyProcs(ctx->gtpEntries[CProcKind_GuestCallback].arr,
               staticProcInfoContext.gtpEntries[CProcKind_GuestCallback].arr, NumCallback);
 
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostFunction].arr, ctx->htpEntries[CProcKind_HostFunction].arr,
-              NumHostFunction);
+    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostFunction].arr,
+              ctx->htpEntries[CProcKind_HostFunction].arr, NumHostFunction);
     copyProcs(staticProcInfoContext.htpEntries[CProcKind_GuestFunction].arr,
               ctx->htpEntries[CProcKind_GuestFunction].arr, NumGuestFunction);
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostCallback].arr, ctx->htpEntries[CProcKind_HostCallback].arr,
-              NumCallback);
+    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostCallback].arr,
+              ctx->htpEntries[CProcKind_HostCallback].arr, NumCallback);
     copyProcs(staticProcInfoContext.htpEntries[CProcKind_GuestCallback].arr,
               ctx->htpEntries[CProcKind_GuestCallback].arr, NumCallback);
 }

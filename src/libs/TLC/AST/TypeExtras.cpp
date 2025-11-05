@@ -36,7 +36,7 @@ namespace TLC {
     std::string getTypeStringDecompound(const QualType &type) {
         std::string ret;
         if (isCompound(type)) {
-            ret = "decltype(" + getTypeString(type) + ")";
+            ret = "__typeof__(" + getTypeString(type) + ")";
         } else {
             ret = getTypeString(type);
         }

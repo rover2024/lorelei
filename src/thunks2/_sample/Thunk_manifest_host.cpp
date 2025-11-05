@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <cstring>
 
 // Include the function description header
 #include "Thunk_procs_desc.h"
@@ -11,11 +11,9 @@ namespace lorethunk {
     // Add your custom thunks in this namespace
 
     template <>
-    struct MetaProc<::printf, _HFN, _HTP> {
-        using HTP_IMPL = MetaProc<::printf, _HFN, _HTP_IMPL>;
-
-        _PROC void invoke(void *args[], void *ret, void *metadata) {
-            HTP_IMPL::invoke(nullptr, 1, 2);
+    struct MetaProc<::memcpy, _HFN, _HTP> {
+        _PROC void invoke(void **args, void *ret, void *metadata) {
+            *(void **) ret = nullptr;
         }
     };
 

@@ -1,3 +1,6 @@
+#pragma once
+
+#include <cstring>
 #include <cstdio>
 
 #include <lorelei/TLCMeta/MetaConfig.h>
@@ -18,7 +21,7 @@ namespace lorethunk {
     template <>
     struct MetaProcDesc<printf> {
         using builder_pass = MetaPass_printf<>;              // builder pass
-        using overlay_type = void (*)(const char *, void *); // overlay type
+        // using overlay_type = void (*)(const char *, void *); // overlay type
     };
 
     template <>
@@ -28,12 +31,17 @@ namespace lorethunk {
 
     // Callbacks
     using PFN_printf = int (*)(const char *, ...);
+    using PFN_memcpy = void *(*) (void *, const void *, size_t);
 
     template <>
     struct MetaProcCBDesc<PFN_printf> {
         using builder_pass = MetaPass_printf<>;                           // builder pass
-        using passes = MetaPassList<MetaPass_printf<>, MetaPass_scanf<>>; // other passes
-        static constexpr const char name[] = "printf";
+        static constexpr const char name[] = "PFN_printf";
     };
+
+    // template <>
+    // struct MetaProcCBDesc<PFN_memcpy> {
+    //     static constexpr const char name[] = "PFN_memcpy";
+    // };
 
 }

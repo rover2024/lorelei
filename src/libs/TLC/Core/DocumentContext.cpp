@@ -87,7 +87,7 @@ namespace TLC {
                         auto FD = it->second;
                         auto fpType = _ast->getPointerType(FD->getType().getCanonicalType());
                         auto fpTypeStr = getTypeString(fpType);
-                        namedCallbackMap[fpTypeStr] = token;
+                        namedCallbackMap[fpTypeStr] = "PFN_AUTO_" + token;
                         knownCallbacks[fpTypeStr] = fpType;
                     }
                 } else {
@@ -170,6 +170,14 @@ namespace TLC {
             }
             for (const auto &it : std::as_const(knownCallbacks)) {
                 stack.push_back(it.second);
+            }
+
+            for (auto kind : {CProcKind_HostCallback, CProcKind_GuestCallback}) {
+                for (auto &phaseMap : _metaProcCBs.at(kind)) {
+                    for (auto it2 : phaseMap) {
+                        stack.push_back(it2.second.procType());
+                    }
+                }
             }
 
             std::set<std::string> visitedTypes;
@@ -261,7 +269,7 @@ namespace TLC {
                 nameHint = it->second;
             } else {
                 numUnknownCallback++;
-                nameHint = "UnknownCallback_" + std::to_string(numUnknownCallback);
+                nameHint = "PFN_UnknownCallback_" + std::to_string(numUnknownCallback);
             }
             {
                 auto ctx =
@@ -391,6 +399,16 @@ namespace TLC {
         auto &SM = ast.getSourceManager();
         auto mainFilePath = SM.getFileEntryRefForID(SM.getMainFileID())->getName();
 
+        /// STEP: Add macro
+        os << "#define LORETHUNK_BUILD\n";
+        os << "\n";
+
+        /// STEP: Include necessary headers
+        os << "#include <lorelei/TLCMeta/ManifestlGlobal.h>\n";
+        os << "#include <lorelei/TLCMeta/ManifestCallbackDefs.h>\n";
+        os << "#include <lorelei/TLCMeta/MetaProc.h>\n";
+        os << "\n";
+
         /// STEP: Generate document head
         os << _source.head.toRawText() << "\n";
 
@@ -407,17 +425,17 @@ namespace TLC {
         }
         os << "\n\n";
 
+        os << "namespace lorethunk {\n\n";
         for (const auto &pair : _procContexts[CProcKind_GuestCallback]) {
-            // os << "typedef __typeof__(" << getTypeString(pair.second->functionPointerType())
-            //    << ") LORETHUNK_PFN_" << pair.second->name() << ";\n";
-            os << "using LORETHUNK_PFN_" << pair.second->name() << " = "
+            os << "using " << pair.second->name() << " = "
                << getTypeString(pair.second->functionPointerType()) << ";\n";
         }
         os << "\n";
+        os << "}\n\n";
 
         os << "#define LORETHUNK_CALLBACK_FOREACH(F)";
         for (const auto &pair : _procContexts[CProcKind_GuestCallback]) {
-            os << " \\\n    F(" << pair.second->name() << ", LORETHUNK_PFN_" << pair.second->name()
+            os << " \\\n    F(" << pair.second->name() << ", lorethunk::" << pair.second->name()
                << ")";
         }
         os << "\n\n";

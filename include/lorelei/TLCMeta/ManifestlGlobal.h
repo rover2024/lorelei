@@ -34,7 +34,17 @@ namespace lorethunk {
     };
 
     template <class Ret, class... Args>
+    struct PrependCallbackToArgs<Ret (*)(Args...) noexcept> {
+        using type = Ret (*)(void *, Args...);
+    };
+
+    template <class Ret, class... Args>
     struct PrependCallbackToArgs<Ret (*)(Args..., ...)> {
+        using type = Ret (*)(void *, Args..., ...);
+    };
+
+    template <class Ret, class... Args>
+    struct PrependCallbackToArgs<Ret (*)(Args..., ...) noexcept> {
         using type = Ret (*)(void *, Args..., ...);
     };
 

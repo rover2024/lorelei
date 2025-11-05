@@ -39,6 +39,8 @@ namespace TLC {
     }
 
     static inline std::string SRC_asIs(const std::string &s, int indent = 4) {
+        if (s.empty())
+            return {};
         return std::string(indent, ' ') + s + "\n";
     }
 
@@ -51,12 +53,13 @@ namespace TLC {
     }
 
     // [indent]
-    static inline std::string SRC_getCallback(int indent = 4) {
+    static inline std::string SRC_getCallback(bool guest, int indent = 4) {
         std::string ret;
         ret += std::string(indent - 4, ' ') + "#ifdef LORETHUNK_CALLBACK_REPLACE\n";
         ret += std::string(indent, ' ') + "LORETHUNK_GET_LAST_GCB(callback);\n";
         ret += std::string(indent - 4, ' ') + "#else\n";
-        ret += std::string(indent, ' ') + "void *callback = LORETHUNK_LAST_GCB;\n";
+        ret += std::string(indent, ' ') + "void *callback = LORETHUNK_LAST_" +
+               (guest ? "GCB" : "HCB") + ";\n";
         ret += std::string(indent - 4, ' ') + "#endif\n";
         return ret;
     }
@@ -113,7 +116,7 @@ namespace TLC {
         return res;
     }
 
-    // [indent] auto &ret_ref = *(decltype(<ret_type>) *) ret;
+    // [indent] auto &ret_ref = *(__typeof__(<ret_type>) *) ret;
     static inline std::string SRC_retExtractDecl(const FunctionInfo &info, clang::ASTContext &ast,
                                                  int indent = 4) {
         if (info.returnType()->isVoidType())

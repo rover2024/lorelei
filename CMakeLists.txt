@@ -32,6 +32,14 @@ set(LORELEI_VERSION ${PROJECT_VERSION})
 set(LORELEI_INSTALL_NAME ${PROJECT_NAME})
 set(LORELEI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+# ----------------------------------
+# Add source modules
+# ----------------------------------
+include("external/Findqmsetup.cmake")
+
+# ----------------------------------
+# Main
+# ----------------------------------
 set(LORELEI_GUEST_ARCH "x86_64")
 set(LORELEI_GUEST_FIXED_REGISTER "r11")
 
@@ -50,10 +58,12 @@ if(NOT DEFINED LORELEI_HOST_ARCH)
     endif()
 endif()
 
-# ----------------------------------
-# Add source modules
-# ----------------------------------
-include("external/Findqmsetup.cmake")
+if(NOT DEFINED LORELEI_THUNK_SOURCES_DIR)
+    set(LORELEI_THUNK_GENERATE on)
+    set(LORELEI_THUNK_SOURCES_DIR ${QMSETUP_BUILD_DIR}/src/thunks)
+else()
+    set(LORELEI_THUNK_GENERATE off)
+endif()
 
 add_subdirectory(external)
 

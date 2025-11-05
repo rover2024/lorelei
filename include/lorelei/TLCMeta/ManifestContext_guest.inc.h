@@ -135,7 +135,7 @@ namespace lorethunk::proc {
         lore::GuestThunkContext commonContext;
 
         LocalThunkContext() : commonContext(LORETHUNK_MODULE_NAME, &staticProcInfoContext) {
-            bridge = lore::GuestSysGuestSyscallBridge::instance();
+            bridge = lore::GuestSyscallBridge::instance();
             assert(bridge != nullptr);
         }
     };
@@ -152,7 +152,7 @@ namespace lorethunk {
         static constexpr void *get() {
             return proc::hostFunctions_HTPs[proc::getHostFunctionIndex<F>()].addr;
         }
-        static inline void invoke(void *args[], void *ret, void *metadata) {
+        static inline void invoke(void **args, void *ret, void *metadata) {
             (void) proc::bridge->invokeStandard(get(), args, ret, metadata);
         }
     };
@@ -187,7 +187,7 @@ namespace lorethunk {
         static constexpr void *get() {
             return proc::hostCallbacks_HTPs[proc::getCallbackIndex<F>()].addr;
         }
-        static inline void invoke(void *callback, void *args[], void *ret, void *metadata) {
+        static inline void invoke(void *callback, void **args, void *ret, void *metadata) {
             (void) proc::bridge->invokeStandardCallback(get(), callback, args, ret, metadata);
         }
     };
@@ -196,7 +196,10 @@ namespace lorethunk {
     // HTP -> HTP_IMPL -> HRT -> EMU -> GRT -> GTP -> GTP_IMPL
     template <class F>
     struct MetaProcCBBridge<F, CProcKind_GuestCallback> {
-        // do nothing
+        template <class... Args>
+        static inline auto invoke(void *callback, Args &&...args) {
+            return ((F) callback)(args...);
+        }
     };
 
 }

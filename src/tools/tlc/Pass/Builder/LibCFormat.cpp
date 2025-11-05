@@ -201,20 +201,21 @@ namespace TLC {
         auto &HTP_IMPL = proc.source(CProcThunkPhase_HTP_IMPL);
 
         const auto &getMetaProcInvoke = [&](const char *kind, const char *phase) {
-            return stdc::formatN("MetaProc<::%1, CProcType_%2, CProcThunkPhase_%3>::invoke",
+            return stdc::formatN("MetaProc<::%1, CProcKind_%2, CProcThunkPhase_%3>::invoke",
                                  proc.name(), kind, phase);
         };
         const auto &getMetaProcCBInvoke = [&](const char *kind, const char *phase) {
-            return stdc::formatN("MetaProcCB<%1, CProcType_%2, CProcThunkPhase_%3>::invoke",
+            return stdc::formatN("MetaProcCB<%1, CProcKind_%2, CProcThunkPhase_%3>::invoke",
                                  proc.name(), kind, phase);
         };
-        const auto &getMetaProcBridgeInvokeWithCallList = [&]() {
-            return stdc::formatN("MetaProcBridge<::%1>::invoke(args, %2, nullptr);", proc.name(),
-                                 isVoid ? "nullptr" : "&ret");
+        const auto &getMetaProcBridgeInvokeWithCallList = [&](const char *kind) {
+            return stdc::formatN("MetaProcBridge<::%1, CProcKind_%2>::invoke(args, %3, nullptr);",
+                                 proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
-        const auto &getMetaProcCBBridgeInvokeWithCallList = [&]() {
-            return stdc::formatN("MetaProcCBBridge<%1>::invoke(callback, args, %2, nullptr);",
-                                 proc.name(), isVoid ? "nullptr" : "&ret");
+        const auto &getMetaProcCBBridgeInvokeWithCallList = [&](const char *kind) {
+            return stdc::formatN(
+                "MetaProcCBBridge<%1, CProcKind_%2>::invoke(callback, args, %3, nullptr);",
+                proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
 
         // Add includes
@@ -245,21 +246,33 @@ namespace TLC {
             return _hasVAList ? FI.argumentName(vargIdx - 1) : "ap";
         };
         const auto &getExtractStatment = [&](const std::string &vaListName) {
-            return stdc::formatN("VariadicAdaptor::extract(VariadicAdaptor::%1, %2, %3, vargs);",
-                                 formatStyleToken, formatName, vaListName);
+            return stdc::formatN(
+                "lore::VariadicAdaptor::extract(lore::VariadicAdaptor::%1, %2, %3, vargs);",
+                formatStyleToken, formatName, vaListName);
         };
-        const auto &getProcCallHelperAssign = [&]() {
-            return stdc::formatN("VariadicAdaptor::%1(MetaProcBridge<%2>::get(), "
-                                 "sizeof(argv1) / sizeof(argv1[0]), argv1, -1, vargs, &vret);",
-                                 callHelperName, proc.name());
+        const auto &getProcCallHelperAssign = [&](const char *kind) {
+            return stdc::formatN(
+                "lore::VariadicAdaptor::%1(MetaProcBridge<%2, CProcKind_%3>::get(), "
+                "sizeof(argv1) / sizeof(argv1[0]), argv1, -1, vargs, &vret);",
+                callHelperName, proc.name(), kind);
         };
         const auto &getProcCBCallHelperAssign = [&]() {
-            return isVoid ? ""
-                          : "ret = " +
-                                stdc::formatN(
-                                    "VariadicAdaptor::%1(callback, "
-                                    "sizeof(argv1) / sizeof(argv1[0]), argv1, -1, vargs, &vret);",
-                                    callHelperName);
+            return stdc::formatN("lore::VariadicAdaptor::%1(callback, "
+                                 "sizeof(argv1) / sizeof(argv1[0]), argv1, -1, vargs, &vret);",
+                                 callHelperName);
+        };
+        const auto &getVretDecl = [&]() {
+            return "CVargEntry vret;";
+        };
+        const auto &getVRetInit = [&]() {
+            if (isVoid)
+                return "vret.type = 0;";
+            return "vret.type = CVargTypeID(ret);";
+        };
+        const auto &getVRetValueAssign = [&]() {
+            if (isVoid)
+                return std::string();
+            return stdc::formatN("ret = CVargValue(%1, vret);", getTypeString(FI.returnType()));
         };
 
         auto lastArgToken = FI.argumentName(vargIdx - 2);
@@ -294,7 +307,7 @@ namespace TLC {
                 ///                                      fmt, ap, vargs);
                 ///             va_end(ap);
                 ///         }
-                ///         ret = MetaProc<printf, CProcType_HostFunction,
+                ///         ret = MetaProc<printf, CProcKind_HostFunction,
                 ///                                CProcThunkPhase_GTP_IMPL>::invoke(fmt, vargs);
                 ///         return ret;
                 ///     }
@@ -304,7 +317,7 @@ namespace TLC {
                 ///         int ret;
                 ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
                 ///         VariadicAdaptor::extract(VariadicAdaptor::FS_printf, fmt, ap, vargs);
-                ///         ret = MetaProc<vprintf, CProcType_HostFunction,
+                ///         ret = MetaProc<vprintf, CProcKind_HostFunction,
                 ///                                 CProcThunkPhase_GTP_IMPL>::invoke(fmt, vargs);
                 ///         return ret;
                 ///     }
@@ -326,14 +339,17 @@ namespace TLC {
                 ///     int invoke(const char *fmt, CVargEntry *vargs) {
                 ///         int ret;
                 ///         void *args[] = { &fmt, &vargs };
-                ///         ret = MetaProcBridge<printf | vprintf>::invoke(args, &ret, nullptr);
+                ///         ret = MetaProcBridge<printf | vprintf,
+                ///                              CProcKind_HostFunction>::invoke(
+                ///                                  args, &ret, nullptr
+                ///                              );
                 ///         return ret;
                 ///     }
                 /// \endcode
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(NFI));
-                XTP_IMPL.body.center.push_back(key,
-                                               SRC_asIs(getMetaProcBridgeInvokeWithCallList()));
+                XTP_IMPL.body.center.push_back(
+                    key, SRC_asIs(getMetaProcBridgeInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code
@@ -342,7 +358,7 @@ namespace TLC {
                 ///         auto &vargs = *(CVargEntry **) args[1];
                 ///         auto &ret_ref = *(int *) ret;
                 ///         ret_ref = MetaProc<printf | vprintf,
-                //                             CProcType_HostFunction,
+                //                             CProcKind_HostFunction,
                 ///                            CProcThunkPhase_HTP_IMPL>::invoke(arg1, vargs);
                 ///     }
                 /// \endcode
@@ -353,28 +369,33 @@ namespace TLC {
                                             "ret_ref"));
 
                 /// \code
-                ///     void invoke(const char *fmt, CVargEntry *vargs) {
+                ///     int invoke(const char *fmt, CVargEntry *vargs) {
                 ///         int ret;
                 ///         CVArgEntry argv1[] = {
                 ///             CVargGet(fmt),
                 ///         };
                 ///         CVargEntry vret;
-                ///         ret.type = CVargTypeID(ret);
-                ///         ret = VariadicAdaptor::call | VariadicAdaptor::vcall (
-                ///                   MetaProcBridge<printf | vprintf>::get(),
-                ///                   sizeof(argv1) / sizeof(argv1[0]),
-                ///                   argv1,
-                ///                   -1,
-                ///                   vargs,
-                ///                   &vret
-                ///               );
+                ///         vret.type = CVargTypeID(ret);
+                ///         VariadicAdaptor::call | VariadicAdaptor::vcall (
+                ///             MetaProcBridge<printf | vprintf,
+                ///                            CProcKind_HostFunction>::get(),
+                ///             sizeof(argv1) / sizeof(argv1[0]),
+                ///             argv1,
+                ///             -1,
+                ///             vargs,
+                ///             &vret
+                ///         );
+                ///         ret = CVargValue(int, va_ret);
+                ///         return ret;
                 ///     }
                 /// \endcode
                 YTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 YTP_IMPL.body.prolog.push_back(key, SRC_fixedArgEntriesDecl(FI, fixedArgCount));
-                YTP_IMPL.body.prolog.push_back(key, SRC_asIs("CVargEntry vret;"));
-                YTP_IMPL.body.prolog.push_back(key, SRC_asIs("ret.type = CVargTypeID(ret);"));
-                YTP_IMPL.body.center.push_back(key, SRC_asIs(getProcCallHelperAssign()));
+                YTP_IMPL.body.prolog.push_back(key, SRC_asIs(getVretDecl()));
+                YTP_IMPL.body.prolog.push_back(key, SRC_asIs(getVRetInit()));
+                YTP_IMPL.body.center.push_back(key,
+                                               SRC_asIs(getProcCallHelperAssign(procKind_str)));
+                YTP_IMPL.body.center.push_back(key, SRC_asIs(getVRetValueAssign()));
                 YTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
                 break;
             }
@@ -409,7 +430,7 @@ namespace TLC {
                 ///                                      fmt, ap, vargs);
                 ///             va_end(ap);
                 ///         }
-                ///         ret = MetaProcCB<printf, CProcType_HostCallback,
+                ///         ret = MetaProcCB<printf, CProcKind_HostCallback,
                 ///                                  CProcThunkPhase_GTP_IMPL>::invoke(
                 ///                                      callback, fmt, vargs
                 ///                                  );
@@ -421,7 +442,7 @@ namespace TLC {
                 ///         int ret;
                 ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
                 ///         VariadicAdaptor::extract(VariadicAdaptor::FS_printf, fmt, ap, vargs);
-                ///         ret = MetaProcCB<vprintf, CProcType_HostCallback,
+                ///         ret = MetaProcCB<vprintf, CProcKind_HostCallback,
                 ///                                   CProcThunkPhase_GTP_IMPL>::invoke(
                 ///                                       callback, fmt, vargs
                 ///                                   );
@@ -429,7 +450,7 @@ namespace TLC {
                 ///     }
                 /// \endcode
                 XTP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
-                XTP.body.prolog.push_back(key, SRC_getCallback());
+                XTP.body.prolog.push_back(key, SRC_getCallback(!isHostCallback));
                 XTP.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORE_CONFIG_VARG_MAX];"));
                 if (_hasVAList) {
                     XTP.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
@@ -446,16 +467,17 @@ namespace TLC {
                 ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
                 ///         int ret;
                 ///         void *args[] = { &fmt, &vargs, };
-                ///         ret = MetaProcCBBridge<printf | vprintf>::invoke(
-                ///                   callback, args, &ret, nullptr
-                ///               );
+                ///         ret = MetaProcCBBridge<printf | vprintf,
+                ///                                CProcKind_HostCallback>::invoke(
+                ///                                    callback, args, &ret, nullptr
+                ///                                );
                 ///         return ret;
                 ///     }
                 /// \endcode
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(NFI));
-                XTP_IMPL.body.center.push_back(key,
-                                               SRC_asIs(getMetaProcCBBridgeInvokeWithCallList()));
+                XTP_IMPL.body.center.push_back(
+                    key, SRC_asIs(getMetaProcCBBridgeInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code
@@ -464,7 +486,7 @@ namespace TLC {
                 ///         auto &vargs = *(CVargEntry **) args[1];
                 ///         auto &ret_ref = *(int *) ret;
                 ///         ret_ref = MetaProcCB<printf | vprintf,
-                ///                            CProcType_HostCallback,
+                ///                            CProcKind_HostCallback,
                 ///                            CProcThunkPhase_HTP_IMPL>::invoke(
                 ///                                callback, arg1, vargs
                 ///                            );
@@ -473,7 +495,7 @@ namespace TLC {
                 YTP.body.prolog.push_back(key, SRC_argPtrListExtractDecl(NFI, ast));
                 YTP.body.prolog.push_back(key, SRC_retExtractDecl(FI, ast));
                 YTP.body.center.push_back(
-                    key, SRC_callListAssign(NFI, getMetaProcInvoke(procKind_str, YTP_IMPL_str),
+                    key, SRC_callListAssign(CNFI, getMetaProcCBInvoke(procKind_str, YTP_IMPL_str),
                                             "ret_ref"));
 
                 /// \code
@@ -483,22 +505,25 @@ namespace TLC {
                 ///             CVargGet(fmt),
                 ///         };
                 ///         CVargEntry vret;
-                ///         ret.type = CVargTypeID(ret);
-                ///         ret = VariadicAdaptor::call | VariadicAdaptor::vcall (
-                ///                   callback,
-                ///                   sizeof(argv1) / sizeof(argv1[0]),
-                ///                   argv1,
-                ///                   -1,
-                ///                   vargs,
-                ///                   &vret
-                ///               );
+                ///         vret.type = CVargTypeID(ret);
+                ///         VariadicAdaptor::call | VariadicAdaptor::vcall (
+                ///             callback,
+                ///             sizeof(argv1) / sizeof(argv1[0]),
+                ///             argv1,
+                ///             -1,
+                ///             vargs,
+                ///             &vret
+                ///         );
+                ///         ret = CVargValue(int, va_ret);
+                ///         return ret;
                 ///     }
                 /// \endcode
                 YTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 YTP_IMPL.body.prolog.push_back(key, SRC_fixedArgEntriesDecl(FI, fixedArgCount));
-                YTP_IMPL.body.prolog.push_back(
-                    key, SRC_asIs("CVargEntry vret;\nret.type = CVargTypeID(ret);"));
+                YTP_IMPL.body.prolog.push_back(key, SRC_asIs(getVretDecl()  ));
+                YTP_IMPL.body.prolog.push_back(key, SRC_asIs(getVRetInit()));
                 YTP_IMPL.body.center.push_back(key, SRC_asIs(getProcCBCallHelperAssign()));
+                YTP_IMPL.body.center.push_back(key, SRC_asIs(getVRetValueAssign()));
                 YTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
                 break;
             }

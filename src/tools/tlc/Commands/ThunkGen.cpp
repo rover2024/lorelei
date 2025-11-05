@@ -16,20 +16,12 @@
 #include <stdcorelib/support/sharedlibrary.h>
 #include <stdcorelib/path.h>
 
+#include "CodeCommon.h"
+
 namespace cl = llvm::cl;
 
 using namespace clang;
 using namespace clang::tooling;
-
-static constexpr const char GENERATED_FILE_WARNING[] =
-    R"(/****************************************************************************
-** Lorelei thunk library code from reading C++ file '%s'
-**
-** Created by: Lorelei Thunk Library compiler
-**
-** WARNING! All changes made in this file will be lost!
-*****************************************************************************/
-)";
 
 namespace TLC::commands::thunkGen {
 
@@ -194,11 +186,11 @@ namespace TLC::commands::thunkGen {
         cl::OptionCategory optionCategory("Thunk Generator Options");
 
         /// -s <file>
-        ///   Symbol list file.
+        ///   Thunk library configuration file.
         cl::opt<std::string> thunkConfigOption("s", cl::desc("Thunk library configuration file"),
                                                cl::value_desc("file"), cl::cat(optionCategory));
 
-        /// --out-callbacks <file>
+        /// --out-callbacks=<file>
         ///   Output callbacks file.
         cl::opt<std::string> outputCallbacksFileOption(
             "out-callbacks", cl::desc("Output callbacks file"), cl::value_desc("file"),
@@ -209,13 +201,13 @@ namespace TLC::commands::thunkGen {
         cl::opt<std::string> outputFileOption("o", cl::desc("Output header file"),
                                               cl::value_desc("file"), cl::cat(optionCategory));
 
-        /// --preinc <file>
+        /// --preinc=<file>
         ///   Pre-include files.
         cl::list<std::string> preincludeListOptions("preinc", cl::desc("Pre-include files"),
                                                     cl::value_desc("file"),
                                                     cl::cat(optionCategory));
 
-        /// --plugin <file>
+        /// --plugin=<file>
         ///   ASTConsumer plugins to load.
         cl::list<std::string> pluginListOptions("plugin", cl::desc("ASTConsumer plugins to load"),
                                                 cl::value_desc("file"), cl::cat(optionCategory));

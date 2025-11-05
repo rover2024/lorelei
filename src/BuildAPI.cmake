@@ -1,5 +1,7 @@
 qm_import(Preprocess)
 
+add_custom_target(thunk_gen_all)
+
 function(lore_include_recursive _target _scope)
     foreach(_dir ${ARGN})
         if(IS_DIRECTORY ${_dir})
@@ -156,6 +158,50 @@ endfunction()
 
 function(lore_host_thunk_disable_register _target)
     target_compile_options(${_target} PRIVATE "-ffixed-${LORELEI_HOST_FIXED_REGISTER}")
+endfunction()
+
+function(lore_generate_thunk _name _input_file _out_file _config_file)
+    set(options)
+    set(oneValueArgs OUT_CALLBACKS_FILE)
+    set(multiValueArgs PRE_INCLUDE_FILES PLUGINS EXTRA_ARGS DEPENDS)
+    cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    set(_tool $<TARGET_FILE:LoreTLC>)
+    set(_args)
+
+    list(APPEND _args -o ${_out_file} -s ${_config_file})
+
+    if(FUNC_OUT_CALLBACKS_FILE)
+        list(APPEND _args --out-callbacks=${FUNC_OUT_CALLBACKS_FILE})
+    endif()
+
+    foreach(_file IN LISTS FUNC_PRE_INCLUDE_FILES)
+        list(APPEND _args --preinc=${_file})
+    endforeach()
+
+    foreach(_plugin IN LISTS FUNC_PLUGINS)
+        list(APPEND _args --plugin=${_plugin})
+    endforeach()
+
+    list(APPEND _args ${_input_file})
+
+    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include")
+
+    if(FUNC_EXTRA_ARGS)
+        list(APPEND _args ${FUNC_EXTRA_ARGS})
+    endif()
+
+    get_filename_component(_dir ${_out_file} DIRECTORY)
+    file(MAKE_DIRECTORY ${_dir})
+
+    add_custom_command(OUTPUT ${_out_file}
+        COMMAND ${_tool} ${_args}
+        DEPENDS ${_tool} ${_input_file} ${_config_file} ${FUNC_DEPENDS}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    add_custom_target(thunk_gen_${_name} DEPENDS ${_out_file})
+    add_dependencies(thunk_gen_all thunk_gen_${_name})
 endfunction()
 
 function(lore_configure_guest_thunk _target)

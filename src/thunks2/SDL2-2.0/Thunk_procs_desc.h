@@ -1,3 +1,5 @@
+#pragma once
+
 #include <SDL2/SDL.h>
 
 #include <lorelei/TLCMeta/MetaConfig.h>

@@ -1,10 +1,27 @@
 project(_sample)
 
+if(LORELEI_BUILD_TOOLS AND LORELEI_THUNK_GENERATE)
+    add_subdirectory(plugin)
+endif()
+
 set(_GTL ${PROJECT_NAME}_GTL)
 set(_HTL ${PROJECT_NAME}_HTL)
 
+set(_GTL_src ${LORELEI_THUNK_SOURCES_DIR}/${PROJECT_NAME}/Thunk_guest.cpp)
+set(_HTL_src ${LORELEI_THUNK_SOURCES_DIR}/${PROJECT_NAME}/Thunk_host.cpp)
+set(_extra_args)
+
 if(LORELEI_ENABLE_GUEST)
-    add_library(${_GTL} SHARED Thunk_manifest_guest.cpp)
+    if(LORELEI_THUNK_GENERATE)
+        lore_generate_thunk(${_GTL} Thunk_manifest_guest.cpp ${_GTL_src} Thunk_config.conf
+            EXTRA_ARGS ${_extra_args}
+            PRE_INCLUDE_FILES Thunk_procs_desc.h
+            DEPENDS Thunk_procs_desc.h Thunk_config_symbols.conf
+            PLUGINS $<TARGET_FILE:_sample_TLCPlugin>
+        )
+    endif()
+
+    add_library(${_GTL} SHARED ${_GTL_src})
 
     set(_GTL_alias lib_sample.so.0)
     set_target_properties(${_GTL} PROPERTIES POST_LINK_ALIAS "${_GTL_alias}")
@@ -16,14 +33,20 @@ if(LORELEI_ENABLE_GUEST)
 endif()
 
 if(LORELEI_ENABLE_HOST)
-    add_library(${_HTL} SHARED Thunk_manifest_host.cpp)
+    if(LORELEI_THUNK_GENERATE)
+        lore_generate_thunk(${_HTL} Thunk_manifest_host.cpp ${_HTL_src} Thunk_config.conf
+            OUT_CALLBACKS_FILE ${LORELEI_THUNK_SOURCES_DIR}/${PROJECT_NAME}/Thunk_callbacks.txt
+            EXTRA_ARGS ${_extra_args}
+            PRE_INCLUDE_FILES Thunk_procs_desc.h
+            DEPENDS Thunk_procs_desc.h Thunk_config_symbols.conf
+            PLUGINS $<TARGET_FILE:_sample_TLCPlugin>
+        )
+    endif()
+
+    add_library(${_HTL} SHARED ${_HTL_src})
 
     lore_configure_target_common(${_HTL})
     lore_configure_host_thunk(${_HTL})
     lore_host_thunk_disable_register(${_HTL})
     target_link_libraries(${_HTL} PUBLIC LoreHostRT)
-endif()
-
-if(LORELEI_BUILD_TOOLS)
-    add_subdirectory(plugin)
 endif()

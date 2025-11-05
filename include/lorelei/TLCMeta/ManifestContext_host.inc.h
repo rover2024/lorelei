@@ -175,7 +175,7 @@ namespace lorethunk {
         static constexpr void *get() {
             return proc::guestFunctions_GTPs[proc::getGuestFunctionIndex<F>()].addr;
         }
-        static inline void invoke(void *args[], void *ret, void *metadata) {
+        static inline void invoke(void **args, void *ret, void *metadata) {
             (void) proc::dispatcher->runTaskFunction(get(), args, ret, metadata);
         }
     };
@@ -184,7 +184,10 @@ namespace lorethunk {
     // GTP -> GTP_IMPL -> GRT -> EMU -> HRT -> HTP -> HTP_IMPL
     template <class F>
     struct MetaProcCBBridge<F, CProcKind_HostCallback> {
-        // do nothing
+        template <class... Args>
+        static inline auto invoke(void *callback, Args &&...args) {
+            return ((F) callback)(args...);
+        }
     };
 
     // Guest Callback
@@ -194,7 +197,7 @@ namespace lorethunk {
         static constexpr void *get() {
             return proc::guestCallbacks_GTPs[proc::getCallbackIndex<F>()].addr;
         }
-        static inline void invoke(void *callback, void *args[], void *ret, void *metadata) {
+        static inline void invoke(void *callback, void **args, void *ret, void *metadata) {
             (void) proc::dispatcher->runTaskCallback(get(), callback, args, ret, metadata);
         }
     };

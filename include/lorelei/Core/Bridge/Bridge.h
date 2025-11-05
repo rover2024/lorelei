@@ -17,13 +17,13 @@ namespace lore {
             /// The standard calling convention, where all arguments are passed through pointer on
             /// the stack.
             /// \code
-            ///     void (void *args[], void *ret, void *metadata)
+            ///     void (void **args, void *ret, void *metadata)
             /// \endcode
             CONV_STANDARD = 0,
 
             /// The callback pointer is the first argument, followed by the standard arguments.
             /// \code
-            ///     void (void *callback, void *args[], void *ret, void *metadata)
+            ///     void (void *callback, void **args, void *ret, void *metadata)
             /// \endcode
             CONV_STANDARD_CALLBACK,
 
@@ -48,7 +48,7 @@ namespace lore {
             ///     v: void (return only)
             ///
             /// \code
-            ///     void (const char *format, void *args[], void *ret)
+            ///     void (const char *format, void **args, void *ret)
             /// \endcode
             CONV_FORMAT = 0x20,
 
@@ -130,18 +130,18 @@ namespace lore {
         }
 
     public:
-        inline void invokeStandard(void *proc, void *args[], void *ret, void *metadata) {
+        inline void invokeStandard(void *proc, void **args, void *ret, void *metadata) {
             void *opaque[] = {(void *) args, ret, metadata};
             invokeProc(proc, CONV_STANDARD, opaque);
         }
 
-        inline void invokeStandardCallback(void *callback, void *args[], void *ret,
+        inline void invokeStandardCallback(void *callback, void *proc, void **args, void *ret,
                                            void *metadata) {
             void *opaque[] = {callback, (void *) args, ret, metadata};
-            invokeProc(callback, CONV_STANDARD_CALLBACK, opaque);
+            invokeProc(proc, CONV_STANDARD_CALLBACK, opaque);
         }
 
-        inline void invokeFormat(const char *format, void *args[], void *ret) {
+        inline void invokeFormat(const char *format, void **args, void *ret) {
             void *opaque[] = {(void *) format, (void *) args, ret};
             invokeProc(nullptr, CONV_FORMAT, opaque);
         }
