@@ -16,11 +16,9 @@ namespace TLC {
             return;
         }
 
-        if (decl->hasDefinition()) {
-            // The decl has a definition, use it
-            decl = decl->getDefinition();
-        } else {
-            // The decl doesn't have a definition, retrieve it from the template specialization
+        // Always get definition from the underlying default template specialization
+        // Otherwise the static members may not initialize
+        {
             auto templateSpecDecl = dyn_cast<ClassTemplateSpecializationDecl>(decl);
             if (!templateSpecDecl) {
                 return;

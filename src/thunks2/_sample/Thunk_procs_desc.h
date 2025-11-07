@@ -9,39 +9,31 @@
 
 namespace lorethunk {
 
-    /// STEP: Add your custom configurations
+    /// STEP: Add your configurations
     template <>
     struct MetaConfig<MCS_User> {
-        static constexpr const char moduleName[] = "sample"; // required
+        _DESC char moduleName[] = "sample"; // required
     };
 
-    /// STEP: Add your custom function descriptions
-
-    // Functions
+    /// STEP: Add your function descriptions
     template <>
     struct MetaProcDesc<printf> {
-        using builder_pass = MetaPass_printf<>;              // builder pass
-        // using overlay_type = void (*)(const char *, void *); // overlay type
+        using overlay_type = void (*)(const char *, void *); // overlay type
     };
 
     template <>
     struct MetaProcDesc<scanf> {
-        using builder_pass = MetaPass_scanf<>;
+        _DESC MetaPass_scanf<> builder_pass = {};
     };
 
-    // Callbacks
+    /// STEP: Add your callback descriptions
     using PFN_printf = int (*)(const char *, ...);
-    using PFN_memcpy = void *(*) (void *, const void *, size_t);
+    using PFN_memcpy = void *(*) (void *, const void *, size_t) noexcept;
 
     template <>
     struct MetaProcCBDesc<PFN_printf> {
-        using builder_pass = MetaPass_printf<>;                           // builder pass
-        static constexpr const char name[] = "PFN_printf";
+        _DESC char name[] = "PFN_printf";
+        _DESC MetaPass_printf<> builder_pass = {};
     };
-
-    // template <>
-    // struct MetaProcCBDesc<PFN_memcpy> {
-    //     static constexpr const char name[] = "PFN_memcpy";
-    // };
 
 }

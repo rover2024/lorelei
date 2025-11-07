@@ -26,11 +26,7 @@ namespace TLC {
     };
 
     template <class T>
-    static bool isCSymbol(const T *decl) {
-        if (decl->getLanguageLinkage() == CLanguageLinkage) {
-            return true;
-        }
-
+    static bool isCDecl(const T *decl) {
         const DeclContext *DC = decl->getDeclContext();
         if (const LinkageSpecDecl *LSD = dyn_cast<LinkageSpecDecl>(DC)) {
             return LSD->getLanguage() == LinkageSpecLanguageIDs::C;
@@ -41,6 +37,14 @@ namespace TLC {
             return true;
         }
         return false;
+    }
+
+    template <class T>
+    static bool isCLinkage(const T *decl) {
+        if (decl->getLanguageLinkage() == CLanguageLinkage) {
+            return true;
+        }
+        return isCDecl(decl);
     }
 
 
@@ -72,6 +76,10 @@ namespace TLC {
                     _metaProcs[item.procKind()][item.thunkPhase()]
                               [item.procDecl()->getNameAsString()] = item;
                 }
+
+                if (!_metaProcDecl) {
+                    _metaProcDecl = decl->getSpecializedTemplate();
+                }
             }
             if (auto decl = Result.Nodes.getNodeAs<ClassTemplateSpecializationDecl>("metaProcCB")) {
                 MetaProcCBItem item(decl);
@@ -81,13 +89,20 @@ namespace TLC {
                 }
             }
             if (auto decl = Result.Nodes.getNodeAs<FunctionDecl>("functionDecl")) {
-                if (isCSymbol(decl)) {
+                if (isCLinkage(decl)) {
                     _functions[decl->getNameAsString()] = decl;
                 }
             }
             if (auto decl = Result.Nodes.getNodeAs<VarDecl>("varDecl")) {
-                if (isCSymbol(decl)) {
+                if (isCLinkage(decl)) {
                     _vars[decl->getNameAsString()] = decl;
+                }
+            }
+            if (auto decl = Result.Nodes.getNodeAs<TypedefDecl>("typedefDecl")) {
+                if (isCDecl(decl)) {
+                    if (decl->getUnderlyingType()->isFunctionPointerType()) {
+                        _functionPointerTypedefs[decl->getNameAsString()] = decl;
+                    }
                 }
             }
         };
@@ -135,9 +150,10 @@ namespace TLC {
                 .bind("metaProcCB"),
             &matchHandler);
 
-        /// STEP: Match \c FunctionDecl and \c VarDecl
+        /// STEP: Match \c FunctionDecl, \c VarDecl and \c TypedefDecl
         finder.addMatcher(functionDecl().bind("functionDecl"), &matchHandler);
         finder.addMatcher(varDecl().bind("varDecl"), &matchHandler);
+        finder.addMatcher(typedefDecl().bind("typedefDecl"), &matchHandler);
         finder.matchAST(ast);
 
         for (auto &pair : Pass::passMap(Pass::Builder)) {

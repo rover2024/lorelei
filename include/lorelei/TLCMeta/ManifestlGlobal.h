@@ -2,7 +2,6 @@
 #define MANIFESTLGLOBAL_H
 
 #define _USED __attribute__((used, visibility("hidden")))
-
 #define _PROC _USED static
 
 #define LORETHUNK_EXPORT __attribute__((visibility("default")))

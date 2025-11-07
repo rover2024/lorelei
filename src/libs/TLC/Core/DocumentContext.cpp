@@ -1,6 +1,7 @@
 #include "DocumentContext.h"
 
 #include <clang/Basic/SourceManager.h>
+#include <clang/AST/Mangle.h>
 
 #include <lorelei/TLCMeta/MetaPass.h>
 
@@ -12,6 +13,167 @@
 using namespace clang;
 
 namespace TLC {
+
+    struct MetaProcInvoker {
+        ClassTemplateDecl *metaProcTDecl;
+        TemplateArgument procKindTArg;
+        TemplateArgument procThunkPhaseTArg;
+        std::unique_ptr<MangleContext> mangleCtx;
+
+        MetaProcInvoker(ClassTemplateDecl *decl, const char *procKind, const char *procThunkPhase) {
+            auto &ast = decl->getASTContext();
+            auto tArgs = decl->getTemplateParameters()->asArray();
+            if (tArgs.size() != 3) {
+                llvm::errs() << "error: invalid template parameters count of " << decl->getName()
+                             << "\n";
+                return;
+            }
+
+            EnumDecl *procKindEnumDecl = nullptr;
+            EnumDecl *procThunkPhaseEnumDecl = nullptr;
+            if (auto nonTypeTArg = dyn_cast<NonTypeTemplateParmDecl>(tArgs[1])) {
+                auto argType = nonTypeTArg->getType();
+                if (!argType->isEnumeralType()) {
+                    llvm::errs() << "error: invalid template parameter type of "
+                                 << nonTypeTArg->getName() << "\n";
+                    return;
+                }
+                auto enumDecl = argType->getAs<EnumType>()->getDecl();
+                if (enumDecl->getName() != "CProcKind") {
+                    llvm::errs() << "error: invalid template parameter type of "
+                                 << nonTypeTArg->getName() << "\n";
+                    return;
+                }
+                procKindEnumDecl = enumDecl;
+            } else {
+                return;
+            }
+
+            if (auto nonTypeTArg = dyn_cast<NonTypeTemplateParmDecl>(tArgs[2])) {
+                auto argType = nonTypeTArg->getType();
+                if (!argType->isEnumeralType()) {
+                    llvm::errs() << "error: invalid template parameter type of "
+                                 << nonTypeTArg->getName() << "\n";
+                    return;
+                }
+                auto enumDecl = argType->getAs<EnumType>()->getDecl();
+                if (enumDecl->getName() != "CProcThunkPhase") {
+                    llvm::errs() << "error: invalid template parameter type of "
+                                 << nonTypeTArg->getName() << "\n";
+                    return;
+                }
+                procThunkPhaseEnumDecl = enumDecl;
+            } else {
+                return;
+            }
+
+            EnumConstantDecl *procKindECD = nullptr;
+            EnumConstantDecl *procThunkPhaseECD = nullptr;
+            for (auto *ECD : procKindEnumDecl->enumerators()) {
+                if (ECD->getName() == procKind) {
+                    procKindECD = ECD;
+                    break;
+                }
+            }
+            for (auto *ECD : procThunkPhaseEnumDecl->enumerators()) {
+                if (ECD->getName() == procThunkPhase) {
+                    procThunkPhaseECD = ECD;
+                    break;
+                }
+            }
+
+            if (!procKindECD || !procThunkPhaseECD) {
+                llvm::errs() << "error: failed to find enum constant " << procKind << " or "
+                             << procThunkPhase << "\n";
+                return;
+            }
+
+            metaProcTDecl = decl;
+            procKindTArg =
+                TemplateArgument(procKindECD, ast.getTypeDeclType(procThunkPhaseEnumDecl));
+            procThunkPhaseTArg =
+                TemplateArgument(procThunkPhaseECD, ast.getTypeDeclType(procThunkPhaseEnumDecl));
+
+            llvm::outs() << "MetaProcInvoker: "
+                         << ast.getTypeDeclType(procThunkPhaseEnumDecl).getAsString() << "\n";
+
+            mangleCtx.reset(clang::ItaniumMangleContext::create(ast, ast.getDiagnostics()));
+        }
+
+        bool isValid() const {
+            return metaProcTDecl;
+        }
+
+        std::string getInvokeMangledName(FunctionDecl *FD) {
+            auto &ast = metaProcTDecl->getASTContext();
+
+            std::array<TemplateArgument, 3> tArgs;
+            // tArgs[0] = TemplateArgument(ast.VoidPtrTy);
+            // tArgs[1] = TemplateArgument(ast.VoidPtrTy);
+            // tArgs[2] = TemplateArgument(ast.VoidPtrTy);
+            tArgs[0] = TemplateArgument(FD, ast.getPointerType(FD->getType()));
+            tArgs[1] = procKindTArg;
+            tArgs[2] = procThunkPhaseTArg;
+
+            // Search for a matching specialization
+            void *insertPos = nullptr;
+            auto spec = metaProcTDecl->findSpecialization(tArgs, insertPos);
+            if (!spec) {
+                // No matching specialization found, create a new one
+                spec = ClassTemplateSpecializationDecl::Create(
+                    ast, metaProcTDecl->getTemplatedDecl()->getTagKind(),
+                    metaProcTDecl->getTemplatedDecl()->getDeclContext(),
+                    metaProcTDecl->getTemplatedDecl()->getLocation(), metaProcTDecl->getLocation(),
+                    metaProcTDecl, tArgs, nullptr);
+            }
+
+            if (!spec) {
+                llvm::outs()
+                    << "Error: Failed to find or create specialization of 'MetaProc' template.\n";
+                return {};
+            }
+
+            // Find the 'invoke' method in the specialization
+            CXXMethodDecl *InvokeMethod = nullptr;
+            for (auto *D : spec->decls()) {
+                if (auto *Method = dyn_cast<CXXMethodDecl>(D)) {
+                    if (Method->getName() == "invoke") {
+                        InvokeMethod = Method;
+                        break;
+                    }
+                }
+            }
+
+            if (!InvokeMethod) {
+                QualType InvokeType = FD->getType();
+
+                // Create the 'invoke' method declaration
+                InvokeMethod = CXXMethodDecl::Create(
+                    ast, spec, spec->getLocation(),
+                    DeclarationNameInfo(DeclarationName(&ast.Idents.get("invoke")),
+                                        spec->getLocation()),
+                    InvokeType, ast.getTrivialTypeSourceInfo(InvokeType), StorageClass::SC_Static,
+                    false, false, ConstexprSpecKind::Unspecified, spec->getLocation());
+                InvokeMethod->setAccess(AS_public);
+                InvokeMethod->setImplicit(true);
+                spec->addDecl(InvokeMethod);
+            }
+
+            if (!InvokeMethod->isUserProvided()) {
+                llvm::outs() << "Error: Failed to create user-provided 'invoke' method.\n";
+                return {};
+            }
+
+            // Mangle the 'invoke' method name
+            std::string MangledName;
+            llvm::raw_string_ostream Stream(MangledName);
+            llvm::outs() << "InvokeMethod: " << InvokeMethod->getQualifiedNameAsString() << "\n";
+            if (mangleCtx->shouldMangleDeclName(InvokeMethod))
+                mangleCtx->mangleName(InvokeMethod, Stream);
+            Stream.flush();
+            return MangledName;
+        }
+    };
 
     void DocumentContext::initialize(clang::ASTContext &ast, const lore::ConfigFile &inputConfig) {
         _ast = &ast;
@@ -73,8 +235,15 @@ namespace TLC {
             }
         }
 
+        // Add typedef declared function pointer types
         std::map<std::string, QualType> knownCallbacks;
         std::map<std::string, std::string> namedCallbackMap; // type string -> name
+        for (auto it : std::as_const(_functionPointerTypedefs)) {
+            auto &typedefDecl = it.second;
+            auto fpType = typedefDecl->getUnderlyingType().getCanonicalType();
+            namedCallbackMap[getTypeString(fpType)] = typedefDecl->getNameAsString();
+        }
+
         if (auto section = std::as_const(_inputConfig).get("Callback")) {
             auto &listed = section->get();
             for (auto it : std::as_const(listed)) {
@@ -87,11 +256,18 @@ namespace TLC {
                         auto FD = it->second;
                         auto fpType = _ast->getPointerType(FD->getType().getCanonicalType());
                         auto fpTypeStr = getTypeString(fpType);
-                        namedCallbackMap[fpTypeStr] = "PFN_AUTO_" + token;
+                        if (!namedCallbackMap.count(fpTypeStr)) {
+                            namedCallbackMap[fpTypeStr] = "PFN_AUTO_" + token;
+                        }
                         knownCallbacks[fpTypeStr] = fpType;
                     }
                 } else {
-                    // TODO: Handle other formats of callbacks
+                    auto it = _functionPointerTypedefs.find(token);
+                    if (it != _functionPointerTypedefs.end()) {
+                        auto fpType = it->second->getUnderlyingType().getCanonicalType();
+                        auto fpTypeStr = getTypeString(fpType);
+                        knownCallbacks[fpTypeStr] = fpType;
+                    }
                 }
             }
         }
@@ -172,13 +348,14 @@ namespace TLC {
                 stack.push_back(it.second);
             }
 
-            for (auto kind : {CProcKind_HostCallback, CProcKind_GuestCallback}) {
-                for (auto &phaseMap : _metaProcCBs.at(kind)) {
-                    for (auto it2 : phaseMap) {
-                        stack.push_back(it2.second.procType());
-                    }
-                }
-            }
+            // Disabled. May break the consistency of guest and host items
+            // for (auto kind : {CProcKind_HostCallback, CProcKind_GuestCallback}) {
+            //     for (auto &phaseMap : _metaProcCBs.at(kind)) {
+            //         for (auto it2 : phaseMap) {
+            //             stack.push_back(it2.second.procType());
+            //         }
+            //     }
+            // }
 
             std::set<std::string> visitedTypes;
             while (!stack.empty()) {
@@ -389,6 +566,7 @@ namespace TLC {
             pair.second->endProcessDocument(*this);
         }
     }
+
     void DocumentContext::generateOutput(llvm::raw_ostream &os) {
         const auto &legend = [](const std::string &name) {
             int eqCount = (75 - name.size()) / 2;
@@ -508,6 +686,44 @@ namespace TLC {
         }
 
         os << "}\n\n";
+
+        if (_isHost) {
+            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_GuestFunction", "CProcThunkPhase_HTP");
+            if (!MPI.isValid()) {
+                std::exit(1);
+            }
+
+            for (auto &it : _procContexts[CProcKind_GuestFunction]) {
+                auto &proc = *it.second;
+                llvm::outs() << proc.name() << ": "
+                             << MPI.getInvokeMangledName(
+                                    const_cast<FunctionDecl *>(proc.functionDecl()))
+                             << "\n";
+            }
+        } else {
+            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_HostFunction", "CProcThunkPhase_GTP");
+            if (!MPI.isValid()) {
+                std::exit(1);
+            }
+
+            for (const auto &it : _metaProcs[CProcKind_HostFunction][CProcThunkPhase_GTP]) {
+                auto &item = it.second;
+                for (auto decl: item.decl()->decls()) {
+                    if (decl->getAsFunction()) {
+                        
+                    }
+                }
+            }
+
+            for (auto &it : _procContexts[CProcKind_HostFunction]) {
+                auto &proc = *it.second;
+                llvm::outs() << proc.name() << ": "
+                             << MPI.getInvokeMangledName(
+                                    const_cast<FunctionDecl *>(proc.functionDecl()))
+                             << "\n";
+            }
+        }
+
 
         /// STEP: Generate document tail
         os << _source.tail.toRawText() << "\n";

@@ -19,22 +19,17 @@ namespace TLC {
                             }
                             break;
                         }
-                    }
-                    break;
-
-                case Decl::Typedef:
-                case Decl::TypeAlias:
-                    if (auto TD = dyn_cast<TypeAliasDecl>(subDecl)) {
-                        if (TD->getName() == "builder_pass") {
-                            MetaPassItem passItem(TD->getUnderlyingType().getCanonicalType());
+                        if (VD->getName() == "builder_pass") {
+                            auto type = VD->getType();
+                            MetaPassItem passItem(type);
                             if (!passItem.isValid()) {
                                 break;
                             }
                             _builderPass = passItem;
                             break;
                         }
-                        if (TD->getName() == "passes") {
-                            auto type = TD->getUnderlyingType().getCanonicalType();
+                        if (VD->getName() == "passes") {
+                            auto type = VD->getType();
                             auto typeDecl = type->getAsCXXRecordDecl();
                             if (!typeDecl) {
                                 break;
@@ -68,6 +63,12 @@ namespace TLC {
                             }
                             break;
                         }
+                    }
+                    break;
+
+                case Decl::Typedef:
+                case Decl::TypeAlias:
+                    if (auto TD = dyn_cast<TypeAliasDecl>(subDecl)) {
                         if (TD->getName() == "overlay_type") {
                             auto type = TD->getUnderlyingType().getCanonicalType();
                             if (!type.getCanonicalType()->isFunctionPointerType()) {

@@ -29,8 +29,8 @@ namespace lorethunk {
     // Builder
     template <int FormatIndex = -1, int VariadicIndex = -1>
     struct MetaPass_printf : public MetaPass {
-        static constexpr BulitinID ID = Printf;
-        static constexpr bool isBuilder = true;
+        static constexpr const BulitinID ID = Printf;
+        static constexpr const bool isBuilder = true;
 
         static_assert((FormatIndex == -1 && VariadicIndex == -1) || (VariadicIndex > FormatIndex),
                       "VariadicIndex must be greater than FormatIndex");
@@ -39,8 +39,8 @@ namespace lorethunk {
     // Builder
     template <int FormatIndex = -1, int VariadicIndex = -1>
     struct MetaPass_vprintf : public MetaPass {
-        static constexpr BulitinID ID = VPrintf;
-        static constexpr bool isBuilder = true;
+        static constexpr const BulitinID ID = VPrintf;
+        static constexpr const bool isBuilder = true;
 
         static_assert((FormatIndex == -1 && VariadicIndex == -1) || (VariadicIndex > FormatIndex),
                       "VariadicIndex must be greater than FormatIndex");
@@ -48,8 +48,8 @@ namespace lorethunk {
 
     template <int FormatIndex = -1, int VariadicIndex = -1>
     struct MetaPass_scanf : public MetaPass {
-        static constexpr BulitinID ID = Scanf;
-        static constexpr bool isBuilder = true;
+        static constexpr const BulitinID ID = Scanf;
+        static constexpr const bool isBuilder = true;
 
         static_assert((FormatIndex == -1 && VariadicIndex == -1) || (VariadicIndex > FormatIndex),
                       "VariadicIndex must be greater than FormatIndex");
@@ -57,8 +57,8 @@ namespace lorethunk {
 
     template <int FormatIndex = -1, int VariadicIndex = -1>
     struct MetaPass_vscanf : public MetaPass {
-        static constexpr BulitinID ID = VScanf;
-        static constexpr bool isBuilder = true;
+        static constexpr const BulitinID ID = VScanf;
+        static constexpr const bool isBuilder = true;
 
         static_assert((FormatIndex == -1 && VariadicIndex == -1) || (VariadicIndex > FormatIndex),
                       "VariadicIndex must be greater than FormatIndex");
@@ -67,18 +67,18 @@ namespace lorethunk {
     // Guard
     template <bool Enabled = true>
     struct MetaPass_CallbackSubstituter : public MetaPass {
-        static constexpr BulitinID ID = CallbackSubstituter;
+        static constexpr const BulitinID ID = CallbackSubstituter;
     };
 
     template <bool Enabled = true>
     struct MetaPass_TypeFilter : public MetaPass {
-        static constexpr BulitinID ID = TypeFilter;
+        static constexpr const BulitinID ID = TypeFilter;
     };
 
     // Misc
     template <int NameIndex = -1>
     struct MetaPass_GetProcAddress : public MetaPass {
-        static constexpr BulitinID ID = GetProcAddress;
+        static constexpr const BulitinID ID = GetProcAddress;
     };
 
 }

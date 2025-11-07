@@ -105,6 +105,7 @@ namespace TLC {
 
         // AST data
         clang::ASTContext *_ast = nullptr;
+        clang::ClassTemplateDecl *_metaProcDecl = nullptr;
 
         // Result data
         std::array<std::optional<MetaConfigItem>, MetaConfigItem::User + 1> _metaConfigs;
@@ -120,6 +121,7 @@ namespace TLC {
         std::map<std::string, const clang::FunctionDecl *> _functions;
         std::map<std::string, const clang::VarDecl *> _vars;
         std::map<std::string, const clang::FunctionDecl *> _guestFunctions;
+        std::map<std::string, const clang::TypedefDecl *> _functionPointerTypedefs;
         std::map<std::string, clang::QualType> _callbacks;
 
         std::set<std::string> _missingFunctions;

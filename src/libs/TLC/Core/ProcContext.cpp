@@ -137,10 +137,11 @@ namespace TLC {
         }
 
         if (_overlayType) {
-            _realFunctionTypeView = FunctionTypeView(_overlayType.value());
+            _realFunctionPointerType = _overlayType.value();
         } else {
-            _realFunctionTypeView = FunctionTypeView(_functionPointerType);
+            _realFunctionPointerType = _functionPointerType;
         }
+        _realFunctionTypeView = FunctionTypeView(_realFunctionPointerType);
     }
 
 }

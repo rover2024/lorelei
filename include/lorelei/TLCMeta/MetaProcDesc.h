@@ -1,6 +1,8 @@
 #ifndef PROCDESC_H
 #define PROCDESC_H
 
+#define _DESC static constexpr const
+
 namespace lorethunk {
 
     template <auto F>
