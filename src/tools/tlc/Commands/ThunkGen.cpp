@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <cstdlib>
 
+#include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
@@ -136,6 +137,12 @@ namespace TLC::commands::thunkGen {
         }
 
         void EndSourceFileAction() override {
+            CompilerInstance &CI = getCompilerInstance();
+            DiagnosticsEngine &DE = CI.getDiagnostics();
+            if (DE.hasErrorOccurred()) {
+                return;
+            }
+
             std::filesystem::current_path(g_ctx.workingDirectory);
 
             g_ctx.docCtx.endSourceFileAction();

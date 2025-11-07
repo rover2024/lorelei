@@ -89,13 +89,10 @@ namespace TLC {
             }
 
             metaProcTDecl = decl;
-            procKindTArg =
-                TemplateArgument(procKindECD, ast.getTypeDeclType(procThunkPhaseEnumDecl));
-            procThunkPhaseTArg =
-                TemplateArgument(procThunkPhaseECD, ast.getTypeDeclType(procThunkPhaseEnumDecl));
-
-            llvm::outs() << "MetaProcInvoker: "
-                         << ast.getTypeDeclType(procThunkPhaseEnumDecl).getAsString() << "\n";
+            procKindTArg = TemplateArgument(ast, procKindECD->getInitVal(),
+                                            ast.getTypeDeclType(procKindEnumDecl));
+            procThunkPhaseTArg = TemplateArgument(ast, procThunkPhaseECD->getInitVal(),
+                                                  ast.getTypeDeclType(procThunkPhaseEnumDecl));
 
             mangleCtx.reset(clang::ItaniumMangleContext::create(ast, ast.getDiagnostics()));
         }
@@ -104,7 +101,8 @@ namespace TLC {
             return metaProcTDecl;
         }
 
-        std::string getInvokeMangledName(FunctionDecl *FD) {
+        std::string getInvokeMangledName(FunctionDecl *FD,
+                                         const std::optional<QualType> &overlayType) {
             auto &ast = metaProcTDecl->getASTContext();
 
             std::array<TemplateArgument, 3> tArgs;
@@ -145,7 +143,8 @@ namespace TLC {
             }
 
             if (!InvokeMethod) {
-                QualType InvokeType = FD->getType();
+                QualType InvokeType =
+                    overlayType ? overlayType.value()->getPointeeType() : FD->getType();
 
                 // Create the 'invoke' method declaration
                 InvokeMethod = CXXMethodDecl::Create(
@@ -156,6 +155,23 @@ namespace TLC {
                     false, false, ConstexprSpecKind::Unspecified, spec->getLocation());
                 InvokeMethod->setAccess(AS_public);
                 InvokeMethod->setImplicit(true);
+
+                if (!overlayType) {
+                    InvokeMethod->setParams(FD->parameters());
+                } else {
+                    FunctionTypeView view(overlayType.value());
+                    llvm::SmallVector<ParmVarDecl *, 4> params;
+                    params.reserve(view.argTypes().size());
+                    for (size_t i = 0; i < view.argTypes().size(); ++i) {
+                        const auto &argType = view.argTypes()[i];
+                        auto param = ParmVarDecl::Create(
+                            ast, InvokeMethod->getDeclContext(), SourceLocation(), SourceLocation(),
+                            &ast.Idents.get("arg" + std::to_string(i + 1)), argType,
+                            ast.getTrivialTypeSourceInfo(argType), StorageClass::SC_None, nullptr);
+                        params.push_back(param);
+                    }
+                    InvokeMethod->setParams(params);
+                }
                 spec->addDecl(InvokeMethod);
             }
 
@@ -167,7 +183,6 @@ namespace TLC {
             // Mangle the 'invoke' method name
             std::string MangledName;
             llvm::raw_string_ostream Stream(MangledName);
-            llvm::outs() << "InvokeMethod: " << InvokeMethod->getQualifiedNameAsString() << "\n";
             if (mangleCtx->shouldMangleDeclName(InvokeMethod))
                 mangleCtx->mangleName(InvokeMethod, Stream);
             Stream.flush();
@@ -695,10 +710,13 @@ namespace TLC {
 
             for (auto &it : _procContexts[CProcKind_GuestFunction]) {
                 auto &proc = *it.second;
-                llvm::outs() << proc.name() << ": "
-                             << MPI.getInvokeMangledName(
-                                    const_cast<FunctionDecl *>(proc.functionDecl()))
-                             << "\n";
+                os << "LORETHUNK_EXPORT "
+                   << proc.source(CProcThunkPhase_HTP)
+                          .functionInfo.declText("GTL_" + proc.name(), ast)
+                   << " __attribute__((alias(\""
+                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
+                                               proc.overlayType())
+                   << "\")))\n";
             }
         } else {
             MetaProcInvoker MPI(_metaProcDecl, "CProcKind_HostFunction", "CProcThunkPhase_GTP");
@@ -706,24 +724,16 @@ namespace TLC {
                 std::exit(1);
             }
 
-            for (const auto &it : _metaProcs[CProcKind_HostFunction][CProcThunkPhase_GTP]) {
-                auto &item = it.second;
-                for (auto decl: item.decl()->decls()) {
-                    if (decl->getAsFunction()) {
-                        
-                    }
-                }
-            }
-
             for (auto &it : _procContexts[CProcKind_HostFunction]) {
                 auto &proc = *it.second;
-                llvm::outs() << proc.name() << ": "
-                             << MPI.getInvokeMangledName(
-                                    const_cast<FunctionDecl *>(proc.functionDecl()))
-                             << "\n";
+                os << "LORETHUNK_EXPORT "
+                   << proc.source(CProcThunkPhase_GTP).functionInfo.declText(proc.name(), ast)
+                   << " __attribute__((alias(\""
+                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
+                                               proc.overlayType())
+                   << "\")));\n";
             }
         }
-
 
         /// STEP: Generate document tail
         os << _source.tail.toRawText() << "\n";

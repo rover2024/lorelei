@@ -26,42 +26,49 @@ namespace lorethunk::proc {
             NumCallback,
     };
 
-    namespace {
+    // namespace {
 
-        template <auto T>
-        inline HostFunction getHostFunctionIndex();
+    template <auto T>
+    constexpr int getHostFunctionIndex();
 
-#define _F(NAME)                                                                                   \
-    template <>                                                                                    \
-    inline HostFunction getHostFunctionIndex<NAME>() {                                             \
-        return HostFunction_##NAME;                                                                \
+    template <> constexpr int getHostFunctionIndex<::memcpy>() { 
+        return HostFunction_memcpy;
     }
-        LORETHUNK_HOST_FUNCTION_FOREACH(_F)
-#undef _F
+    template <> constexpr int getHostFunctionIndex<::printf>() {
+        return HostFunction_printf;
+    }
 
-        template <auto T>
-        inline GuestFunction getGuestFunctionIndex();
+// #define _F(NAME)                                                                                   \
+//     template <>                                                                                    \
+//     constexpr int getHostFunctionIndex<::NAME>() {                                                 \
+//         return HostFunction_##NAME;                                                                \
+//     }
+//     LORETHUNK_HOST_FUNCTION_FOREACH(_F)
+// #undef _F
+
+    template <auto T>
+    constexpr int getGuestFunctionIndex();
 
 #define _F(NAME)                                                                                   \
     template <>                                                                                    \
-    inline GuestFunction getGuestFunctionIndex<NAME>() {                                           \
+    constexpr int getGuestFunctionIndex<::NAME>() {                                                \
         return GuestFunction_##NAME;                                                               \
     }
-        LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
+    LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
 #undef _F
 
-        template <class T>
-        inline Callback getCallbackIndex();
+    template <class T>
+    constexpr int getCallbackIndex();
 
-#define _F(NAME, SIGNATURE)                                                                        \
+#define _F(NAME, TYPE)                                                                             \
     template <>                                                                                    \
-    inline Callback getCallbackIndex<SIGNATURE>() {                                                \
+    constexpr int getCallbackIndex<TYPE>() {                                                       \
         return Callback_##NAME;                                                                    \
     }
-        LORETHUNK_CALLBACK_FOREACH(_F)
+    LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-    }
+    // }
 
     // Implemented in the generated codes
     static CStaticProcInfo hostFunctions_GTPs[NumHostFunction + 1];

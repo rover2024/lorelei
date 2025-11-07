@@ -6,10 +6,6 @@
 // Include the common manifest context header
 #include <lorelei/TLCMeta/ManifestContext_guest.inc.h>
 
-enum What {
-    What_Memcpy = 0,
-};
-
 namespace lorethunk {
 
     // Add your custom thunks in this namespace

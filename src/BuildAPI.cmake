@@ -77,6 +77,7 @@ function(lore_link_clang _target _scope)
         clangFrontend
         clangSerialization
         clangTooling
+        clangASTMatchers
     )
 endfunction()
 

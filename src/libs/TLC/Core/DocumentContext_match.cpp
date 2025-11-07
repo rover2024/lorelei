@@ -47,7 +47,6 @@ namespace TLC {
         return isCDecl(decl);
     }
 
-
     void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
         const auto &matchCallback = [this](const MatchFinder::MatchResult &Result) {
             if (auto decl = Result.Nodes.getNodeAs<ClassTemplateSpecializationDecl>("metaConfig")) {
@@ -164,6 +163,11 @@ namespace TLC {
         }
         for (auto &pair : Pass::passMap(Pass::Misc)) {
             pair.second->handleTranslationUnit(*this);
+        }
+
+        if (!_metaProcDecl) {
+            llvm::errs() << "error: \"MetaProc\" declaration not found.\n";
+            std::exit(1);
         }
     }
 
