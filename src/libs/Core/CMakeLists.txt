@@ -13,4 +13,5 @@ lore_configure_library(${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} PRIVATE json11 mpaland_printf)
 target_link_libraries(${PROJECT_NAME} PUBLIC stdcorelib)
 
-lore_add_pkgconfig_dependency(${PROJECT_NAME} libffi REQUIRED)
+# lore_add_pkgconfig_dependency(${PROJECT_NAME} libffi REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE avcall)

@@ -13,7 +13,7 @@ namespace lore {
         char thunk_instr[16]; // lea -7(%rip), %r11; jmp jump_instr
     };
 
-    struct CallbackTrampolineTable {
+    struct LORECORE_EXPORT CallbackTrampolineTable {
         char jump_instr[32]; // mov -8(%r11), %r11; mov target, %rax; jmp *%rax
         size_t count;        // length of the "trampoline"
         struct CallbackTrampoline trampoline[];

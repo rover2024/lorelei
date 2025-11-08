@@ -1,0 +1,2 @@
+# lore_add_auto_test(tst_ConfigFile.cpp)
+# target_link_libraries(tst_ConfigFile PRIVATE LoreUtils)

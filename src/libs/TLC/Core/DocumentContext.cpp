@@ -611,6 +611,7 @@ namespace TLC {
 
         /// STEP: Include necessary headers
         os << "#include <lorelei/TLCMeta/ManifestlGlobal.h>\n";
+        os << "#include <lorelei/TLCMeta/ManifestConfig.h>\n";
         os << "#include <lorelei/TLCMeta/ManifestCallbackDefs.h>\n";
         os << "#include <lorelei/TLCMeta/MetaProc.h>\n";
         os << "\n";

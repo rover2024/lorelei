@@ -14,7 +14,7 @@ set(_extra_args)
 if(LORELEI_ENABLE_GUEST)
     if(LORELEI_THUNK_GENERATE)
         lore_generate_thunk(${_GTL} Thunk_manifest_guest.cpp ${_GTL_src} Thunk_config.conf
-            EXTRA_ARGS ${_extra_args}
+            EXTRA_ARGS ${_extra_args} ${LORELEI_GUEST_TLC_ARGS}
             PRE_INCLUDE_FILES Thunk_procs_desc.h
             DEPENDS Thunk_procs_desc.h Thunk_config_symbols.conf
             PLUGINS $<TARGET_FILE:_sample_TLCPlugin>
@@ -36,7 +36,7 @@ if(LORELEI_ENABLE_HOST)
     if(LORELEI_THUNK_GENERATE)
         lore_generate_thunk(${_HTL} Thunk_manifest_host.cpp ${_HTL_src} Thunk_config.conf
             OUT_CALLBACKS_FILE ${LORELEI_THUNK_SOURCES_DIR}/${PROJECT_NAME}/Thunk_callbacks.txt
-            EXTRA_ARGS ${_extra_args}
+            EXTRA_ARGS ${_extra_args} ${LORELEI_HOST_TLC_ARGS}
             PRE_INCLUDE_FILES Thunk_procs_desc.h
             DEPENDS Thunk_procs_desc.h Thunk_config_symbols.conf
             PLUGINS $<TARGET_FILE:_sample_TLCPlugin>

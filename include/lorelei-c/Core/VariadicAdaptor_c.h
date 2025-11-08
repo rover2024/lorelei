@@ -62,7 +62,7 @@ struct _Enum2Underlying<T, std::enable_if_t<std::is_enum_v<T>>> {
 };
 
 template <class T>
-static inline constexpr CVargType CVargTypeID(T x) {
+static inline constexpr CVargType _CVargTypeID() {
     using T1 = std::remove_cv_t<T>;
     using T2 = typename _Enum2Underlying<T1>::type;
     using V = T2;
@@ -96,6 +96,8 @@ static inline constexpr CVargType CVargTypeID(T x) {
         return CVargType_Pointer;
     }
 }
+
+#define CVargTypeID(x) _CVargTypeID<__typeof__(x)>()
 
 template <class T>
 static inline constexpr auto *_CVargValueRef(CVargEntry &v) {
@@ -138,7 +140,7 @@ static inline constexpr auto *_CVargValueRef(CVargEntry &v) {
 template <class T>
 static inline CVargEntry CVargGet(T x) {
     CVargEntry result;
-    result.type = CVargTypeID(x);
+    result.type = _CVargTypeID<T>();
     if constexpr (std::is_pointer_v<T>) {
         result.p = (void *) x;
     } else {

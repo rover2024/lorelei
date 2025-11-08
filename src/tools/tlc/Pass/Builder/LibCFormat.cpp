@@ -299,7 +299,7 @@ namespace TLC {
                 ///     // printf
                 ///     int invoke(const char *fmt, ...) {
                 ///         int ret;
-                ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
+                ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
                 ///         {
                 ///             va_list ap;
                 ///             va_start(ap, fmt);
@@ -315,7 +315,7 @@ namespace TLC {
                 ///     // vprintf
                 ///     int invoke(const char *fmt, va_list ap) {
                 ///         int ret;
-                ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
+                ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
                 ///         VariadicAdaptor::extract(VariadicAdaptor::FS_printf, fmt, ap, vargs);
                 ///         ret = MetaProc<vprintf, CProcKind_HostFunction,
                 ///                                 CProcThunkPhase_GTP_IMPL>::invoke(fmt, vargs);
@@ -323,7 +323,7 @@ namespace TLC {
                 ///     }
                 /// \endcode
                 XTP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
-                XTP.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORE_CONFIG_VARG_MAX];"));
+                XTP.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];"));
                 if (_hasVAList) {
                     XTP.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
                 } else {
@@ -422,7 +422,7 @@ namespace TLC {
                 ///     int invoke(const char *fmt, ...) {
                 ///         int ret;
                 ///         // get callback
-                ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
+                ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
                 ///         {
                 ///             va_list ap;
                 ///             va_start(ap, fmt);
@@ -440,7 +440,7 @@ namespace TLC {
                 ///     // vprintf
                 ///     int invoke(const char *fmt, va_list ap) {
                 ///         int ret;
-                ///         CVargEntry vargs[LORE_CONFIG_VARG_MAX];
+                ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
                 ///         VariadicAdaptor::extract(VariadicAdaptor::FS_printf, fmt, ap, vargs);
                 ///         ret = MetaProcCB<vprintf, CProcKind_HostCallback,
                 ///                                   CProcThunkPhase_GTP_IMPL>::invoke(
@@ -451,7 +451,7 @@ namespace TLC {
                 /// \endcode
                 XTP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP.body.prolog.push_back(key, SRC_getCallback(!isHostCallback));
-                XTP.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORE_CONFIG_VARG_MAX];"));
+                XTP.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];"));
                 if (_hasVAList) {
                     XTP.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
                 } else {
