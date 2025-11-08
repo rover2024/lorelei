@@ -6,7 +6,7 @@
 
 #include <stdcorelib/support/logging.h>
 
-#include "GuestSyscallBridge.h"
+#include "GuestClient.h"
 
 namespace lore {
 
@@ -14,15 +14,15 @@ namespace lore {
     }
 
     void GuestThunkContext::initThunks() {
-        GuestSyscallBridge *bridge = GuestSyscallBridge::instance();
+        GuestClient *client = GuestClient::instance();
 
         /// STEP: load host thunk library
         {
-            auto info = bridge->getThunkInfo(_moduleName, false);
+            auto info = client->getThunkInfo(_moduleName, false);
             if (!info.forward) {
                 stdcCritical("[GTL] %1: failed to get thunk info", _moduleName);
             }
-            _handle = bridge->loadLibrary(info.forward->hostThunk.c_str(), RTLD_NOW);
+            _handle = client->loadLibrary(info.forward->hostThunk.c_str(), RTLD_NOW);
         }
 
         if (!_handle) {
@@ -32,7 +32,7 @@ namespace lore {
 
         /// STEPS: exchange callbacks
         {
-            void *init = bridge->getProcAddress(_handle, "__LORETHUNK_initialize");
+            void *init = client->getProcAddress(_handle, "__LORETHUNK_initialize");
             if (!init) {
                 stdcCritical("[GTL] %1: failed to get init proc", _moduleName);
                 std::abort();
@@ -40,7 +40,7 @@ namespace lore {
             void *args[] = {
                 _procInfoCtx,
             };
-            bridge->invokeFormat("v_p", args, nullptr);
+            client->invokeFormat("v_p", args, nullptr);
         }
     }
 

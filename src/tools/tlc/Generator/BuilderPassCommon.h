@@ -9,7 +9,7 @@
 
 namespace TLC {
 
-    static inline FunctionInfo FI_bridgeFunctionInfo(clang::ASTContext &ast) {
+    static inline FunctionInfo FI_packedFunctionInfo(clang::ASTContext &ast) {
         clang::QualType voidType = ast.VoidTy;
         clang::QualType pVoidType = ast.getPointerType(voidType);
         clang::QualType ppVoidType = ast.getPointerType(pVoidType);
@@ -23,7 +23,7 @@ namespace TLC {
         };
     }
 
-    static inline FunctionInfo FI_bridgeCallbackInfo(clang::ASTContext &ast) {
+    static inline FunctionInfo FI_packedCallbackInfo(clang::ASTContext &ast) {
         clang::QualType voidType = ast.VoidTy;
         clang::QualType pVoidType = ast.getPointerType(voidType);
         clang::QualType ppVoidType = ast.getPointerType(pVoidType);

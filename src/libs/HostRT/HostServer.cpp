@@ -1,4 +1,4 @@
-#include "HostSyscallDispatcher.h"
+#include "HostServer.h"
 
 #include <vector>
 #include <cstdlib>
@@ -12,19 +12,19 @@
 
 #include <stdcorelib/support/logging.h>
 
-#include <lorelei/Core/Bridge/SyscallBridge.h>
+#include <lorelei/Core/Connect/SyscallClient.h>
 #include <lorelei/Core/ThunkTools/VariadicAdaptor.h>
 
 namespace lore {
 
-    using SubID = SyscallBridge<>::CallSubID;
+    using ReqID = SyscallClient<>::RequestID;
 
-    using Convention = Bridge<>::Convention;
+    using Convention = Client<>::Convention;
 
-    static HostSyscallDispatcher *m_instance = nullptr;
+    static HostServer *m_instance = nullptr;
 
     struct ThreadContext {
-        std::vector<BridgeTask *> tasks;
+        std::vector<ClientTask *> tasks;
 
         ThunkInfo lastThunkInfo;
         CThunkInfo *lastCThunkInfo = nullptr;
@@ -168,39 +168,39 @@ namespace lore {
         VariadicAdaptor::call(func, len - 2, vargs, 0, nullptr, &ret_entry);
     }
 
-    HostSyscallDispatcher::HostSyscallDispatcher() {
+    HostServer::HostServer() {
         if (m_instance) {
-            fprintf(stderr, "HostSyscallDispatcher can only be instantiated once!!!");
+            fprintf(stderr, "HostServer can only be instantiated once!!!");
             std::abort();
         }
         m_instance = this;
     }
 
-    HostSyscallDispatcher::~HostSyscallDispatcher() {
+    HostServer::~HostServer() {
         m_instance = nullptr;
     }
 
-    HostSyscallDispatcher *HostSyscallDispatcher::instance() {
+    HostServer *HostServer::instance() {
         return m_instance;
     }
 
-    static HostSyscallDispatcher::RunTaskEntry s_runTaskEntry = nullptr;
+    static HostServer::RunTaskEntry s_runTaskEntry = nullptr;
 
-    void HostSyscallDispatcher::setRunTaskEntry(RunTaskEntry runTask) {
+    void HostServer::setRunTaskEntry(RunTaskEntry runTask) {
         s_runTaskEntry = runTask;
     }
 
-    uint64_t HostSyscallDispatcher::dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2,
+    uint64_t HostServer::dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2,
                                                   uint64_t a3, uint64_t a4, uint64_t a5,
                                                   uint64_t a6) {
         uint64_t &sub_id = a1;
         switch (sub_id) {
             // check health
-            case SubID::SUBID_CHECK_HEALTH: {
+            case ReqID::REQUEST_CHECK_CONNECTION: {
                 return 0;
             }
 
-            case SubID::SUBID_LOG_MESSAGE: {
+            case ReqID::REQUEST_LOG_MESSAGE: {
                 auto level = (int) (uintptr_t) a2;
 
                 struct CLogContext {
@@ -218,7 +218,7 @@ namespace lore {
             }
 
             // load library
-            case SubID::SUBID_LOAD_LIBRARY: {
+            case ReqID::REQUEST_LOAD_LIBRARY: {
                 auto a = (void **) a2;
                 auto ret = (void **) a3;
 
@@ -230,7 +230,7 @@ namespace lore {
             }
 
             // free library
-            case SubID::SUBID_FREE_LIBRARY: {
+            case ReqID::REQUEST_FREE_LIBRARY: {
                 auto a = (void **) a2;
                 auto ret = (int *) a3;
 
@@ -241,7 +241,7 @@ namespace lore {
             }
 
             // get proc address
-            case SubID::SUBID_GET_PROC_ADDRESS: {
+            case ReqID::REQUEST_GET_PROC_ADDRESS: {
                 auto a = (void **) a2;
                 auto ret = (void **) a3;
 
@@ -257,14 +257,14 @@ namespace lore {
             }
 
             // get error message
-            case SubID::SUBID_GET_ERROR_MESSAGE: {
+            case ReqID::REQUEST_GET_ERROR_MESSAGE: {
                 auto ret = (char **) a2;
                 *ret = dlerror();
                 return 0;
             }
 
             // get module path
-            case SubID::SUBID_GET_MODULE_PATH: {
+            case ReqID::REQUEST_GET_MODULE_PATH: {
                 auto a = (void **) a2;
                 auto ret = (char **) a3;
 
@@ -298,11 +298,11 @@ namespace lore {
             }
 
             // invoke proc
-            case SubID::SUBID_INVOKE_PROC: {
+            case ReqID::REQUEST_INVOKE_PROC: {
                 auto proc = (void *) a2;
                 auto conv = (int) (uintptr_t) a3;
                 auto opaque = (void **) a4;
-                auto task = (BridgeTask *) a5;
+                auto task = (ClientTask *) a5;
 
                 auto &tasks = thread_ctx.tasks;
                 tasks.push_back(task);
@@ -364,7 +364,7 @@ namespace lore {
             }
 
             // get thunk info
-            case SubID::SUBID_GET_THUNK_INFO: {
+            case ReqID::REQUEST_GET_THUNK_INFO: {
                 auto a = (void **) a2;
                 auto ret = (CThunkInfo **) a3;
 
@@ -408,7 +408,7 @@ namespace lore {
         return -1;
     }
 
-    BridgeTask *HostSyscallDispatcher::currentTask_impl() const {
+    ClientTask *HostServer::currentTask_impl() const {
         auto &tasks = thread_ctx.tasks;
         if (tasks.empty()) {
             return nullptr;
@@ -416,7 +416,7 @@ namespace lore {
         return tasks.back();
     }
 
-    uint64_t HostSyscallDispatcher::runTask_impl() {
+    uint64_t HostServer::runTask_impl() {
         assert(s_runTaskEntry);
         return s_runTaskEntry(currentTask_impl());
     }

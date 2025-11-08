@@ -90,7 +90,7 @@ namespace TLC::commands::thunkGen {
         }
 
         void Initialize(ASTContext &Context) override {
-            g_ctx.docCtx.initialize(Context, g_ctx.thunkConfig);
+            g_ctx.docCtx.initialize(g_ctx.thunkConfig);
             for (auto &addOn : addOns) {
                 addOn->initialize(Context);
             }

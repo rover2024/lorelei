@@ -12,7 +12,7 @@ namespace TLC {
     public:
         inline FunctionInfo() = default;
 
-        inline FunctionInfo(clang::FunctionDecl *decl) {
+        inline FunctionInfo(const clang::FunctionDecl *decl) {
             _returnType = decl->getReturnType();
             _variadic = decl->isVariadic();
             _args.reserve(decl->param_size());

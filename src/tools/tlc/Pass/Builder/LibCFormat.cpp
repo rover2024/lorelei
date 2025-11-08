@@ -208,13 +208,13 @@ namespace TLC {
             return stdc::formatN("MetaProcCB<%1, CProcKind_%2, CProcThunkPhase_%3>::invoke",
                                  proc.name(), kind, phase);
         };
-        const auto &getMetaProcBridgeInvokeWithCallList = [&](const char *kind) {
-            return stdc::formatN("MetaProcBridge<::%1, CProcKind_%2>::invoke(args, %3, nullptr);",
+        const auto &getMetaProcExecInvokeWithCallList = [&](const char *kind) {
+            return stdc::formatN("MetaProcExec<::%1, CProcKind_%2>::invoke(args, %3, nullptr);",
                                  proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
-        const auto &getMetaProcCBBridgeInvokeWithCallList = [&](const char *kind) {
+        const auto &getMetaProcCBExecInvokeWithCallList = [&](const char *kind) {
             return stdc::formatN(
-                "MetaProcCBBridge<%1, CProcKind_%2>::invoke(callback, args, %3, nullptr);",
+                "MetaProcCBExec<%1, CProcKind_%2>::invoke(callback, args, %3, nullptr);",
                 proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
 
@@ -252,7 +252,7 @@ namespace TLC {
         };
         const auto &getProcCallHelperAssign = [&](const char *kind) {
             return stdc::formatN(
-                "lore::VariadicAdaptor::%1(MetaProcBridge<%2, CProcKind_%3>::get(), "
+                "lore::VariadicAdaptor::%1(MetaProcExec<%2, CProcKind_%3>::get(), "
                 "sizeof(argv1) / sizeof(argv1[0]), argv1, -1, vargs, &vret);",
                 callHelperName, proc.name(), kind);
         };
@@ -292,7 +292,7 @@ namespace TLC {
                 const char *YTP_IMPL_str = isHostFunction ? "HTP_IMPL" : "GTP_IMPL";
 
                 XTP.functionInfo = FI;
-                YTP.functionInfo = FI_bridgeFunctionInfo(ast);
+                YTP.functionInfo = FI_packedFunctionInfo(ast);
                 XTP_IMPL.functionInfo = YTP_IMPL.functionInfo = NFI;
 
                 /// \code
@@ -339,17 +339,17 @@ namespace TLC {
                 ///     int invoke(const char *fmt, CVargEntry *vargs) {
                 ///         int ret;
                 ///         void *args[] = { &fmt, &vargs };
-                ///         ret = MetaProcBridge<printf | vprintf,
-                ///                              CProcKind_HostFunction>::invoke(
-                ///                                  args, &ret, nullptr
-                ///                              );
+                ///         ret = MetaProcExec<printf | vprintf,
+                ///                            CProcKind_HostFunction>::invoke(
+                ///                                args, &ret, nullptr
+                ///                            );
                 ///         return ret;
                 ///     }
                 /// \endcode
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(NFI));
                 XTP_IMPL.body.center.push_back(
-                    key, SRC_asIs(getMetaProcBridgeInvokeWithCallList(procKind_str)));
+                    key, SRC_asIs(getMetaProcExecInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code
@@ -377,7 +377,7 @@ namespace TLC {
                 ///         CVargEntry vret;
                 ///         vret.type = CVargTypeID(ret);
                 ///         VariadicAdaptor::call | VariadicAdaptor::vcall (
-                ///             MetaProcBridge<printf | vprintf,
+                ///             MetaProcExec<printf | vprintf,
                 ///                            CProcKind_HostFunction>::get(),
                 ///             sizeof(argv1) / sizeof(argv1[0]),
                 ///             argv1,
@@ -414,7 +414,7 @@ namespace TLC {
                 const char *YTP_IMPL_str = isHostCallback ? "HTP_IMPL" : "GTP_IMPL";
 
                 XTP.functionInfo = FI;
-                YTP.functionInfo = FI_bridgeCallbackInfo(ast);
+                YTP.functionInfo = FI_packedCallbackInfo(ast);
                 XTP_IMPL.functionInfo = YTP_IMPL.functionInfo = CNFI;
 
                 /// \code
@@ -467,17 +467,17 @@ namespace TLC {
                 ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
                 ///         int ret;
                 ///         void *args[] = { &fmt, &vargs, };
-                ///         ret = MetaProcCBBridge<printf | vprintf,
-                ///                                CProcKind_HostCallback>::invoke(
-                ///                                    callback, args, &ret, nullptr
-                ///                                );
+                ///         ret = MetaProcCBExec<printf | vprintf,
+                ///                              CProcKind_HostCallback>::invoke(
+                ///                                  callback, args, &ret, nullptr
+                ///                              );
                 ///         return ret;
                 ///     }
                 /// \endcode
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(NFI));
                 XTP_IMPL.body.center.push_back(
-                    key, SRC_asIs(getMetaProcCBBridgeInvokeWithCallList(procKind_str)));
+                    key, SRC_asIs(getMetaProcCBExecInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code

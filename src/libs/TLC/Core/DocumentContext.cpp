@@ -190,9 +190,22 @@ namespace TLC {
         }
     };
 
-    void DocumentContext::initialize(clang::ASTContext &ast, const lore::ConfigFile &inputConfig) {
-        _ast = &ast;
+    void DocumentContext::initialize(const lore::ConfigFile &inputConfig) {
         _inputConfig = inputConfig;
+    }
+
+    void DocumentContext::handleTranslationUnit(ASTContext &ast) {
+        ASTMetaContext::handleTranslationUnit(ast);
+
+        for (auto &pair : Pass::passMap(Pass::Builder)) {
+            pair.second->handleTranslationUnit(*this);
+        }
+        for (auto &pair : Pass::passMap(Pass::Guard)) {
+            pair.second->handleTranslationUnit(*this);
+        }
+        for (auto &pair : Pass::passMap(Pass::Misc)) {
+            pair.second->handleTranslationUnit(*this);
+        }
     }
 
     bool DocumentContext::beginSourceFileAction(clang::CompilerInstance &CI) {
@@ -602,6 +615,44 @@ namespace TLC {
         os << "#include <lorelei/TLCMeta/MetaProc.h>\n";
         os << "\n";
 
+        /// STEP: Generate symbol declarations
+        os << "extern \"C\" {\n";
+        os << "#pragma GCC diagnostic push\n";
+        os << "#pragma GCC diagnostic ignored \"-Wattribute-alias\"\n";
+        if (_isHost) {
+            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_GuestFunction", "CProcThunkPhase_HTP");
+            if (!MPI.isValid()) {
+                std::exit(1);
+            }
+
+            for (auto &it : _procContexts[CProcKind_GuestFunction]) {
+                auto &proc = *it.second;
+                os << "LORETHUNK_EXPORT "
+                   << FunctionInfo(proc.functionDecl()).declText("GTL_" + proc.name(), ast)
+                   << "\n    __attribute__((alias(\""
+                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
+                                               proc.overlayType())
+                   << "\")));\n";
+            }
+        } else {
+            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_HostFunction", "CProcThunkPhase_GTP");
+            if (!MPI.isValid()) {
+                std::exit(1);
+            }
+
+            for (auto &it : _procContexts[CProcKind_HostFunction]) {
+                auto &proc = *it.second;
+                os << "LORETHUNK_EXPORT "
+                   << FunctionInfo(proc.functionDecl()).declText(proc.name(), ast)
+                   << "\n    __attribute__((alias(\""
+                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
+                                               proc.overlayType())
+                   << "\")));\n";
+            }
+        }
+        os << "#pragma GCC diagnostic pop\n";
+        os << "}\n\n";
+
         /// STEP: Generate document head
         os << _source.head.toRawText() << "\n";
 
@@ -701,39 +752,6 @@ namespace TLC {
         }
 
         os << "}\n\n";
-
-        if (_isHost) {
-            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_GuestFunction", "CProcThunkPhase_HTP");
-            if (!MPI.isValid()) {
-                std::exit(1);
-            }
-
-            for (auto &it : _procContexts[CProcKind_GuestFunction]) {
-                auto &proc = *it.second;
-                os << "LORETHUNK_EXPORT "
-                   << proc.source(CProcThunkPhase_HTP)
-                          .functionInfo.declText("GTL_" + proc.name(), ast)
-                   << " __attribute__((alias(\""
-                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
-                                               proc.overlayType())
-                   << "\")))\n";
-            }
-        } else {
-            MetaProcInvoker MPI(_metaProcDecl, "CProcKind_HostFunction", "CProcThunkPhase_GTP");
-            if (!MPI.isValid()) {
-                std::exit(1);
-            }
-
-            for (auto &it : _procContexts[CProcKind_HostFunction]) {
-                auto &proc = *it.second;
-                os << "LORETHUNK_EXPORT "
-                   << proc.source(CProcThunkPhase_GTP).functionInfo.declText(proc.name(), ast)
-                   << " __attribute__((alias(\""
-                   << MPI.getInvokeMangledName(const_cast<FunctionDecl *>(proc.functionDecl()),
-                                               proc.overlayType())
-                   << "\")));\n";
-            }
-        }
 
         /// STEP: Generate document tail
         os << _source.tail.toRawText() << "\n";

@@ -186,7 +186,7 @@ function(lore_generate_thunk _name _input_file _out_file _config_file)
 
     list(APPEND _args ${_input_file})
 
-    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include")
+    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
 
     if(FUNC_EXTRA_ARGS)
         list(APPEND _args ${FUNC_EXTRA_ARGS})

@@ -1,8 +1,7 @@
-#include "DocumentContext.h"
+#include "ASTMetaContext.h"
 
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 
-#include "Pass.h"
 #include "TypeExtras.h"
 
 using namespace clang;
@@ -10,10 +9,9 @@ using namespace clang::ast_matchers;
 
 namespace TLC {
 
-    class DocumentMatchHandler : public MatchFinder::MatchCallback {
+    class ASTMetaMatchFinder : public MatchFinder::MatchCallback {
     public:
-        explicit DocumentMatchHandler(
-            std::function<void(const MatchFinder::MatchResult &)> callback)
+        explicit ASTMetaMatchFinder(std::function<void(const MatchFinder::MatchResult &)> callback)
             : _callback(callback) {
         }
 
@@ -47,7 +45,9 @@ namespace TLC {
         return isCDecl(decl);
     }
 
-    void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
+    void ASTMetaContext::handleTranslationUnit(clang::ASTContext &ast) {
+        _ast = &ast;
+
         const auto &matchCallback = [this](const MatchFinder::MatchResult &Result) {
             if (auto decl = Result.Nodes.getNodeAs<ClassTemplateSpecializationDecl>("metaConfig")) {
                 MetaConfigItem item(decl);
@@ -106,7 +106,7 @@ namespace TLC {
             }
         };
 
-        DocumentMatchHandler matchHandler(matchCallback);
+        ASTMetaMatchFinder matchHandler(matchCallback);
         MatchFinder finder;
 
         /// STEP: Match \c MetaConfig
@@ -154,16 +154,6 @@ namespace TLC {
         finder.addMatcher(varDecl().bind("varDecl"), &matchHandler);
         finder.addMatcher(typedefDecl().bind("typedefDecl"), &matchHandler);
         finder.matchAST(ast);
-
-        for (auto &pair : Pass::passMap(Pass::Builder)) {
-            pair.second->handleTranslationUnit(*this);
-        }
-        for (auto &pair : Pass::passMap(Pass::Guard)) {
-            pair.second->handleTranslationUnit(*this);
-        }
-        for (auto &pair : Pass::passMap(Pass::Misc)) {
-            pair.second->handleTranslationUnit(*this);
-        }
 
         if (!_metaProcDecl) {
             llvm::errs() << "error: \"MetaProc\" declaration not found.\n";

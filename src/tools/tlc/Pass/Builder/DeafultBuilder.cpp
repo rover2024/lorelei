@@ -101,13 +101,13 @@ namespace TLC {
             return stdc::formatN("MetaProcCB<%1, CProcKind_%2, CProcThunkPhase_%3>::invoke",
                                  proc.name(), kind, phase);
         };
-        const auto &getMetaProcBridgeInvokeWithCallList = [&](const char *kind) {
-            return stdc::formatN("MetaProcBridge<::%1, CProcKind_%2>::invoke(args, %3, nullptr);",
+        const auto &getMetaProcExecInvokeWithCallList = [&](const char *kind) {
+            return stdc::formatN("MetaProcExec<::%1, CProcKind_%2>::invoke(args, %3, nullptr);",
                                  proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
-        const auto &getMetaProcCBBridgeInvokeWithCallList = [&](const char *kind) {
+        const auto &getMetaProcCBExecInvokeWithCallList = [&](const char *kind) {
             return stdc::formatN(
-                "MetaProcCBBridge<%1, CProcKind_%2>::invoke(callback, args, %3, nullptr);",
+                "MetaProcCBExec<%1, CProcKind_%2>::invoke(callback, args, %3, nullptr);",
                 proc.name(), kind, isVoid ? "nullptr" : "&ret");
         };
 
@@ -126,7 +126,7 @@ namespace TLC {
                 const char *YTP_IMPL_str = isHostFunction ? "HTP_IMPL" : "GTP_IMPL";
 
                 XTP.functionInfo = XTP_IMPL.functionInfo = YTP_IMPL.functionInfo = FI;
-                YTP.functionInfo = FI_bridgeFunctionInfo(ast);
+                YTP.functionInfo = FI_packedFunctionInfo(ast);
 
                 /// \code
                 ///     int invoke(int a, double b) {
@@ -145,15 +145,16 @@ namespace TLC {
                 ///     int invoke(int a, double b) {
                 ///         int ret;
                 ///         void *args[] = { &a, &b, };
-                ///         ret = MetaProcBridge<foo,CProcKind_HostFunction
-                ///                             >::invoke(args, &ret, nullptr);
+                ///         ret = MetaProcExec<foo, CProcKind_HostFunction>::invoke(
+                ///                   args, &ret, nullptr
+                ///         );
                 ///         return ret;
                 ///     }
                 /// \endcode
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(FI));
                 XTP_IMPL.body.center.push_back(
-                    key, SRC_asIs(getMetaProcBridgeInvokeWithCallList(procKind_str)));
+                    key, SRC_asIs(getMetaProcExecInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code
@@ -174,14 +175,14 @@ namespace TLC {
                 /// \code
                 ///     int invoke(int a, double b) {
                 ///         int ret;
-                ///         ret = MetaProcBridge<foo, CProcKind_HostFunction>::invoke(a, b);
+                ///         ret = MetaProcExec<foo, CProcKind_HostFunction>::invoke(a, b);
                 ///         return ret;
                 ///     }
                 /// \endcode
                 YTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 YTP_IMPL.body.center.push_back(
                     key,
-                    SRC_callListAssign(FI, stdc::formatN("MetaProcBridge<%1, CProcKind_%2>::invoke",
+                    SRC_callListAssign(FI, stdc::formatN("MetaProcExec<%1, CProcKind_%2>::invoke",
                                                          proc.name(), procKind_str)));
                 YTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
                 break;
@@ -201,7 +202,7 @@ namespace TLC {
                 const char *YTP_IMPL_str = isHostCallback ? "HTP_IMPL" : "GTP_IMPL";
 
                 XTP.functionInfo = FI;
-                YTP.functionInfo = FI_bridgeCallbackInfo(ast);
+                YTP.functionInfo = FI_packedCallbackInfo(ast);
                 XTP_IMPL.functionInfo = YTP_IMPL.functionInfo = CFI;
 
                 /// \code
@@ -225,7 +226,7 @@ namespace TLC {
                 ///     int invoke(void *callback, int a, double b) {
                 ///         int ret;
                 ///         void *args[] = { &a, &b, };
-                ///         ret = MetaProcCBBridge<PFN_foo,CProcKind_HostCallback>::invoke(
+                ///         ret = MetaProcCBExec<PFN_foo,CProcKind_HostCallback>::invoke(
                 ///                   callback, args, ret, nullptr
                 ///               );
                 ///         return ret;
@@ -234,7 +235,7 @@ namespace TLC {
                 XTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 XTP_IMPL.body.prolog.push_back(key, SRC_argPtrListDecl(FI));
                 XTP_IMPL.body.center.push_back(
-                    key, SRC_asIs(getMetaProcCBBridgeInvokeWithCallList(procKind_str)));
+                    key, SRC_asIs(getMetaProcCBExecInvokeWithCallList(procKind_str)));
                 XTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
 
                 /// \code
@@ -257,15 +258,15 @@ namespace TLC {
                 /// \code
                 ///     int invoke(void *callback, int a, double b) {
                 ///         int ret;
-                ///         ret = MetaProcCBBridge<PFN_foo,
-                ///                                CProcKind_HostCallback>::invoke(callback, a, b);
+                ///         ret = MetaProcCBExec<PFN_foo,
+                ///                              CProcKind_HostCallback>::invoke(callback, a, b);
                 ///         return ret;
                 ///     }
                 /// \endcode
                 YTP_IMPL.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
                 YTP_IMPL.body.center.push_back(
                     key, SRC_callListAssign(
-                             CFI, stdc::formatN("MetaProcCBBridge<%1, CProcKind_%2>::invoke",
+                             CFI, stdc::formatN("MetaProcCBExec<%1, CProcKind_%2>::invoke",
                                                 proc.name(), procKind_str)));
                 YTP_IMPL.body.epilog.push_back(key, SRC_returnRet(FI));
                 break;

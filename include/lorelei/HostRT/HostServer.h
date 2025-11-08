@@ -1,20 +1,19 @@
-#ifndef LOREHOSTRT_HOSTSYSCALLDISPATCHER_H
-#define LOREHOSTRT_HOSTSYSCALLDISPATCHER_H
+#ifndef LOREHOSTRT_HostServer_H
+#define LOREHOSTRT_HostServer_H
 
-#include <lorelei/Core/Bridge/ThunkInfo.h>
-#include <lorelei/Core/Bridge/SyscallDispatcher.h>
+#include <lorelei/Core/Connect/ThunkInfo.h>
+#include <lorelei/Core/Connect/SyscallServer.h>
 
 #include <lorelei/HostRT/Global.h>
 
 namespace lore {
 
-    class LOREHOSTRT_EXPORT HostSyscallDispatcher
-        : public SyscallDispatcher<HostSyscallDispatcher> {
+    class LOREHOSTRT_EXPORT HostServer : public SyscallServer<HostServer> {
     public:
-        HostSyscallDispatcher();
-        ~HostSyscallDispatcher();
+        HostServer();
+        ~HostServer();
 
-        static HostSyscallDispatcher *instance();
+        static HostServer *instance();
 
     public:
         inline void setConfig(ThunkInfoConfig config) {
@@ -26,23 +25,24 @@ namespace lore {
         }
 
     public:
-        using RunTaskEntry = uint64_t (*)(BridgeTask *);
+        using RunTaskEntry = uint64_t (*)(ClientTask *);
 
         /// Must be called at the very beginning of the emulator
         static void setRunTaskEntry(RunTaskEntry runTask);
 
     protected:
-        /// Implementation of \c SyscallDispatcher
+        /// Implementation of \c Server
         uint64_t dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
                                uint64_t a5, uint64_t a6);
-        BridgeTask *currentTask_impl() const;
+        ClientTask *currentTask_impl() const;
         uint64_t runTask_impl();
 
         ThunkInfoConfig _config;
 
-        friend class SyscallDispatcher<HostSyscallDispatcher>;
+        friend class Server<HostServer>;
+        friend class SyscallServer<HostServer>;
     };
 
 }
 
-#endif // LOREHOSTRT_HOSTSYSCALLDISPATCHER_H
+#endif // LOREHOSTRT_HostServer_H

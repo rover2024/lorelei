@@ -1,21 +1,21 @@
 #ifndef LOREGUESTRT_GUESTSYSCALLBRIDGE_H
 #define LOREGUESTRT_GUESTSYSCALLBRIDGE_H
 
-#include <lorelei/Core/Bridge/SyscallBridge.h>
+#include <lorelei/Core/Connect/SyscallClient.h>
 #include <lorelei/GuestRT/Global.h>
 
 namespace lore {
 
-    class LOREGUESTRT_EXPORT GuestSyscallBridge : public SyscallBridge<GuestSyscallBridge> {
+    class LOREGUESTRT_EXPORT GuestClient : public SyscallClient<GuestClient> {
     public:
-        GuestSyscallBridge();
-        ~GuestSyscallBridge();
+        GuestClient();
+        ~GuestClient();
 
-        static GuestSyscallBridge *instance();
+        static GuestClient *instance();
 
     protected:
-        /// Implementation of \c Bridge
-        int checkHealth_impl();
+        /// Implementation of \c Client
+        int checkConnection_impl();
         void logMessage_impl(int level, const void *context, const char *msg);
 
         void *loadLibrary_impl(const char *path, int flags);
@@ -26,8 +26,8 @@ namespace lore {
         int invokeProc_impl(void *proc, int conv, void *opaque);
         ThunkInfo getThunkInfo_impl(const char *path, bool isReverse);
 
-        friend class Bridge<GuestSyscallBridge>;
-        friend class SyscallBridge<GuestSyscallBridge>;
+        friend class Client<GuestClient>;
+        friend class SyscallClient<GuestClient>;
     };
 
 }

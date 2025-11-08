@@ -1,4 +1,4 @@
-#include "HostSyscallDispatcher.h"
+#include "HostServer.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -26,8 +26,8 @@ namespace lore {
         FILE *logFile = nullptr;
         stdc::Logger::LogCallback defaultLogCallback = nullptr;
 
-        // The syscall dispatcher instance
-        HostSyscallDispatcher dispatcher;
+        // The syscall server instance
+        HostServer server;
 
         HostRuntime() {
             if (auto level_str = std::getenv("LORELEI_HOST_LOG_LEVEL"); level_str) {
@@ -127,7 +127,7 @@ namespace lore {
                     }
                     setenv("LD_LIBRARY_PATH", stdc::join(pathList, ":").c_str(), true);
                 }
-                dispatcher.setConfig(std::move(config));
+                server.setConfig(std::move(config));
             }
         }
 
@@ -158,11 +158,11 @@ extern "C" {
 LOREHOSTRT_EXPORT uint64_t LOREHOSTRT_dispatchSyscall(uint64_t num, uint64_t a1, uint64_t a2,
                                                       uint64_t a3, uint64_t a4, uint64_t a5,
                                                       uint64_t a6) {
-    return lore::runtime_instance.dispatcher.dispatch(num, a1, a2, a3, a4, a5, a6);
+    return lore::runtime_instance.server.dispatch(num, a1, a2, a3, a4, a5, a6);
 }
 
 LOREHOSTRT_EXPORT void
-    LOREHOSTRT_setRunTaskEntry(lore::HostSyscallDispatcher::RunTaskEntry runTask) {
-    lore::HostSyscallDispatcher::setRunTaskEntry(runTask);
+    LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry runTask) {
+    lore::HostServer::setRunTaskEntry(runTask);
 }
 }

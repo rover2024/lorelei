@@ -5,11 +5,13 @@
 
 namespace lore {
 
-    /// BridgeTask - The task payload carrying task data to be executed by the bridge during an
-    /// unfinished invoking process. The invoking process will temporarily return and the bridge
-    /// needs to complete the current task and resume the invoking.
-    struct BridgeTask {
-        enum Type {
+    /// ClientTask - The task payload carrying task data to be executed by the client during an
+    /// unfinished invocation process. The invocation will temporarily return and the client
+    /// needs to complete the current task and resume the invocation.
+    struct ClientTask {
+
+        /// Task ID.
+        enum TaskID {
             TASK_FUNCTION = 1,
             TASK_CALLBACK,
             TASK_PTHREAD_CREATE,
@@ -17,7 +19,7 @@ namespace lore {
             TASK_HOST_LIBRARY_OPEN,
         };
 
-        int type;
+        int id;
 
         union {
             struct {

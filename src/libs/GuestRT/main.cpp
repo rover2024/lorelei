@@ -1,4 +1,4 @@
-#include "GuestSyscallBridge.h"
+#include "GuestClient.h"
 
 #include <cstdlib>
 
@@ -11,11 +11,11 @@ namespace lore {
     struct LOREGUESTRT_EXPORT GuestRuntime {
         int level = stdc::Logger::Information;
 
-        // The syscall bridge instance
-        GuestSyscallBridge bridge;
+        // The syscall client instance
+        GuestClient client;
 
         GuestRuntime() {
-            if (bridge.checkHealth() != 0) {
+            if (client.checkConnection() != 0) {
                 fprintf(stderr, "[GRT] lorelei check health failed\n");
                 std::abort();
             }
@@ -41,7 +41,7 @@ namespace lore {
 
     static void logCallback(int level, const stdc::LogContext &ctx, const std::string_view &s) {
         if (level >= runtime_instance.level) {
-            runtime_instance.bridge.logMessage(level, &ctx, s.data());
+            runtime_instance.client.logMessage(level, &ctx, s.data());
         }
     }
 

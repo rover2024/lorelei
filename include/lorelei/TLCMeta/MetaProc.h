@@ -14,13 +14,13 @@ namespace lorethunk {
     template <class F, CProcKind ProcKind, CProcThunkPhase Phase>
     struct MetaProcCB;
 
-    /// MetaProcBridge - The meta thunk proc bridge to the real functions.
+    /// MetaProcExec - The meta thunk proc executor of the real functions.
     template <auto F, CProcKind ProcKind>
-    struct MetaProcBridge;
+    struct MetaProcExec;
 
-    /// MetaProcCBBridge - The meta thunk proc bridge to the real callbacks.
+    /// MetaProcCBExec - The meta thunk proc executor of the real callbacks.
     template <class F, CProcKind ProcKind>
-    struct MetaProcCBBridge;
+    struct MetaProcCBExec;
 
     /// MetaProcArgContext - The meta thunk proc argument context, for \c TypeConverter passes.
     template <class... Args>

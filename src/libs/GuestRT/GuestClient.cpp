@@ -1,4 +1,4 @@
-#include "GuestSyscallBridge.h"
+#include "GuestClient.h"
 
 #include <pthread.h>
 #include <dlfcn.h>
@@ -13,37 +13,37 @@
 #  error "Unsupported architecture"
 #endif
 
-#include <lorelei/Core/Bridge/BridgeTask.h>
+#include <lorelei/Core/Connect/ClientTask.h>
 
 namespace lore {
 
     static inline uint64_t send(uint64_t a1) {
-        return syscall1(GuestSyscallBridge::ID, a1);
+        return syscall1(GuestClient::ID, a1);
     }
 
     static inline uint64_t send(uint64_t a1, uint64_t a2) {
-        return syscall2(GuestSyscallBridge::ID, a1, a2);
+        return syscall2(GuestClient::ID, a1, a2);
     }
 
     static inline uint64_t send(uint64_t a1, uint64_t a2, uint64_t a3) {
-        return syscall3(GuestSyscallBridge::ID, a1, a2, a3);
+        return syscall3(GuestClient::ID, a1, a2, a3);
     }
 
     static inline uint64_t send(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4) {
-        return syscall4(GuestSyscallBridge::ID, a1, a2, a3, a4);
+        return syscall4(GuestClient::ID, a1, a2, a3, a4);
     }
 
     static inline uint64_t send(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5) {
-        return syscall5(GuestSyscallBridge::ID, a1, a2, a3, a4, a5);
+        return syscall5(GuestClient::ID, a1, a2, a3, a4, a5);
     }
 
     static inline uint64_t send(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5,
                                 uint64_t a6) {
-        return syscall6(GuestSyscallBridge::ID, a1, a2, a3, a4, a5, a6);
+        return syscall6(GuestClient::ID, a1, a2, a3, a4, a5, a6);
     }
 
     struct thread_info {
-        GuestSyscallBridge *bridge;
+        GuestClient *client;
 
         pthread_t thread;
         pthread_mutex_t mutex;
@@ -56,7 +56,7 @@ namespace lore {
     static void *theThreadEntry(void *arg) {
         auto info = (struct thread_info *) arg;
 
-        GuestSyscallBridge *bridge = info->bridge;
+        GuestClient *client = info->client;
         void *entry = info->host_entry;
         void *hostArg = info->host_arg;
 
@@ -71,90 +71,90 @@ namespace lore {
             hostArg,
             &ret,
         };
-        bridge->invokeProc(entry, GuestSyscallBridge::CONV_THREAD_ENTRY, opaque);
+        client->invokeProc(entry, GuestClient::CONV_THREAD_ENTRY, opaque);
         return ret;
     }
 
-    static GuestSyscallBridge *m_instance = nullptr;
+    static GuestClient *m_instance = nullptr;
 
-    GuestSyscallBridge::GuestSyscallBridge() {
+    GuestClient::GuestClient() {
         if (m_instance) {
-            fprintf(stderr, "GuestSyscallBridge can only be instantiated once!!!");
+            fprintf(stderr, "GuestClient can only be instantiated once!!!");
             std::abort();
         }
         m_instance = this;
     }
 
-    GuestSyscallBridge::~GuestSyscallBridge() {
+    GuestClient::~GuestClient() {
         m_instance = nullptr;
     }
 
-    GuestSyscallBridge *GuestSyscallBridge::instance() {
+    GuestClient *GuestClient::instance() {
         return m_instance;
     }
 
-    int GuestSyscallBridge::checkHealth_impl() {
-        return send(SUBID_CHECK_HEALTH);
+    int GuestClient::checkConnection_impl() {
+        return send(REQUEST_CHECK_CONNECTION);
     }
 
-    void GuestSyscallBridge::logMessage_impl(int level, const void *context, const char *msg) {
-        send(SUBID_LOG_MESSAGE, level, (uintptr_t) context, (uintptr_t) msg);
+    void GuestClient::logMessage_impl(int level, const void *context, const char *msg) {
+        send(REQUEST_LOG_MESSAGE, level, (uintptr_t) context, (uintptr_t) msg);
     }
 
-    void *GuestSyscallBridge::loadLibrary_impl(const char *path, int flags) {
+    void *GuestClient::loadLibrary_impl(const char *path, int flags) {
         void *ret = nullptr;
         void *a[] = {
             const_cast<char *>(path),
             reinterpret_cast<void *>(uintptr_t(flags)),
         };
-        std::ignore = send(SUBID_LOAD_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_LOAD_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
         return ret;
     }
 
-    int GuestSyscallBridge::freeLibrary_impl(void *handle) {
+    int GuestClient::freeLibrary_impl(void *handle) {
         int ret = 0;
         void *a[] = {
             handle,
         };
-        std::ignore = send(SUBID_FREE_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_FREE_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
         return ret;
     }
 
-    void *GuestSyscallBridge::getProcAddress_impl(void *handle, const char *name) {
+    void *GuestClient::getProcAddress_impl(void *handle, const char *name) {
         void *ret = nullptr;
         void *a[] = {
             handle,
             const_cast<char *>(name),
         };
-        std::ignore = send(SUBID_GET_PROC_ADDRESS, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_PROC_ADDRESS, (uintptr_t) a, (uintptr_t) ret);
         return ret;
     }
 
-    char *GuestSyscallBridge::getErrorMessage_impl() {
+    char *GuestClient::getErrorMessage_impl() {
         char *ret = nullptr;
-        std::ignore = send(SUBID_GET_ERROR_MESSAGE, 0, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_ERROR_MESSAGE, 0, (uintptr_t) ret);
         return ret;
     }
 
-    char *GuestSyscallBridge::getModulePath_impl(void *opaque, bool isHandle) {
+    char *GuestClient::getModulePath_impl(void *opaque, bool isHandle) {
         char *ret = nullptr;
         void *a[] = {
             opaque,
             reinterpret_cast<void *>(uintptr_t(isHandle)),
         };
-        std::ignore = send(SUBID_GET_MODULE_PATH, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_MODULE_PATH, (uintptr_t) a, (uintptr_t) ret);
         return ret;
     }
 
-    int GuestSyscallBridge::invokeProc_impl(void *proc, int conv, void *opaque) {
-        BridgeTask next_task;
+    int GuestClient::invokeProc_impl(void *proc, int conv, void *opaque) {
+        ClientTask next_task;
 
-        // Call and wait for the potential callback SyscallBridge
-        uint64_t syscall_ret = send(SUBID_INVOKE_PROC, (uintptr_t) proc, conv, (uintptr_t) opaque,
+        // Call and wait for the potential callback SyscallClient
+        uint64_t syscall_ret = send(REQUEST_INVOKE_PROC, (uintptr_t) proc, conv, (uintptr_t) opaque,
                                     (uintptr_t) &next_task);
         while (syscall_ret != RETURN_NEXT_TASK) {
-            switch (next_task.type) {
-                case BridgeTask::TASK_FUNCTION: {
+            switch (next_task.id) {
+                case ClientTask::TASK_FUNCTION: {
                     typedef void (*FunctionThunk)(void * /*args*/, void * /*ret*/,
                                                   void * /*metadata*/);
                     auto thunk = (FunctionThunk) next_task.function.proc;
@@ -165,7 +165,7 @@ namespace lore {
                     break;
                 }
 
-                case BridgeTask::TASK_CALLBACK: {
+                case ClientTask::TASK_CALLBACK: {
                     typedef void (*CallbackThunk)(void * /*callback*/, void * /*args*/,
                                                   void * /*ret*/, void * /*metadata*/);
                     auto thunk = (CallbackThunk) next_task.callback.thunk;
@@ -177,14 +177,14 @@ namespace lore {
                     break;
                 }
 
-                case BridgeTask::TASK_PTHREAD_CREATE: {
+                case ClientTask::TASK_PTHREAD_CREATE: {
                     auto attr = (pthread_attr_t *) next_task.pthread_create.attr;
                     void *host_start_routine = next_task.pthread_create.start_routine;
                     void *host_arg = next_task.pthread_create.arg;
                     int *ret_ref = next_task.pthread_create.ret;
 
                     struct thread_info info;
-                    info.bridge = this;
+                    info.client = this;
                     info.host_entry = host_start_routine;
                     info.host_arg = host_arg;
                     pthread_mutex_init(&info.mutex, NULL);
@@ -206,15 +206,15 @@ namespace lore {
                     break;
                 }
 
-                case BridgeTask::TASK_PTHREAD_EXIT: {
+                case ClientTask::TASK_PTHREAD_EXIT: {
                     void *ret = next_task.pthread_exit.ret;
                     pthread_exit(ret);
                     break;
                 }
 
-                case BridgeTask::TASK_HOST_LIBRARY_OPEN: {
+                case ClientTask::TASK_HOST_LIBRARY_OPEN: {
                     const char *identifier = next_task.host_library_open.id;
-                    ThunkInfo info = GuestSyscallBridge::getThunkInfo(identifier, true);
+                    ThunkInfo info = GuestClient::getThunkInfo(identifier, true);
                     if (!info.forward) {
                         break;
                     }
@@ -226,8 +226,8 @@ namespace lore {
                     break;
             }
 
-            // Notify host to continue and wait for the next callback SyscallBridge
-            syscall_ret = send(SUBID_RESUME_PROC);
+            // Notify host to continue and wait for the next callback SyscallClient
+            syscall_ret = send(REQUEST_RESUME_PROC);
         }
 
         if (syscall_ret == RETURN_ERROR) {
@@ -236,13 +236,13 @@ namespace lore {
         return 0;
     }
 
-    ThunkInfo GuestSyscallBridge::getThunkInfo_impl(const char *path, bool isReverse) {
+    ThunkInfo GuestClient::getThunkInfo_impl(const char *path, bool isReverse) {
         CThunkInfo *ret;
         void *a[] = {
             const_cast<char *>(path),
             reinterpret_cast<void *>(uintptr_t(isReverse)),
         };
-        std::ignore = send(SUBID_GET_THUNK_INFO, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_THUNK_INFO, (uintptr_t) a, (uintptr_t) ret);
         return ThunkInfo::fromCThunkInfo(ret);
     }
 

@@ -4,7 +4,7 @@
 
 #include <stdcorelib/support/logging.h>
 
-#include "HostSyscallDispatcher.h"
+#include "HostServer.h"
 
 namespace lore {
 
@@ -12,11 +12,11 @@ namespace lore {
     }
 
     void HostThunkContext::initThunks() {
-        HostSyscallDispatcher *dispatcher = HostSyscallDispatcher::instance();
+        HostServer *server = HostServer::instance();
 
         /// STEP: load host library
         {
-            auto info = dispatcher->config().forwardThunk(_moduleName);
+            auto info = server->config().forwardThunk(_moduleName);
             if (!info.first) {
                 stdcCritical("[HTL] %1: failed to get thunk info", _moduleName);
             }

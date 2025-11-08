@@ -3,14 +3,13 @@
 
 #include <array>
 
-#include <lorelei/Core/Bridge/ThunkInfo.h>
+#include <lorelei/Core/Connect/ThunkInfo.h>
 
 namespace lore {
 
-    /// Bridge - Abstract bridge to build arch-specific captibility layer, used to send request to
-    /// the the remote dispatcher.
+    /// Client - Abstract client to send invocation request to the the remote server.
     template <class T = void>
-    class Bridge {
+    class Client {
     public:
         /// \brief Calling conventions for function invocations.
         enum Convention {
@@ -60,13 +59,13 @@ namespace lore {
         };
 
     public:
-        /// Check if the bridge is healthy and ready to use.
-        /// \return 0 if the bridge is healthy, non-zero otherwise.
-        int checkHealth() {
-            return get()->checkHealth_impl();
+        /// Check if the connection is established.
+        /// \return 0 if the connection is ok, non-zero otherwise.
+        int checkConnection() {
+            return get()->checkConnection_impl();
         }
 
-        /// Log a message to the remote dispatcher.
+        /// Log a message to the remote server.
         /// \param level Log level.
         /// \param context Context pointer.
         /// \param msg Message to log.
