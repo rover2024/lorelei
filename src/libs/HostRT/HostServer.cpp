@@ -170,7 +170,7 @@ namespace lore {
 
     HostServer::HostServer() {
         if (m_instance) {
-            fprintf(stderr, "HostServer can only be instantiated once!!!");
+            fprintf(stderr, "HostServer can only be instantiated once!!!\n");
             std::abort();
         }
         m_instance = this;
@@ -190,9 +190,8 @@ namespace lore {
         s_runTaskEntry = runTask;
     }
 
-    uint64_t HostServer::dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2,
-                                                  uint64_t a3, uint64_t a4, uint64_t a5,
-                                                  uint64_t a6) {
+    uint64_t HostServer::dispatch_impl(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
+                                       uint64_t a4, uint64_t a5, uint64_t a6) {
         uint64_t &sub_id = a1;
         switch (sub_id) {
             // check health
@@ -211,6 +210,8 @@ namespace lore {
                 };
                 auto context = (const CLogContext *) a2;
                 auto msg = (const char *) a3;
+
+                // align
                 stdc::LogContext new_ctx(context->file, context->line, context->function,
                                          context->category);
                 stdc::Logger(new_ctx).log(level, msg);

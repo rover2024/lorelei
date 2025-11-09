@@ -13,7 +13,7 @@ namespace lore {
     GuestThunkContext::~GuestThunkContext() {
     }
 
-    void GuestThunkContext::initThunks() {
+    void GuestThunkContext::initialize() {
         GuestClient *client = GuestClient::instance();
 
         /// STEP: load host thunk library
@@ -21,6 +21,7 @@ namespace lore {
             auto info = client->getThunkInfo(_moduleName, false);
             if (!info.forward) {
                 stdcCritical("[GTL] %1: failed to get thunk info", _moduleName);
+                std::abort();
             }
             _handle = client->loadLibrary(info.forward->hostThunk.c_str(), RTLD_NOW);
         }
@@ -30,9 +31,9 @@ namespace lore {
             std::abort();
         }
 
-        /// STEPS: exchange callbacks
+        /// STEPS: exchange thunks
         {
-            void *init = client->getProcAddress(_handle, "__LORETHUNK_initialize");
+            void *init = client->getProcAddress(_handle, "__LORETHUNK_exchange");
             if (!init) {
                 stdcCritical("[GTL] %1: failed to get init proc", _moduleName);
                 std::abort();

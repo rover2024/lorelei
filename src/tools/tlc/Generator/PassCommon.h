@@ -9,7 +9,7 @@
 namespace TLC {
 
     template <class T, size_t N>
-    static inline bool PASS_getPassIntegralTemplates(T (&outList)[N], ProcContext &proc, int id) {
+    static inline bool PASS_getIntegralArgumentsInTemplate(T (&outList)[N], ProcContext &proc, int id) {
         if (!proc.builderID() || proc.builderID().value() != id) {
             return false;
         }

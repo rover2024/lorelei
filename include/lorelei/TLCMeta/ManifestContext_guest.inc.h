@@ -137,7 +137,12 @@ namespace lorethunk::proc {
         LocalThunkContext() : commonContext(LORETHUNK_MODULE_NAME, &staticProcInfoContext) {
             client = lore::GuestClient::instance();
             assert(client != nullptr);
+
+            initialize();
+            commonContext.initialize();
         }
+
+        void initialize();
     };
 
     static LocalThunkContext LTC;

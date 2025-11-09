@@ -15,6 +15,8 @@
 
 #include <lorelei/Core/Connect/ClientTask.h>
 
+#include <stdcorelib/support/logging.h>
+
 namespace lore {
 
     static inline uint64_t send(uint64_t a1) {
@@ -79,7 +81,7 @@ namespace lore {
 
     GuestClient::GuestClient() {
         if (m_instance) {
-            fprintf(stderr, "GuestClient can only be instantiated once!!!");
+            fprintf(stderr, "GuestClient can only be instantiated once!!!\n");
             std::abort();
         }
         m_instance = this;
@@ -91,6 +93,63 @@ namespace lore {
 
     GuestClient *GuestClient::instance() {
         return m_instance;
+    }
+
+    static void *convertHostProcAddress_helper(const char *hostLibPath,
+                                               const ForwardThunkInfo &thunkInfo,
+                                               const char *name) {
+        const auto &path = thunkInfo.guestThunk;
+        void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_NOLOAD);
+        if (!handle) {
+            handle = dlopen(path.c_str(), RTLD_NOW);
+            if (!handle) {
+                stdcWarning("[GRT] %1: failed to load thunk library \"%2\"", hostLibPath, path);
+                return nullptr;
+            }
+        }
+        void *func = dlsym(handle, name);
+        if (!func) {
+            return nullptr;
+        }
+        return func;
+    }
+
+    void *GuestClient::convertHostProcAddress(const char *name, void *addr) {
+        auto hostLibPath = getModulePath(addr, false);
+        if (!hostLibPath) {
+            stdcWarningF("[GRT] failed to get module path for %p", addr);
+            return nullptr;
+        }
+
+        auto thunkInfo = getThunkInfo(hostLibPath, true);
+        if (!thunkInfo.reversed) {
+            // The reverse mapping is not found, assume the guest thunk library has the same name
+            thunkInfo = getThunkInfo(hostLibPath, false);
+            if (!thunkInfo.forward) {
+                stdcCritical("[GRT] failed to get forward thunk info for %1", hostLibPath);
+                return nullptr;
+            }
+            return convertHostProcAddress_helper(hostLibPath, thunkInfo.forward.value(), name);
+        }
+
+        const auto &reversedThunks = thunkInfo.reversed->thunks;
+        for (const auto &thunk : reversedThunks) {
+            auto subThunkInfo = getThunkInfo(thunk.c_str(), false);
+            if (!subThunkInfo.forward) {
+                stdcWarning("[GRT] %1: failed to get forward thunk info for %2", hostLibPath,
+                            thunk);
+                continue;
+            }
+            void *func =
+                convertHostProcAddress_helper(hostLibPath, subThunkInfo.forward.value(), name);
+            if (!func) {
+                continue;
+            }
+            return func;
+        }
+        stdcWarningF("[GRT] %s: failed to convert host function \"%s\" at %p to guest function",
+                     hostLibPath, name, addr);
+        return nullptr;
     }
 
     int GuestClient::checkConnection_impl() {

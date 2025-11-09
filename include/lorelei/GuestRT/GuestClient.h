@@ -13,6 +13,9 @@ namespace lore {
 
         static GuestClient *instance();
 
+    public:
+        void *convertHostProcAddress(const char *name, void *addr);
+    
     protected:
         /// Implementation of \c Client
         int checkConnection_impl();

@@ -59,6 +59,16 @@ namespace lorethunk::proc {
     LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
+    enum LibraryFunction {
+        NumLibraryFunction =
+
+#ifdef LORETHUNK_HOST
+            NumHostFunction
+#else
+            NumGuestFunction
+#endif
+    };
+
     // Implemented in the generated codes
     static CStaticProcInfo hostFunctions_GTPs[NumHostFunction + 1];
     static CStaticProcInfo guestFunctions_GTPs[NumGuestFunction + 1];
@@ -70,16 +80,6 @@ namespace lorethunk::proc {
     static CStaticProcInfo guestFunctions_HTPs[NumGuestFunction + 1];
     static CStaticProcInfo hostCallbacks_HTPs[NumCallback + 1];
     static CStaticProcInfo guestCallbacks_HTPs[NumCallback + 1];
-
-    enum LibraryFunction {
-        NumLibraryFunction =
-
-#ifdef LORETHUNK_HOST
-            NumHostFunction
-#else
-            NumGuestFunction
-#endif
-    };
 
     static CStaticProcInfo libraryFunctions[NumLibraryFunction + 1];
 
@@ -100,44 +100,4 @@ namespace lorethunk::proc {
         nullptr,
     };
 
-    static inline void copyProcs(CStaticProcInfo *x, CStaticProcInfo *y, size_t size) {
-#ifdef LORETHUNK_HOST
-        for (size_t i = 0; i < size; ++i) {
-            y[i] = x[i];
-        }
-#else
-        for (size_t i = 0; i < size; ++i) {
-            x[i] = y[i];
-        }
-#endif
-    }
-
-}
-
-extern "C" {
-#ifdef LORETHUNK_HOST
-
-LORETHUNK_EXPORT void __LORETHUNK_initialize(CStaticProcInfoContext *ctx) {
-    using namespace lorethunk::proc;
-
-    copyProcs(ctx->gtpEntries[CProcKind_HostFunction].arr,
-              staticProcInfoContext.gtpEntries[CProcKind_HostFunction].arr, NumHostFunction);
-    copyProcs(ctx->gtpEntries[CProcKind_GuestFunction].arr,
-              staticProcInfoContext.gtpEntries[CProcKind_GuestFunction].arr, NumGuestFunction);
-    copyProcs(ctx->gtpEntries[CProcKind_HostCallback].arr,
-              staticProcInfoContext.gtpEntries[CProcKind_HostCallback].arr, NumCallback);
-    copyProcs(ctx->gtpEntries[CProcKind_GuestCallback].arr,
-              staticProcInfoContext.gtpEntries[CProcKind_GuestCallback].arr, NumCallback);
-
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostFunction].arr,
-              ctx->htpEntries[CProcKind_HostFunction].arr, NumHostFunction);
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_GuestFunction].arr,
-              ctx->htpEntries[CProcKind_GuestFunction].arr, NumGuestFunction);
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_HostCallback].arr,
-              ctx->htpEntries[CProcKind_HostCallback].arr, NumCallback);
-    copyProcs(staticProcInfoContext.htpEntries[CProcKind_GuestCallback].arr,
-              ctx->htpEntries[CProcKind_GuestCallback].arr, NumCallback);
-}
-
-#endif
 }

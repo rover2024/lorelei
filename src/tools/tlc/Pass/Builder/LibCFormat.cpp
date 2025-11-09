@@ -64,7 +64,7 @@ namespace TLC {
         bool passWithDefaultArgs = false;
 
         // Check pass desc
-        if (int passArgs[2]; PASS_getPassIntegralTemplates(passArgs, proc, id())) {
+        if (int passArgs[2]; PASS_getIntegralArgumentsInTemplate(passArgs, proc, id())) {
             if (passArgs[0] < 0 || passArgs[1] < 0) {
                 passWithDefaultArgs = true;
             } else {
@@ -169,9 +169,9 @@ namespace TLC {
         ///                 const char *fmt, CVargEntry *vargs);        // HTP_IMPL (4)
         /// \endcode
 
-        auto message = static_cast<LibCFormatProcMessage *>(msg.get());
-        int fmtIdx = message->fmtIdx;
-        int vargIdx = message->vargIdx;
+        auto message = static_cast<LibCFormatProcMessage &>(*msg.get());
+        int fmtIdx = message.fmtIdx;
+        int vargIdx = message.vargIdx;
 
         auto &doc = proc.documentContext();
         auto &ast = *doc.ast();

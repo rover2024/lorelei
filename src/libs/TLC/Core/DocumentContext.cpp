@@ -756,6 +756,15 @@ namespace TLC {
 
         /// STEP: Generate document tail
         os << _source.tail.toRawText() << "\n";
+
+        /// STEP: Add internal tail
+        if (_isHost) {
+            os << "#include <lorelei/TLCMeta/private/ManifestContext_host_impl.inc.h>\n";
+        } else {
+            os << "#include <lorelei/TLCMeta/private/ManifestContext_guest_impl.inc.h>\n";
+        }
+
+        os << "\n";
     }
 
 }

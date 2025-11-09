@@ -11,7 +11,7 @@ typedef int (*Operator)(int a, int b);
 
 static void *last_callback;
 
-static __attribute__((used)) int operator_thunk(int a, int b) {
+static int operator_thunk(int a, int b) {
     LORETHUNK_GET_LAST_GCB(callback)
 
     last_callback = callback;

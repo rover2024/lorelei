@@ -3,9 +3,9 @@
 
 #include <lorelei/Core/ThunkTools/CallbackTrampoline.h>
 
-#define LORETHUNK_LAST_GCB nullptr
+#define LORETHUNK_LAST_GCB lore::thread_last_callback
 
-#define LORETHUNK_LAST_HCB nullptr
+#define LORETHUNK_LAST_HCB lore::thread_last_callback
 
 #define LORETHUNK_GET_LAST_CALLBACK_X86_64(NAME)                                                   \
     void *NAME;                                                                                    \
@@ -29,12 +29,19 @@
 #  define LORETHUNK_GET_LAST_GCB LORETHUNK_GET_LAST_CALLBACK_RISCV64
 #endif
 
+namespace lore {
+
+    extern thread_local void *thread_last_callback;
+
+}
+
 namespace lorethunk {
 
     static constexpr const size_t kMaxCallbackTrampolineCount = 16;
 
     template <auto F, size_t Count = kMaxCallbackTrampolineCount>
     static auto allocCallbackTrampoline(void *input) {
+        using ReturnType = decltype(F);
         static thread_local lore::CallbackTrampolineTable *trampoline = nullptr;
         if (!trampoline) {
             trampoline = lore::CallbackTrampolineTable::create(Count, (void *) F);
@@ -42,12 +49,12 @@ namespace lorethunk {
         auto t = &trampoline->trampoline[0];
         while (t->saved_callback) {
             if (t->saved_callback == input) {
-                return (decltype(F)) t->thunk_instr;
+                return (ReturnType) t->thunk_instr;
             }
             t++;
         }
         t->saved_callback = input;
-        return (decltype(F)) t->thunk_instr;
+        return (ReturnType) t->thunk_instr;
     }
 
 }

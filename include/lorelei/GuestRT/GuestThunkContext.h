@@ -10,7 +10,6 @@ namespace lore {
     public:
         inline GuestThunkContext(const char *moduleName, CStaticProcInfoContext *ctx)
             : _moduleName(moduleName), _procInfoCtx(ctx) {
-            initThunks();
         }
 
         ~GuestThunkContext();
@@ -23,14 +22,14 @@ namespace lore {
             return _procInfoCtx;
         }
 
+        void initialize();
+
     protected:
         const char *_moduleName;
         CStaticProcInfoContext *_procInfoCtx;
 
         // Context data
         void *_handle = nullptr;
-
-        void initThunks();
     };
 
 }

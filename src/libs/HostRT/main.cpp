@@ -140,7 +140,7 @@ namespace lore {
 
     LOREHOSTRT_EXPORT HostRuntime runtime_instance;
 
-    LOREHOSTRT_EXPORT thread_local void *thread_last_hcb;
+    LOREHOSTRT_EXPORT thread_local void *thread_last_callback;
 
     static void logCallback(int level, const stdc::LogContext &ctx, const std::string_view &s) {
         if (level >= runtime_instance.level) {

@@ -16,7 +16,7 @@ namespace lore {
 
         GuestRuntime() {
             if (client.checkConnection() != 0) {
-                fprintf(stderr, "[GRT] lorelei check health failed\n");
+                fprintf(stderr, "[GRT] lorelei check connection failed\n");
                 std::abort();
             }
 
@@ -37,7 +37,7 @@ namespace lore {
 
     LOREGUESTRT_EXPORT GuestRuntime runtime_instance;
 
-    LOREGUESTRT_EXPORT thread_local void *thread_last_gcb;
+    LOREGUESTRT_EXPORT thread_local void *thread_last_callback;
 
     static void logCallback(int level, const stdc::LogContext &ctx, const std::string_view &s) {
         if (level >= runtime_instance.level) {
