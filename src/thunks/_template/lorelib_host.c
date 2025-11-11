@@ -119,7 +119,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
 
     // 4. Initialize library
     {
-        struct LoreLib_HostLibraryContext {
+        struct LoreThunk_HLContext {
             void *AddressBoundary;
 
             void *HrtSetThreadCallback;
@@ -129,7 +129,7 @@ static void __attribute__((constructor)) LoreLib_Inititialize() {
             void *CFIs[LoreLib_GCBEnumSize];
         };
 
-        struct LoreLib_HostLibraryContext *ctx = dlsym(handle, "LoreLib_HostLibCtx");
+        struct LoreThunk_HLContext *ctx = dlsym(handle, "s_LoreThunk_HLContext");
         if (ctx) {
             ctx->AddressBoundary = LoreLibCtx.AddressBoundary;
             ctx->HrtSetThreadCallback = Lore_HrtSetThreadCallback;

@@ -13,6 +13,7 @@
 #include <lorelei/TLC/Plugin/ASTActionPlugin.h>
 #include <lorelei/TLC/ASTMetaItem/MetaProcDescItem.h>
 #include <lorelei/TLC/Core/DocumentContext.h>
+#include <lorelei/TLC/AST/TypeExtras.h>
 
 #include <stdcorelib/support/sharedlibrary.h>
 #include <stdcorelib/path.h>
@@ -186,6 +187,9 @@ namespace TLC::commands::thunkGen {
 
     private:
         void generateCallbacks(llvm::raw_ostream &os) {
+            for (auto &pair : g_ctx.docCtx.callbacks()) {
+                os << getTypeString(pair.second.getCanonicalType()) << "\n";
+            }
         }
     };
 

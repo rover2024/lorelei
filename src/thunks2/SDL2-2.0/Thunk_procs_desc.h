@@ -18,12 +18,4 @@ namespace lorethunk {
         _DESC MetaPass_vprintf<> builder_pass = {};
     };
 
-    using PFN_SDL_LogMessageV = decltype(&::SDL_LogMessageV);
-
-    template <>
-    struct MetaProcCBDesc<PFN_SDL_LogMessageV> {
-        _DESC char name[] = "PFN_SDL_LogMessageV";
-        _DESC MetaPass_vprintf<> builder_pass = {};
-    };
-
 }

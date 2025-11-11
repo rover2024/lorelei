@@ -161,8 +161,30 @@ LOREHOSTRT_EXPORT uint64_t LOREHOSTRT_dispatchSyscall(uint64_t num, uint64_t a1,
     return lore::runtime_instance.server.dispatch(num, a1, a2, a3, a4, a5, a6);
 }
 
-LOREHOSTRT_EXPORT void
-    LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry runTask) {
+LOREHOSTRT_EXPORT void LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry runTask) {
     lore::HostServer::setRunTaskEntry(runTask);
 }
+}
+
+// implementation of "MultiThreading"
+#include "MultiThreading_p.h"
+
+static PFN_GetLastPThreadId s_getLastPThreadId = nullptr;
+
+void LOREHOSTRT_setGetLastPThreadId(PFN_GetLastPThreadId getLastPThreadId) {
+    s_getLastPThreadId = getLastPThreadId;
+}
+
+int LOREHOSTRT_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                              void *(*start_routine)(void *), void *arg) {
+    int ret;
+    lore::runtime_instance.server.runTaskPthreadCreate(thread, (void *) attr,
+                                                       (void *) start_routine, arg, &ret);
+    *thread = s_getLastPThreadId();
+    return ret;
+}
+
+void LOREHOSTRT_pthread_exit(void *ret) {
+    lore::runtime_instance.server.runTaskPthreadExit(ret);
+    __builtin_unreachable();
 }

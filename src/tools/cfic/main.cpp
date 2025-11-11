@@ -16,6 +16,8 @@
 #include <llvm/Support/SHA256.h>
 #include <llvm/Support/MemoryBuffer.h>
 
+#include <lorelei/TLC/AST/TypeExtras.h>
+
 using namespace clang;
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -77,7 +79,8 @@ public:
             return;
 
         QualType type = calleeExpr->getType().getCanonicalType();
-        if (!type->isFunctionPointerType() && !type->isBlockPointerType() && !type->isMemberFunctionPointerType())
+        if (!type->isFunctionPointerType() && !type->isBlockPointerType() &&
+            !type->isMemberFunctionPointerType())
             return;
 
         Expressions.push_back(call);
@@ -90,7 +93,8 @@ private:
 // 2. AST consumer
 class FPExprConsumer : public ASTConsumer {
 public:
-    FPExprConsumer(SmallVectorImpl<const CallExpr *> &Expressions) : Expressions(Expressions), Handler(Expressions) {
+    FPExprConsumer(SmallVectorImpl<const CallExpr *> &Expressions)
+        : Expressions(Expressions), Handler(Expressions) {
         Matcher.addMatcher(callExpr().bind("call"), &Handler);
     }
 
@@ -161,15 +165,16 @@ public:
                     argTypes.push_back(call->getArg(i)->getType());
                 }
 
-                QualType newFuncType =
-                    Context.getFunctionType(funcType->getReturnType(), llvm::ArrayRef<QualType>(argTypes), {})
-                        .getCanonicalType();
+                QualType newFuncType = Context
+                                           .getFunctionType(funcType->getReturnType(),
+                                                            llvm::ArrayRef<QualType>(argTypes), {})
+                                           .getCanonicalType();
 
                 // Replace with the real function signature
                 type = newFuncType;
             }
 
-            std::string signature = type.getAsString();
+            std::string signature = TLC::getTypeString(Context.getPointerType(type));
             int hashIndex = 0;
             if (!SignatureMap.empty()) {
                 auto it = SignatureMap.find(signature);
@@ -189,7 +194,8 @@ public:
             } else {
                 hashIndex = it->second.Index;
             }
-            InsertionList.push_back({fixedRange.getBegin(), "LORELIB_CFI_" + std::to_string(hashIndex) + "(", false});
+            InsertionList.push_back(
+                {fixedRange.getBegin(), "LORELIB_CFI_" + std::to_string(hashIndex) + "(", false});
             InsertionList.push_back({fixedRange.getEnd(), ")", true});
         }
 
@@ -198,16 +204,19 @@ public:
         }
 
         std::error_code EC;
-        llvm::raw_fd_ostream out(GlobalContext.OutputPath.empty() ? "-" : GlobalContext.OutputPath, EC);
+        llvm::raw_fd_ostream out(GlobalContext.OutputPath.empty() ? "-" : GlobalContext.OutputPath,
+                                 EC);
         if (EC) {
             llvm::errs() << "Error occurs opening output file: " << EC.message() << "\n";
             std::abort();
         }
 
-        auto fileName = fs::path(SM.getFileEntryRefForID(SM.getMainFileID())->getName().str()).filename();
+        auto fileName =
+            fs::path(SM.getFileEntryRefForID(SM.getMainFileID())->getName().str()).filename();
 
         // 1. Generate header
-        out << llvm::format(R"(/****************************************************************************
+        out << llvm::format(
+            R"(/****************************************************************************
 ** CFI wrapped code from reading C file '%s'
 **
 ** Created by: Lorelei CFI compiler
@@ -222,7 +231,7 @@ enum LoreLib_Constants {
     LoreLib_CFI_Count = %d,
 };
 
-struct LoreLib_HostLibraryContext {
+struct LoreThunk_HLContext {
     void *AddressBoundary;
 
     void (*HrtSetThreadCallback)(void *callback);
@@ -232,27 +241,28 @@ struct LoreLib_HostLibraryContext {
     void *CFIs[LoreLib_CFI_Count];
 };
 
-__attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib_HostLibCtx;
+__attribute__((visibility("default"))) struct LoreThunk_HLContext s_LoreThunk_HLContext;
 
-#define LORELIB_CFI(INDEX, FP)                                                                       \
-    ({                                                                                               \
-        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                                    \
-        void *_lorelib_cfi_ret = (void *) (FP);                                                      \
-        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) LoreLib_HostLibCtx.AddressBoundary) { \
-            LoreLib_HostLibCtx.HrtSetThreadCallback(_lorelib_cfi_ret);                               \
-            _lorelib_cfi_ret = (void *) LoreLib_HostLibCtx.CFIs[INDEX - 1];                          \
-        }                                                                                            \
-        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                        \
+#define LORELIB_CFI(INDEX, FP)                                                                          \
+    ({                                                                                                  \
+        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                                       \
+        void *_lorelib_cfi_ret = (void *) (FP);                                                         \
+        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) s_LoreThunk_HLContext.AddressBoundary) { \
+            s_LoreThunk_HLContext.HrtSetThreadCallback(_lorelib_cfi_ret);                               \
+            _lorelib_cfi_ret = (void *) s_LoreThunk_HLContext.CFIs[INDEX - 1];                          \
+        }                                                                                               \
+        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                           \
     })
 )",
-                            fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()));
+            fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()));
         out << "\n";
 
         // 2. Generate forward declarations
         for (const auto &pair : std::as_const(CFIInfoMap)) {
             auto &info = pair.second;
             out << "// decl: " << info.Signature << "\n";
-            out << llvm::format("#define LORELIB_CFI_%d(FP) LORELIB_CFI(%d, FP)\n", info.Index, info.Index);
+            out << llvm::format("#define LORELIB_CFI_%d(FP) LORELIB_CFI(%d, FP)\n", info.Index,
+                                info.Index);
             out << "\n";
         }
 
@@ -263,9 +273,10 @@ __attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib
         out << "\n\n";
 
         // 3. Generate rewrited code
-        std::sort(InsertionList.begin(), InsertionList.end(), [](const Insertion &a, const Insertion &b) {
-            return a.Location > b.Location; //
-        });
+        std::sort(InsertionList.begin(), InsertionList.end(),
+                  [](const Insertion &a, const Insertion &b) {
+                      return a.Location > b.Location; //
+                  });
         for (const auto &ins : std::as_const(InsertionList)) {
             Rewrite.InsertText(ins.Location, ins.Text, ins.InsertAfter);
         }
@@ -283,7 +294,8 @@ __attribute__((visibility("default"))) struct LoreLib_HostLibraryContext LoreLib
         out << "\n\n";
     }
 
-    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                   StringRef InFile) override {
         Rewrite.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
         return std::make_unique<FPExprConsumer>(Expressions);
     }
@@ -297,11 +309,11 @@ static cl::OptionCategory FPExprCategory("cfi compiler");
 
 static cl::opt<bool> ExpandOption("e", cl::desc("Expand macros"), cl::cat(FPExprCategory));
 
-static cl::opt<std::string> ConfigOption("c", cl::desc("Specify configuration file"), cl::value_desc("config"),
-                                         cl::cat(FPExprCategory));
+static cl::opt<std::string> ConfigOption("c", cl::desc("Specify configuration file"),
+                                         cl::value_desc("config"), cl::cat(FPExprCategory));
 
-static cl::opt<std::string> OutputOption("o", cl::desc("Specify output file"), cl::value_desc("output file"),
-                                         cl::cat(FPExprCategory));
+static cl::opt<std::string> OutputOption("o", cl::desc("Specify output file"),
+                                         cl::value_desc("output file"), cl::cat(FPExprCategory));
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 

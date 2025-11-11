@@ -402,7 +402,7 @@ namespace lore {
 
     uint64_t HostServer::runTask_impl() {
         assert(s_runTaskEntry);
-        return s_runTaskEntry(currentTask_impl());
+        return s_runTaskEntry(currentTask());
     }
 
 }
