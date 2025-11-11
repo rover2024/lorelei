@@ -25,11 +25,9 @@ struct CReversedThunkInfo {
     char **thunks;
 };
 
-struct CThunkInfo {
-    bool hasForward;
-    CForwardThunkInfo forward;
-    bool hasReversed;
-    CReversedThunkInfo reversed;
+union CThunkInfo {
+    CForwardThunkInfo *forward;
+    CReversedThunkInfo *reversed;
 };
 
 #ifdef __cplusplus

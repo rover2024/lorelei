@@ -2,26 +2,13 @@
 
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 
+#include "CommonMatchFinder.h"
 #include "TypeExtras.h"
 
 using namespace clang;
 using namespace clang::ast_matchers;
 
 namespace TLC {
-
-    class ASTMetaMatchFinder : public MatchFinder::MatchCallback {
-    public:
-        explicit ASTMetaMatchFinder(std::function<void(const MatchFinder::MatchResult &)> callback)
-            : _callback(callback) {
-        }
-
-        void run(const MatchFinder::MatchResult &Result) override {
-            _callback(Result);
-        }
-
-    private:
-        std::function<void(const MatchFinder::MatchResult &)> _callback;
-    };
 
     template <class T>
     static bool isCDecl(const T *decl) {
@@ -106,7 +93,7 @@ namespace TLC {
             }
         };
 
-        ASTMetaMatchFinder matchHandler(matchCallback);
+        CommonMatchFinder matchHandler(matchCallback);
         MatchFinder finder;
 
         /// STEP: Match \c MetaConfig

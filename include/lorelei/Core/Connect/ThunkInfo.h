@@ -13,30 +13,31 @@
 
 namespace lore {
 
-    struct ForwardThunkInfo {
+    struct LORECORE_EXPORT ForwardThunkInfo {
         std::string name;
         std::vector<std::string> alias;
         std::string guestThunk;
         std::string hostThunk;
         std::string hostLibrary;
+
+        const CForwardThunkInfo &cinfo() const;
+        ~ForwardThunkInfo();
+
+    protected:
+        mutable std::optional<CForwardThunkInfo> _cinfo;
     };
 
-    struct ReversedThunkInfo {
+    struct LORECORE_EXPORT ReversedThunkInfo {
         std::string name;
         std::vector<std::string> alias;
         std::string fileName;
         std::vector<std::string> thunks;
-    };
 
-    struct LORECORE_EXPORT ThunkInfo {
-        std::optional<ForwardThunkInfo> forward;
-        std::optional<ReversedThunkInfo> reversed;
+        const CReversedThunkInfo &cinfo() const;
+        ~ReversedThunkInfo();
 
-        /// Aligned memory buffer for ThunkInfo.
-        /// This is used to pass ThunkInfo between memory boundaries.
-        CThunkInfo *toCThunkInfo() const;
-        static ThunkInfo fromCThunkInfo(const CThunkInfo *info);
-        static void freeCThunkInfo(CThunkInfo *info);
+    protected:
+        mutable std::optional<CReversedThunkInfo> _cinfo;
     };
 
     class LORECORE_EXPORT ThunkInfoConfig {
@@ -56,22 +57,22 @@ namespace lore {
             return _reversedThunks;
         }
 
-        std::pair<bool, const ForwardThunkInfo &> forwardThunk(const std::string &name) const {
+        std::optional<std::reference_wrapper<const ForwardThunkInfo>>
+            forwardThunk(const std::string &name) const {
             auto it = _forwardThunkMap.find(name);
             if (it == _forwardThunkMap.end()) {
-                static ForwardThunkInfo empty;
-                return {false, empty};
+                return {};
             }
-            return {true, _forwardThunks.at(it->second)};
+            return _forwardThunks.at(it->second);
         }
 
-        std ::pair<bool, const ReversedThunkInfo &> reversedThunk(const std::string &name) const {
+        std::optional<std::reference_wrapper<const ReversedThunkInfo>>
+            reversedThunk(const std::string &name) const {
             auto it = _reversedThunkMap.find(name);
             if (it == _reversedThunkMap.end()) {
-                static ReversedThunkInfo empty;
-                return {false, empty};
+                return {};
             }
-            return {true, _reversedThunks.at(it->second)};
+            return _reversedThunks.at(it->second);
         }
 
     protected:

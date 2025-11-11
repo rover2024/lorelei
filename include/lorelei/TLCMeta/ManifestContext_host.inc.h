@@ -7,6 +7,8 @@
 #include <lorelei/HostRT/HostThunkContext.h>
 #include <lorelei/HostRT/HostServer.h>
 
+#include <lorelei/Core/Connect/CallChecker.h>
+
 #define LORETHUNK_HOST
 
 #ifndef LORETHUNK_NO_KEYWORDS
@@ -114,6 +116,7 @@ namespace lorethunk::proc {
 
     struct LocalThunkContext {
         lore::HostThunkContext commonContext;
+        lore::MemoryRegionCallChecker callChecker;
 
         LocalThunkContext() : commonContext(nullptr, nullptr) {
         }
@@ -133,16 +136,19 @@ namespace lorethunk::proc {
 
     struct LocalThunkContext {
         lore::HostThunkContext commonContext;
+        lore::MemoryRegionCallChecker callChecker;
 
         LocalThunkContext() : commonContext(LORETHUNK_MODULE_NAME, &staticProcInfoContext) {
             server = lore::HostServer::instance();
             assert(server != nullptr);
 
-            initialize();
+            preInitialize();
             commonContext.initialize();
+            postInitialize();
         }
 
-        void initialize();
+        void preInitialize();
+        void postInitialize();
     };
 
     static LocalThunkContext LTC;

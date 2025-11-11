@@ -15,9 +15,9 @@ using namespace clang;
 
 namespace TLC {
 
-    class LibCFormatProcMessage : public ProcMessage {
+    class LibCFormatMessage : public ProcMessage {
     public:
-        LibCFormatProcMessage(int fmtIdx, int vargIdx) : fmtIdx(fmtIdx), vargIdx(vargIdx) {
+        LibCFormatMessage(int fmtIdx, int vargIdx) : fmtIdx(fmtIdx), vargIdx(vargIdx) {
         }
 
         int fmtIdx;
@@ -34,7 +34,7 @@ namespace TLC {
             return "LibCFormat";
         }
 
-        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const override;
+        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error beginHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error endHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
 
@@ -60,7 +60,7 @@ namespace TLC {
         return res;
     }
 
-    bool LibCFormatPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const {
+    bool LibCFormatPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) {
         bool passWithDefaultArgs = false;
 
         // Check pass desc
@@ -68,7 +68,7 @@ namespace TLC {
             if (passArgs[0] < 0 || passArgs[1] < 0) {
                 passWithDefaultArgs = true;
             } else {
-                msg = std::make_unique<LibCFormatProcMessage>(passArgs[0], passArgs[1]);
+                msg = std::make_unique<LibCFormatMessage>(passArgs[0], passArgs[1]);
                 return true;
             }
         }
@@ -84,7 +84,7 @@ namespace TLC {
                     auto fmtIdx = attr->getFormatIdx();
                     auto vargIdx = attr->getFirstArg();
                     if (fmtIdx > 0 && vargIdx == 0) {
-                        msg = std::make_unique<LibCFormatProcMessage>(fmtIdx, vargIdx);
+                        msg = std::make_unique<LibCFormatMessage>(fmtIdx, vargIdx);
                         return true;
                     }
                 }
@@ -101,7 +101,7 @@ namespace TLC {
                     if (getTypeString(maybeVAListType) == "va_list") {
                         auto maybeFmtParam = argTypes[argTypes.size() - 2];
                         if (isCharPointerType(maybeFmtParam)) {
-                            msg = std::make_unique<LibCFormatProcMessage>(argTypes.size() - 1,
+                            msg = std::make_unique<LibCFormatMessage>(argTypes.size() - 1,
                                                                           argTypes.size());
                             return true;
                         }
@@ -111,7 +111,7 @@ namespace TLC {
                 if (view.isVariadic() && argTypes.size() > 0) {
                     auto maybeFmtParam = argTypes.back();
                     if (isCharPointerType(maybeFmtParam)) {
-                        msg = std::make_unique<LibCFormatProcMessage>(argTypes.size(),
+                        msg = std::make_unique<LibCFormatMessage>(argTypes.size(),
                                                                       argTypes.size() + 1);
                         return true;
                     }
@@ -169,7 +169,7 @@ namespace TLC {
         ///                 const char *fmt, CVargEntry *vargs);        // HTP_IMPL (4)
         /// \endcode
 
-        auto message = static_cast<LibCFormatProcMessage &>(*msg.get());
+        auto message = static_cast<LibCFormatMessage &>(*msg.get());
         int fmtIdx = message.fmtIdx;
         int vargIdx = message.vargIdx;
 

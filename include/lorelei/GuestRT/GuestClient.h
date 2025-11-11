@@ -27,7 +27,7 @@ namespace lore {
         char *getErrorMessage_impl();
         char *getModulePath_impl(void *opaque, bool isHandle);
         int invokeProc_impl(void *proc, int conv, void *opaque);
-        ThunkInfo getThunkInfo_impl(const char *path, bool isReverse);
+        CThunkInfo getThunkInfo_impl(const char *path, bool isReverse);
 
         friend class Client<GuestClient>;
         friend class SyscallClient<GuestClient>;

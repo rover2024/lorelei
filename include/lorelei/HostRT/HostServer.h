@@ -27,6 +27,8 @@ namespace lore {
     public:
         using RunTaskEntry = uint64_t (*)(ClientTask *);
 
+        static RunTaskEntry runTaskEntry();
+
         /// Must be called at the very beginning of the emulator
         static void setRunTaskEntry(RunTaskEntry runTask);
 

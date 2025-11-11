@@ -10,85 +10,54 @@
 
 namespace lore {
 
-    CThunkInfo *ThunkInfo::toCThunkInfo() const {
-        auto info = new CThunkInfo();
-        if (forward) {
-            info->hasForward = true;
-            // name
-            info->forward.name = (char *) forward->name.c_str();
-            // alias
-            info->forward.numAlias = forward->alias.size();
-            info->forward.aliases = new char *[forward->alias.size()];
-            for (size_t i = 0; i < forward->alias.size(); i++) {
-                info->forward.aliases[i] = (char *) forward->alias[i].c_str();
-            }
-            // guestThunk
-            info->forward.guestThunk = (char *) forward->guestThunk.c_str();
-            // hostThunk
-            info->forward.hostThunk = (char *) forward->hostThunk.c_str();
-            // hostLibrary
-            info->forward.hostLibrary = (char *) forward->hostLibrary.c_str();
-        }
-        if (reversed) {
-            info->hasReversed = true;
-            // name
-            info->reversed.name = (char *) reversed->name.c_str();
-            // alias
-            info->forward.numAlias = forward->alias.size();
-            info->forward.aliases = new char *[forward->alias.size()];
-            for (size_t i = 0; i < forward->alias.size(); i++) {
-                info->forward.aliases[i] = (char *) forward->alias[i].c_str();
-            }
-            // fileName
-            info->reversed.fileName = (char *) reversed->fileName.c_str();
-            // thunks
-            info->reversed.numThunks = reversed->thunks.size();
-            info->reversed.thunks = new char *[reversed->thunks.size()];
-            for (size_t i = 0; i < reversed->thunks.size(); i++) {
-                info->reversed.thunks[i] = (char *) reversed->thunks[i].c_str();
+    const CForwardThunkInfo &ForwardThunkInfo::cinfo() const {
+        if (!_cinfo.has_value()) {
+            _cinfo = CForwardThunkInfo{
+                .name = (char *) name.c_str(),
+                .numAlias = alias.size(),
+                .aliases = new char *[alias.size()],
+                .guestThunk = (char *) guestThunk.c_str(),
+                .hostThunk = (char *) hostThunk.c_str(),
+                .hostLibrary = (char *) hostLibrary.c_str(),
+            };
+            for (size_t i = 0; i < alias.size(); i++) {
+                _cinfo->aliases[i] = (char *) alias[i].c_str();
             }
         }
-        return info;
+        return _cinfo.value();
     }
 
-    ThunkInfo ThunkInfo::fromCThunkInfo(const CThunkInfo *info) {
-        ThunkInfo result;
-        if (info->hasForward) {
-            result.forward = ForwardThunkInfo();
-            result.forward->name = info->forward.name;
-            result.forward->alias.resize(info->forward.numAlias);
-            for (size_t i = 0; i < info->forward.numAlias; i++) {
-                result.forward->alias[i] = info->forward.aliases[i];
-            }
-            result.forward->guestThunk = info->forward.guestThunk;
-            result.forward->hostThunk = info->forward.hostThunk;
-            result.forward->hostLibrary = info->forward.hostLibrary;
+    ForwardThunkInfo::~ForwardThunkInfo() {
+        if (_cinfo.has_value()) {
+            delete[] _cinfo->aliases;
         }
-        if (info->hasReversed) {
-            result.reversed = ReversedThunkInfo();
-            result.reversed->name = info->reversed.name;
-            result.reversed->alias.resize(info->reversed.numAlias);
-            for (size_t i = 0; i < info->reversed.numAlias; i++) {
-                result.reversed->alias[i] = info->reversed.aliases[i];
-            }
-            result.reversed->fileName = info->reversed.fileName;
-            result.reversed->thunks.resize(info->reversed.numThunks);
-            for (size_t i = 0; i < info->reversed.numThunks; i++) {
-                result.reversed->thunks[i] = info->reversed.thunks[i];
-            }
-        }
-        return result;
     }
 
-    void ThunkInfo::freeCThunkInfo(CThunkInfo *info) {
-        if (info->hasForward) {
-            delete[] info->forward.aliases;
+    const CReversedThunkInfo &ReversedThunkInfo::cinfo() const {
+        if (!_cinfo.has_value()) {
+            _cinfo = CReversedThunkInfo{
+                .name = (char *) name.c_str(),
+                .numAlias = alias.size(),
+                .aliases = new char *[alias.size()],
+                .fileName = (char *) fileName.c_str(),
+                .numThunks = thunks.size(),
+                .thunks = new char *[thunks.size()],
+            };
+            for (size_t i = 0; i < alias.size(); i++) {
+                _cinfo->aliases[i] = (char *) alias[i].c_str();
+            }
+            for (size_t i = 0; i < thunks.size(); i++) {
+                _cinfo->thunks[i] = (char *) thunks[i].c_str();
+            }
         }
-        if (info->hasReversed) {
-            delete[] info->reversed.aliases;
-            delete[] info->reversed.thunks;
+        return _cinfo.value();
+    }
+
+    ReversedThunkInfo::~ReversedThunkInfo() {
+        if (_cinfo.has_value()) {
+            delete[] _cinfo->aliases;
+            delete[] _cinfo->thunks;
         }
-        delete info;
     }
 
     bool ThunkInfoConfig::load(const std::filesystem::path &path,

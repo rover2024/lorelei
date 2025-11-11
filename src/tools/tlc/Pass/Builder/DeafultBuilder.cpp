@@ -21,12 +21,12 @@ namespace TLC {
             return "DefaultBuilder";
         }
 
-        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const override;
+        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error beginHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error endHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
     };
 
-    bool DefaultBuilderPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const {
+    bool DefaultBuilderPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) {
         return true; // seleted automatically
     }
 

@@ -23,7 +23,7 @@ namespace lore {
                 stdcCritical("[GTL] %1: failed to get thunk info", _moduleName);
                 std::abort();
             }
-            _handle = client->loadLibrary(info.forward->hostThunk.c_str(), RTLD_NOW);
+            _handle = client->loadLibrary(info.forward->hostThunk, RTLD_NOW);
         }
 
         if (!_handle) {

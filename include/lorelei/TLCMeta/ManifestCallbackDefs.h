@@ -39,7 +39,10 @@ namespace lorethunk {
 
     static constexpr const size_t kMaxCallbackTrampolineCount = 16;
 
-    template <auto F, size_t Count = kMaxCallbackTrampolineCount>
+    struct GlobalTramplolineContext {};
+
+    template <auto F, class Context = GlobalTramplolineContext,
+              size_t Count = kMaxCallbackTrampolineCount>
     static auto allocCallbackTrampoline(void *input) {
         using ReturnType = decltype(F);
         static thread_local lore::CallbackTrampolineTable *trampoline = nullptr;
@@ -55,6 +58,38 @@ namespace lorethunk {
         }
         t->saved_callback = input;
         return (ReturnType) t->thunk_instr;
+    }
+
+    // TODO: make it more like C++ style
+    struct CallbackContext {
+        void **p_fp;
+        void *org_fp;
+    };
+
+    static inline bool isHostAddress(void *addr)
+#ifndef LORETHUNK_BUILD
+    {
+        return false;
+    }
+#else
+        ; // implemented in 'ManifestContext_<plat>_impl.inc.h'
+#endif
+
+    template <bool isGuest, class F>
+    static inline void CallbackContext_init(CallbackContext &ctx, void *&fp, F allocator) {
+        if (isGuest != isHostAddress(fp)) {
+            ctx.p_fp = &fp;
+            ctx.org_fp = fp;
+            *(void **) (&fp) = (void *) allocator(fp);
+        } else {
+            ctx.org_fp = NULL;
+        }
+    }
+
+    static inline void CallbackContext_fini(CallbackContext &ctx) {
+        if (ctx.org_fp) {
+            *(ctx.p_fp) = ctx.org_fp;
+        }
     }
 
 }

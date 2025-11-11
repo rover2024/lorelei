@@ -96,12 +96,12 @@ namespace lore {
     }
 
     static void *convertHostProcAddress_helper(const char *hostLibPath,
-                                               const ForwardThunkInfo &thunkInfo,
+                                               const CForwardThunkInfo &thunkInfo,
                                                const char *name) {
         const auto &path = thunkInfo.guestThunk;
-        void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_NOLOAD);
+        void *handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
         if (!handle) {
-            handle = dlopen(path.c_str(), RTLD_NOW);
+            handle = dlopen(path, RTLD_NOW);
             if (!handle) {
                 stdcWarning("[GRT] %1: failed to load thunk library \"%2\"", hostLibPath, path);
                 return nullptr;
@@ -129,19 +129,19 @@ namespace lore {
                 stdcCritical("[GRT] failed to get forward thunk info for %1", hostLibPath);
                 return nullptr;
             }
-            return convertHostProcAddress_helper(hostLibPath, thunkInfo.forward.value(), name);
+            return convertHostProcAddress_helper(hostLibPath, *thunkInfo.forward, name);
         }
 
         const auto &reversedThunks = thunkInfo.reversed->thunks;
-        for (const auto &thunk : reversedThunks) {
-            auto subThunkInfo = getThunkInfo(thunk.c_str(), false);
+        for (size_t i = 0; i < thunkInfo.reversed->numThunks; ++i) {
+            const auto &thunk = reversedThunks[i];
+            auto subThunkInfo = getThunkInfo(thunk, false);
             if (!subThunkInfo.forward) {
                 stdcWarning("[GRT] %1: failed to get forward thunk info for %2", hostLibPath,
                             thunk);
                 continue;
             }
-            void *func =
-                convertHostProcAddress_helper(hostLibPath, subThunkInfo.forward.value(), name);
+            void *func = convertHostProcAddress_helper(hostLibPath, *subThunkInfo.forward, name);
             if (!func) {
                 continue;
             }
@@ -272,12 +272,12 @@ namespace lore {
                 }
 
                 case ClientTask::TASK_HOST_LIBRARY_OPEN: {
-                    const char *identifier = next_task.host_library_open.id;
-                    ThunkInfo info = GuestClient::getThunkInfo(identifier, true);
-                    if (!info.forward) {
+                    auto id = next_task.host_library_open.id;
+                    auto info = GuestClient::getThunkInfo(id, false).forward;
+                    if (!info) {
                         break;
                     }
-                    (void) dlopen(info.forward->guestThunk.c_str(), RTLD_NOW);
+                    (void) dlopen(info->guestThunk, RTLD_NOW);
                     break;
                 }
 
@@ -295,14 +295,14 @@ namespace lore {
         return 0;
     }
 
-    ThunkInfo GuestClient::getThunkInfo_impl(const char *path, bool isReverse) {
-        CThunkInfo *ret;
+    CThunkInfo GuestClient::getThunkInfo_impl(const char *path, bool isReverse) {
+        CThunkInfo ret;
         void *a[] = {
             const_cast<char *>(path),
             reinterpret_cast<void *>(uintptr_t(isReverse)),
         };
-        std::ignore = send(REQUEST_GET_THUNK_INFO, (uintptr_t) a, (uintptr_t) ret);
-        return ThunkInfo::fromCThunkInfo(ret);
+        std::ignore = send(REQUEST_GET_THUNK_INFO, (uintptr_t) a, (uintptr_t) &ret);
+        return ret;
     }
 
 }

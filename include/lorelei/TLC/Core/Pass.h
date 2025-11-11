@@ -60,7 +60,7 @@ namespace TLC {
         /// \param proc The proc context.
         /// \param msg The proc message to be generated, will be used when the pass is executed.
         /// \return True if the pass should be executed, false otherwise.
-        virtual bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const {
+        virtual bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) {
             return false;
         }
 

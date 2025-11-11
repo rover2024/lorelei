@@ -1,6 +1,6 @@
 namespace lorethunk::proc {
 
-    void LocalThunkContext::initialize() {
+    void LocalThunkContext::preInitialize() {
 #define _F(NAME)                                                                                   \
     hostFunctions_HTPs[HostFunction_##NAME].addr =                                                 \
         (void *) MetaProc<::NAME, CProcKind_HostFunction, CProcThunkPhase_HTP>::invoke;
@@ -21,6 +21,20 @@ namespace lorethunk::proc {
         (void *) MetaProcCB<NAME, CProcKind_GuestCallback, CProcThunkPhase_HTP>::invoke;
         LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
+
+        staticProcInfoContext.emuAddr = (void *) server->runTaskEntry();
+    }
+
+    void LocalThunkContext::postInitialize() {
+        LTC.callChecker.setEmuAddr(staticProcInfoContext.emuAddr);
+    }
+
+}
+
+namespace lorethunk {
+
+    static inline bool isHostAddress(void *addr) {
+        return proc::LTC.callChecker.isHostAddress(addr);
     }
 
 }
@@ -45,5 +59,7 @@ LORETHUNK_EXPORT void __LORETHUNK_exchange(CStaticProcInfoContext *ctx) {
     copyProcs(guestFunctions_HTPs, ctx->htpEntries[CProcKind_GuestFunction].arr, NumGuestFunction);
     copyProcs(hostCallbacks_HTPs, ctx->htpEntries[CProcKind_HostCallback].arr, NumCallback);
     copyProcs(guestCallbacks_HTPs, ctx->htpEntries[CProcKind_GuestCallback].arr, NumCallback);
+
+    ctx->emuAddr = staticProcInfoContext.emuAddr;
 }
 }

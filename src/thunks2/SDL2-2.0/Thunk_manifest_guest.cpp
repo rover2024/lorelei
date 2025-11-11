@@ -3,6 +3,8 @@
 
 #include <dlfcn.h>
 
+// #define LORETHUNK_CALLBACK_REPLACE
+
 namespace lorethunk {
 
     template <>

@@ -17,11 +17,11 @@ namespace lore {
         /// STEP: load host library
         {
             auto info = server->config().forwardThunk(_moduleName);
-            if (!info.first) {
+            if (!info) {
                 stdcCritical("[HTL] %1: failed to get thunk info", _moduleName);
                 std::abort();
             }
-            _handle = dlopen(info.second.hostLibrary.c_str(), RTLD_NOW);
+            _handle = dlopen(info->get().hostLibrary.c_str(), RTLD_NOW);
         }
 
         if (!_handle) {

@@ -1,7 +1,6 @@
-
 namespace lorethunk::proc {
 
-    void LocalThunkContext::initialize() {
+    void LocalThunkContext::preInitialize() {
 #define _F(NAME)                                                                                   \
     hostFunctions_GTPs[HostFunction_##NAME].addr =                                                 \
         (void *) MetaProc<::NAME, CProcKind_HostFunction, CProcThunkPhase_GTP>::invoke;
@@ -22,6 +21,18 @@ namespace lorethunk::proc {
         (void *) MetaProcCB<NAME, CProcKind_GuestCallback, CProcThunkPhase_GTP>::invoke;
         LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
+    }
+
+    void LocalThunkContext::postInitialize() {
+        LTC.callChecker.setEmuAddr(staticProcInfoContext.emuAddr);
+    }
+
+}
+
+namespace lorethunk {
+
+    static inline bool isHostAddress(void *addr) {
+        return proc::LTC.callChecker.isHostAddress(addr);
     }
 
 }

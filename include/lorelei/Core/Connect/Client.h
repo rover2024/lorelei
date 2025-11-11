@@ -124,7 +124,7 @@ namespace lore {
         /// Get information about a thunk library.
         /// \param path Path or filename of the thunk library to query.
         /// \param isReverse True if you want to get the reverse thunk information.
-        ThunkInfo getThunkInfo(const char *path, bool isReverse) {
+        CThunkInfo getThunkInfo(const char *path, bool isReverse) {
             return get()->getThunkInfo_impl(path, isReverse);
         }
 

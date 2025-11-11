@@ -13,9 +13,9 @@ using namespace clang;
 
 namespace TLC {
 
-    class GetProcAddressProcMessage : public ProcMessage {
+    class GetProcAddressMessage : public ProcMessage {
     public:
-        GetProcAddressProcMessage(int nameIndex) : nameIndex(nameIndex) {
+        GetProcAddressMessage(int nameIndex) : nameIndex(nameIndex) {
         }
 
         int nameIndex;
@@ -30,7 +30,7 @@ namespace TLC {
             return "GetProcAddress";
         }
 
-        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const override;
+        bool testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error beginHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
         llvm::Error endHandleProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) override;
 
@@ -43,7 +43,7 @@ namespace TLC {
         return type->isPointerType() && type->getPointeeType()->isCharType();
     }
 
-    bool GetProcAddressPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) const {
+    bool GetProcAddressPass::testProc(ProcContext &proc, std::unique_ptr<ProcMessage> &msg) {
         bool passWithDefaultArgs = false;
 
         // Check pass desc
@@ -51,7 +51,7 @@ namespace TLC {
             if (passArgs[0] < 0) {
                 passWithDefaultArgs = true;
             } else {
-                msg = std::make_unique<GetProcAddressProcMessage>(passArgs[0]);
+                msg = std::make_unique<GetProcAddressMessage>(passArgs[0]);
                 return true;
             }
         }
@@ -63,7 +63,7 @@ namespace TLC {
             if (!argTypes.empty()) {
                 auto MaybeNameType = argTypes.back();
                 if (isCharPointerType(MaybeNameType)) {
-                    msg = std::make_unique<GetProcAddressProcMessage>(argTypes.size());
+                    msg = std::make_unique<GetProcAddressMessage>(argTypes.size());
                     return true;
                 }
             }
@@ -77,7 +77,7 @@ namespace TLC {
             return llvm::Error::success();
         }
 
-        auto &message = static_cast<GetProcAddressProcMessage &>(*msg.get());
+        auto &message = static_cast<GetProcAddressMessage &>(*msg.get());
         int nameIndex = message.nameIndex;
 
         std::string key = name();

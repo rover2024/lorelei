@@ -25,15 +25,6 @@ namespace lore {
 
     struct ThreadContext {
         std::vector<ClientTask *> tasks;
-
-        ThunkInfo lastThunkInfo;
-        CThunkInfo *lastCThunkInfo = nullptr;
-
-        ~ThreadContext() {
-            if (lastCThunkInfo) {
-                ThunkInfo::freeCThunkInfo(lastCThunkInfo);
-            }
-        }
     };
 
     static thread_local ThreadContext thread_ctx;
@@ -185,6 +176,10 @@ namespace lore {
     }
 
     static HostServer::RunTaskEntry s_runTaskEntry = nullptr;
+
+    HostServer::RunTaskEntry HostServer::runTaskEntry() {
+        return s_runTaskEntry;
+    }
 
     void HostServer::setRunTaskEntry(RunTaskEntry runTask) {
         s_runTaskEntry = runTask;
@@ -367,7 +362,7 @@ namespace lore {
             // get thunk info
             case ReqID::REQUEST_GET_THUNK_INFO: {
                 auto a = (void **) a2;
-                auto ret = (CThunkInfo **) a3;
+                auto ret = (CThunkInfo *) a3;
 
                 auto path = (const char *) a[0];
                 auto isReserve = (bool) (uintptr_t) a[1];
@@ -375,29 +370,17 @@ namespace lore {
                 auto &ctx = thread_ctx;
                 if (isReserve) {
                     auto it = _config.reversedThunk(path);
-                    if (!it.first) {
-                        *ret = nullptr;
+                    if (!it) {
+                        ret->reversed = nullptr;
                     } else {
-                        ctx.lastThunkInfo = {};
-                        ctx.lastThunkInfo.reversed = it.second;
-                        if (ctx.lastCThunkInfo) {
-                            ThunkInfo::freeCThunkInfo(ctx.lastCThunkInfo);
-                        }
-                        ctx.lastCThunkInfo = ctx.lastThunkInfo.toCThunkInfo();
-                        *ret = ctx.lastCThunkInfo;
+                        ret->reversed = (CReversedThunkInfo *) &it.value().get().cinfo();
                     }
                 } else {
                     auto it = _config.forwardThunk(path);
-                    if (!it.first) {
-                        *ret = nullptr;
+                    if (!it) {
+                        ret->forward = nullptr;
                     } else {
-                        ctx.lastThunkInfo = {};
-                        ctx.lastThunkInfo.forward = it.second;
-                        if (ctx.lastCThunkInfo) {
-                            ThunkInfo::freeCThunkInfo(ctx.lastCThunkInfo);
-                        }
-                        ctx.lastCThunkInfo = ctx.lastThunkInfo.toCThunkInfo();
-                        *ret = ctx.lastCThunkInfo;
+                        ret->forward = (CForwardThunkInfo *) &it.value().get().cinfo();
                     }
                 }
             }
