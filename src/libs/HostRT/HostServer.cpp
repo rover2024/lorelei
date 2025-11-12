@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include <dlfcn.h>
+#include <limits.h>
 
 #ifdef __linux__
 #  include <link.h>
@@ -159,6 +160,32 @@ namespace lore {
             prepare_arg_entry(fmt_char, &vargs[i], args[i]);
         }
         VariadicAdaptor::call(func, len - 2, vargs, 0, nullptr, &ret_entry);
+    }
+
+    static const char *path_get_name(const char *path) {
+        const char *slashPos = strrchr(path, '/');
+        if (!slashPos) {
+            return path;
+        }
+        return slashPos + 1;
+    }
+
+    static void get_library_name(char *buffer, const char *path) {
+        const char *start = path_get_name(path);
+        const char *end = NULL;
+
+        int len = strlen(path);
+        for (const char *p = path + len - 3; p >= start; --p) {
+            if (strncasecmp(p, ".so", 3) == 0) {
+                end = p;
+                break;
+            }
+        }
+        if (!end) {
+            end = path + len;
+        }
+        memcpy(buffer, start, end - start);
+        buffer[end - start] = '\0';
     }
 
     HostServer::HostServer() {
@@ -368,6 +395,14 @@ namespace lore {
 
                 auto path = (const char *) a[0];
                 auto isReserve = (bool) (uintptr_t) a[1];
+
+                char nameBuf[PATH_MAX];
+                get_library_name(nameBuf, path);
+
+                std::string name(nameBuf);
+                if (stdc::ends_with(name, "_HTL")) {
+                    name = name.substr(0, name.size() - 4);
+                }
 
                 auto &ctx = thread_ctx;
                 if (isReserve) {

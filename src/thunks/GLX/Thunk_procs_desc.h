@@ -16,7 +16,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "GLX";
+        _DESC char moduleName[] = "libGLX";
     };
 
 }

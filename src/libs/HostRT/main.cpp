@@ -70,6 +70,13 @@ namespace lore {
                 rootDir = runtimePath;
             }
 
+            std::filesystem::path guestRootDir;
+            if (auto guest_root_dir_str = std::getenv("LORELEI_GUEST_ROOT"); guest_root_dir_str) {
+                guestRootDir = guest_root_dir_str;
+            } else {
+                guestRootDir = rootDir;
+            }
+
             /// STEP: load config
             std::filesystem::path configPath;
             if (auto config_file_str = std::getenv("LORELEI_THUNKS_CONFIG"); config_file_str) {
@@ -78,11 +85,21 @@ namespace lore {
                 configPath = rootDir / "etc" / "lorelei" / "thunks.json";
             }
 
+            const char *sysLibDir;
+            if (auto sysLibDir_str = std::getenv("LORELEI_SYSLIB_DIR"); sysLibDir_str) {
+                sysLibDir = sysLibDir_str;
+            } else {
+                sysLibDir = kSystemLibraryDir;
+            }
+
             std::map<std::string, std::string> configVars = {
-                {"ROOT",   rootDir.string()   },
-                {"HOME",   std::getenv("HOME")},
-                {"ARCH",   _ARCH              },
-                {"SYSLIB", kSystemLibraryDir  },
+                {"ROOT",    rootDir.string()                                          },
+                {"GUEST_ROOT", guestRootDir.string()                                  },
+                {"HOME",    std::getenv("HOME")                                       },
+                {"GTL_DIR", (guestRootDir / "lib" / "x86_64-loreg-linux-gnu").string()},
+                {"HTL_DIR", (rootDir / "lib" / _ARCH "-loreh-linux-gnu").string()     },
+                {"ARCH",    _ARCH                                                     },
+                {"SYSLIB",  sysLibDir                                                 },
             };
             if (auto config_vars_str = std::getenv("LORELEI_THUNKS_CONFIG_VARIABLES");
                 config_vars_str) {

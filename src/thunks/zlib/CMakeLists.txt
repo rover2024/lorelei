@@ -1,5 +1,5 @@
 
-project(zlib)
+project(z)
 
 include("../ThunkAPI.cmake")
 

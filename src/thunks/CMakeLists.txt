@@ -1,6 +1,7 @@
 add_subdirectory(_sample)
 
 # SDL
+add_subdirectory(SDL-1.2)
 add_subdirectory(SDL2-2.0)
 
 # Graphics

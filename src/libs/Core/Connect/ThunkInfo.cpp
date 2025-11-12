@@ -84,25 +84,56 @@ namespace lore {
         _forwardThunkMap.clear();
         _reversedThunkMap.clear();
 
-        const auto &resolvePath = [&vars](const std::string &path) -> std::string {
+        const auto &resolvePath = [&](const std::string &path) -> std::string {
             return stdc::str::varexp(path, vars);
         };
+
+        std::string defualtGuestThunkPath;
+        std::string defaultHostThunkPath;
+        std::string defaultSysLibPath;
+        if (auto it = vars.find("GTL_DIR"); it != vars.end()) {
+            defualtGuestThunkPath = it->second;
+        }
+        if (auto it = vars.find("HTL_DIR"); it != vars.end()) {
+            defaultHostThunkPath = it->second;
+        }
+        if (auto it = vars.find("SYSLIB"); it != vars.end()) {
+            defaultSysLibPath = it->second;
+        }
+        bool allHasDefault = !defualtGuestThunkPath.empty() && !defaultHostThunkPath.empty() &&
+                             !defaultSysLibPath.empty();
 
         // read thunk data
         const auto &docObj = json.object_items();
         if (auto it0 = docObj.find("forwardThunks");
             it0 != docObj.end() && it0->second.is_array()) {
-            const auto &guestItems = it0->second.array_items();
-            for (const auto &guestItem : guestItems) {
-                if (!guestItem.is_object()) {
+            const auto &forwardItems = it0->second.array_items();
+            for (const auto &forwardItem : forwardItems) {
+                if (forwardItem.is_string()) {
+                    std::string name = forwardItem.string_value();
+                    if (name.empty()) {
+                        continue;
+                    }
+
+                    if (allHasDefault) {
+                        ForwardThunkInfo result;
+                        result.name = name;
+                        result.guestThunk = defualtGuestThunkPath + "/" + name + ".so";
+                        result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
+                        result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
+                        _forwardThunks.push_back(result);
+                    }
+                }
+
+                if (!forwardItem.is_object()) {
                     continue;
                 }
-                const auto &guestItemObj = guestItem.object_items();
+                const auto &forwardObj = forwardItem.object_items();
                 ForwardThunkInfo result;
 
                 // name
-                auto it = guestItemObj.find("name");
-                if (it == guestItemObj.end() || !it->second.is_string()) {
+                auto it = forwardObj.find("name");
+                if (it == forwardObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
@@ -112,8 +143,8 @@ namespace lore {
                 }
 
                 // alias
-                it = guestItemObj.find("alias");
-                if (it != guestItemObj.end() && it->second.is_array()) {
+                it = forwardObj.find("alias");
+                if (it != forwardObj.end() && it->second.is_array()) {
                     const auto &aliasItems = it->second.array_items();
                     for (const auto &aliasItem : aliasItems) {
                         if (!aliasItem.is_string()) {
@@ -127,39 +158,50 @@ namespace lore {
                     }
                 }
 
-                // path
-                it = guestItemObj.find("guestThunk");
-                if (it == guestItemObj.end() || !it->second.is_string()) {
-                    continue;
-                }
-                if (auto val = it->second.string_value(); val.empty()) {
-                    continue;
+                // guestThunk
+                it = forwardObj.find("guestThunk");
+                if (it == forwardObj.end() && !defualtGuestThunkPath.empty()) {
+                    result.guestThunk = defaultHostThunkPath + "/" + result.name + ".so";
                 } else {
-                    result.guestThunk = resolvePath(val);
+                    if (!it->second.is_string()) {
+                        continue;
+                    }
+                    if (auto val = it->second.string_value(); val.empty()) {
+                        continue;
+                    } else {
+                        result.guestThunk = resolvePath(val);
+                    }
                 }
 
                 // hostThunk
-                it = guestItemObj.find("hostThunk");
-                if (it == guestItemObj.end() || !it->second.is_string()) {
-                    continue;
-                }
-                if (auto val = it->second.string_value(); val.empty()) {
-                    continue;
+                it = forwardObj.find("hostThunk");
+                if (it == forwardObj.end() && !defaultHostThunkPath.empty()) {
+                    result.hostThunk = defaultHostThunkPath + "/" + result.name + "_HTL.so";
                 } else {
-                    result.hostThunk = resolvePath(val);
+                    if (!it->second.is_string()) {
+                        continue;
+                    }
+                    if (auto val = it->second.string_value(); val.empty()) {
+                        continue;
+                    } else {
+                        result.hostThunk = resolvePath(val);
+                    }
                 }
 
-                // host
-                it = guestItemObj.find("hostLibrary");
-                if (it == guestItemObj.end() || !it->second.is_string()) {
-                    continue;
-                }
-                if (auto val = it->second.string_value(); val.empty()) {
-                    continue;
+                // hostLibrary
+                it = forwardObj.find("hostLibrary");
+                if (it == forwardObj.end() && !defaultSysLibPath.empty()) {
+                    result.hostLibrary = defaultSysLibPath + "/" + result.name + ".so";
                 } else {
-                    result.hostLibrary = resolvePath(val);
+                    if (!it->second.is_string()) {
+                        continue;
+                    }
+                    if (auto val = it->second.string_value(); val.empty()) {
+                        continue;
+                    } else {
+                        result.hostLibrary = resolvePath(val);
+                    }
                 }
-
                 _forwardThunks.push_back(result);
             }
         }
@@ -167,17 +209,17 @@ namespace lore {
         // read host data
         if (auto it0 = docObj.find("reversedThunks");
             it0 != docObj.end() && it0->second.is_array()) {
-            const auto &hostItems = it0->second.array_items();
-            for (const auto &hostItem : hostItems) {
-                if (!hostItem.is_object()) {
+            const auto &reversedItems = it0->second.array_items();
+            for (const auto &reversedItem : reversedItems) {
+                if (!reversedItem.is_object()) {
                     continue;
                 }
-                const auto &hostItemObj = hostItem.object_items();
+                const auto &reversedObj = reversedItem.object_items();
                 ReversedThunkInfo result;
 
                 // name
-                auto it = hostItemObj.find("name");
-                if (it == hostItemObj.end() || !it->second.is_string()) {
+                auto it = reversedObj.find("name");
+                if (it == reversedObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
@@ -187,8 +229,8 @@ namespace lore {
                 }
 
                 // alias
-                it = hostItemObj.find("alias");
-                if (it != hostItemObj.end() && it->second.is_array()) {
+                it = reversedObj.find("alias");
+                if (it != reversedObj.end() && it->second.is_array()) {
                     const auto &aliasItems = it->second.array_items();
                     for (const auto &aliasItem : aliasItems) {
                         if (!aliasItem.is_string()) {
@@ -203,8 +245,8 @@ namespace lore {
                 }
 
                 // fileName
-                it = hostItemObj.find("fileName");
-                if (it == hostItemObj.end() || !it->second.is_string()) {
+                it = reversedObj.find("fileName");
+                if (it == reversedObj.end() || !it->second.is_string()) {
                     continue;
                 }
                 if (auto val = it->second.string_value(); val.empty()) {
@@ -214,8 +256,8 @@ namespace lore {
                 }
 
                 // dependencies
-                it = hostItemObj.find("thunks");
-                if (it != hostItemObj.end() && it->second.is_array()) {
+                it = reversedObj.find("thunks");
+                if (it != reversedObj.end() && it->second.is_array()) {
                     const auto &items = it->second.array_items();
                     for (const auto &item : items) {
                         if (!item.is_string()) {

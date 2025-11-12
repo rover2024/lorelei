@@ -14,7 +14,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "vulkan";
+        _DESC char moduleName[] = "libvulkan";
     };
 
 }

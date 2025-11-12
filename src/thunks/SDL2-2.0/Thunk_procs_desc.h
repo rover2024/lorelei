@@ -11,7 +11,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "SDL2-2.0";
+        _DESC char moduleName[] = "libSDL2-2.0";
     };
 
     template <>

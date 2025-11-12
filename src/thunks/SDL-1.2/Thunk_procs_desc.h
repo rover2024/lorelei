@@ -1,6 +1,7 @@
 #pragma once
 
-#include <zlib.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_syswm.h>
 
 #include <lorelei/TLCMeta/MetaConfig.h>
 #include <lorelei/TLCMeta/MetaProcDesc.h>
@@ -10,11 +11,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "libz";
+        _DESC char moduleName[] = "libSDL2-1.2";
     };
 
 }
-
-#ifdef gzgetc
-#  undef gzgetc
-#endif

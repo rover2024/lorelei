@@ -1,0 +1,33 @@
+{
+    "forwardThunks": [
+        "libEGL",
+        "libGL",
+        "libGLX",
+        "libOpenGL",
+        {
+            "name": "libSDL-1.2",
+            "alias": [
+                "libSDL"
+            ]
+        },
+        {
+            "name": "libSDL2-2.0",
+            "alias": [
+                "libSDL2"
+            ]
+        },
+        "libvulkan",
+        "libz",
+        "libzstd"
+    ],
+    "reversedThunks": [
+        {
+            "name": "libGLdispatch",
+            "fileName": "libGLdispatch.so",
+            "thunks": [
+                "libOpenGL",
+                "libGL"
+            ]
+        }
+    ]
+}

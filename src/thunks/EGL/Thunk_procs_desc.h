@@ -13,7 +13,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "EGL";
+        _DESC char moduleName[] = "libEGL";
     };
 
 }

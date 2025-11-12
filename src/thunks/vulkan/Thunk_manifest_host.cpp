@@ -84,7 +84,7 @@ namespace lorethunk {
                 xcb_connection_t *old_conn;
             };
             struct ReplacedConnection replaced_conn_list[50];
-            VkXcbSurfaceCreateInfoKHR *info = (VkXcbSurfaceCreateInfoKHR *) pCreateInfo;
+            auto info = (VkXcbSurfaceCreateInfoKHR *) pCreateInfo;
             while (info) {
                 if (info->connection) {
                     struct ReplacedConnection r;
@@ -136,7 +136,7 @@ namespace lorethunk {
                 Display *old_dpy;
             };
             struct ReplacedDisplay replaced_dpy_list[50];
-            VkXlibSurfaceCreateInfoKHR *info = (VkXlibSurfaceCreateInfoKHR *) pCreateInfo;
+            auto info = (VkXlibSurfaceCreateInfoKHR *) pCreateInfo;
             while (info) {
                 if (info->dpy) {
                     struct ReplacedDisplay r;
