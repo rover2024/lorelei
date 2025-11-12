@@ -14,7 +14,7 @@ if(LORELEI_BUILD_TOOLS)
 endif()
 
 if(LORELEI_BUILD_THUNKS)
-    add_subdirectory(thunks2)
+    add_subdirectory(thunks)
 endif()
 
 if(LORELEI_INSTALL)
