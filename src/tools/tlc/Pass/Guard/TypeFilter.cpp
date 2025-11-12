@@ -151,7 +151,7 @@ namespace TLC {
         };
 
         const auto &getRetFilterStatement = [&]() {
-            return stdc::formatN("MetaProcReturnFilter<%1>::filter<%2<%3>"
+            return stdc::formatN("MetaProcReturnFilter<%1>::filter<%2<%3>>"
                                  "(ret, MetaProcArgContext(%4));",
                                  getTypeString(real.returnType().getCanonicalType()),
                                  isCallback ? "MetaProcCBDesc" : "MetaProcDesc",

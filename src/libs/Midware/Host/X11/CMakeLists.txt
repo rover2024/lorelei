@@ -11,6 +11,6 @@ lore_include_recursive(${PROJECT_NAME} PRIVATE
     ${LORELEI_SOURCE_DIR}/include/lorelei/Midware/Host/X11
 )
 
-lore_add_pkgconfig_dependency(${PROJECT_NAME} X11)
+target_link_libraries(${PROJECT_NAME} PRIVATE X11)
 
 lore_generate_global_header(${PROJECT_NAME} lorelei/Midware/Host/X11)

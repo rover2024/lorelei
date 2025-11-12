@@ -1,10 +1,12 @@
 #ifndef LORE_X11_H
 #define LORE_X11_H
 
+extern "C" {
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+}
 
-#include "Global.h"
+#include <lorelei/Midware/Host/X11/Global.h>
 
 namespace lore::midware::host {
 
@@ -12,10 +14,10 @@ namespace lore::midware::host {
         static X11_HMW_EXPORT Display *Display_G2H(Display *display);
         static X11_HMW_EXPORT Display *Display_H2G(Display *display);
 
-        static X11_HMW_EXPORT XVisualInfo *VisualInfo_G2H(XVisualInfo *visualInfo,
-                                                          Display *display);
-        static X11_HMW_EXPORT XVisualInfo *VisualInfo_H2G(XVisualInfo *visualInfo,
-                                                          Display *display);
+        static X11_HMW_EXPORT XVisualInfo *VisualInfo_G2H(Display *display,
+                                                          XVisualInfo *visualInfo);
+        static X11_HMW_EXPORT XVisualInfo *VisualInfo_H2G(Display *display,
+                                                          XVisualInfo *visualInfo);
     };
 
 }

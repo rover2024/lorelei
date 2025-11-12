@@ -83,9 +83,10 @@ namespace TLC {
         std::string key = name();
 
         auto &GTP = proc.source(CProcThunkPhase_GTP);
-        GTP.body.backward.push_back(key, SRC_asIs("ret = proc::client->convertHostProcAddress(" +
-                                                  GTP.functionInfo.argumentName(nameIndex - 1) +
-                                                  ", ret);"));
+        GTP.body.backward.push_back(
+            key,
+            SRC_asIs("ret = (decltype(ret)) proc::client->convertHostProcAddress((const char *) " +
+                     GTP.functionInfo.argumentName(nameIndex - 1) + ", (void *) ret);"));
         return llvm::Error::success();
     }
 

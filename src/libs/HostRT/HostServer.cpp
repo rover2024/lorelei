@@ -15,6 +15,8 @@
 #include <lorelei/Core/Connect/SyscallClient.h>
 #include <lorelei/Core/ThunkTools/VariadicAdaptor.h>
 
+#include "Timing.h"
+
 namespace lore {
 
     using ReqID = SyscallClient<>::RequestID;
@@ -30,11 +32,11 @@ namespace lore {
     static thread_local ThreadContext thread_ctx;
 
     static void before_call(void *proc, int conv, void *opaque) {
-        // TODO
+        LoreLastTick = rdtsc();
     }
 
     static void after_call(void *proc, int conv, void *opaque) {
-        // TODO
+        LoreTicks += rdtsc() - LoreLastTick;
     }
 
     static void prepare_arg_entry(char fmt, CVargEntry *entry, void *arg) {
@@ -402,7 +404,10 @@ namespace lore {
 
     uint64_t HostServer::runTask_impl() {
         assert(s_runTaskEntry);
-        return s_runTaskEntry(currentTask());
+        after_call(nullptr, Convention::CONV_STANDARD, nullptr);
+        uint64_t ret = s_runTaskEntry(currentTask());
+        before_call(nullptr, Convention::CONV_STANDARD, nullptr);
+        return ret;
     }
 
 }

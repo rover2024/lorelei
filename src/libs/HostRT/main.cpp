@@ -8,6 +8,8 @@
 #include <stdcorelib/support/sharedlibrary.h>
 #include <stdcorelib/console.h>
 
+#include "Timing.h"
+
 namespace lore {
 #ifdef __x86_64__
 #  define _ARCH "x86_64"
@@ -152,6 +154,10 @@ namespace lore {
         }
     }
 
+    thread_local uint64_t LoreTicks = 0;
+    thread_local uint64_t LoreLastTick = 0;
+    thread_local uint64_t LoreTotalTicks = 0;
+
 }
 
 extern "C" {
@@ -163,6 +169,18 @@ LOREHOSTRT_EXPORT uint64_t LOREHOSTRT_dispatchSyscall(uint64_t num, uint64_t a1,
 
 LOREHOSTRT_EXPORT void LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry runTask) {
     lore::HostServer::setRunTaskEntry(runTask);
+}
+
+LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadEntry() {
+    using namespace lore;
+    LoreLastTick = rdtsc();
+}
+
+LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadExit() {
+    using namespace lore;
+    uint64_t t = rdtsc();
+    LoreTotalTicks = t - LoreTotalTicks;
+    stdcInfoF("TICKS: host=%lu, total=%lu\n", LoreTicks, LoreTotalTicks);
 }
 }
 

@@ -1,7 +1,9 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <GL/glext.h>
 
 #include <lorelei/TLCMeta/MetaConfig.h>
 #include <lorelei/TLCMeta/MetaProcDesc.h>
@@ -11,12 +13,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "SDL2-2.0";
-    };
-
-    template <>
-    struct MetaProcDesc<::SDL_LogMessageV> {
-        _DESC MetaPass_vprintf<> builder_pass = {};
+        _DESC char moduleName[] = "EGL";
     };
 
 }

@@ -234,31 +234,31 @@ namespace TLC {
         std::swap(allVars, _vars);
         if (auto section = std::as_const(_inputConfig).get("Function")) {
             auto &listed = section->get();
-            for (auto &item : std::as_const(allFunctions)) {
-                if (listed.contains(item.first)) {
-                    _functions[item.first] = item.second;
+            for (auto sym : std::as_const(listed)) {
+                if (auto it = allFunctions.find(sym.first); it != allFunctions.end()) {
+                    _functions[sym.first] = it->second;
                 } else {
-                    _missingFunctions.insert(item.first);
+                    _missingFunctions.insert(sym.first);
                 }
             }
         }
         if (auto section = std::as_const(_inputConfig).get("Variable")) {
             auto &listed = section->get();
-            for (auto &item : std::as_const(allVars)) {
-                if (listed.contains(item.first)) {
-                    _vars[item.first] = item.second;
+            for (auto sym : std::as_const(listed)) {
+                if (auto it = allVars.find(sym.first); it != allVars.end()) {
+                    _vars[sym.first] = it->second;
                 } else {
-                    _missingVars.insert(item.first);
+                    _missingVars.insert(sym.first);
                 }
             }
         }
         if (auto section = std::as_const(_inputConfig).get("Guest Function")) {
             auto &listed = section->get();
-            for (auto &item : std::as_const(allFunctions)) {
-                if (listed.contains(item.first)) {
-                    _guestFunctions[item.first] = item.second;
+            for (auto sym : std::as_const(listed)) {
+                if (auto it = allFunctions.find(sym.first); it != allFunctions.end()) {
+                    _guestFunctions[sym.first] = it->second;
                 } else {
-                    _missingFunctions.insert(item.first);
+                    _missingFunctions.insert(sym.first);
                 }
             }
         }
@@ -756,6 +756,17 @@ namespace TLC {
 
         /// STEP: Generate document tail
         os << _source.tail.toRawText() << "\n";
+
+        /// STEP: Generate missing declarations
+        os << "//\n// Missing Function Declarations\n//\n";
+        for (const auto &item : std::as_const(_missingFunctions)) {
+            os << "// " << item << "\n";
+        }
+        os << "\n";
+        os << "//\n// Missing Variable Declarations\n//\n";
+        for (const auto &item : std::as_const(_missingVars)) {
+            os << "// " << item << "\n";
+        }
 
         /// STEP: Add internal tail
         if (_isHost) {

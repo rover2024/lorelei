@@ -57,7 +57,7 @@ function(lore_generate_global_header _target _rel_path)
     set(_out_file "${_out_dir}/Global.h")
     file(MAKE_DIRECTORY ${_out_dir})
     file(WRITE ${_out_file} ${_content})
-    target_include_directories(${_target} PRIVATE ${_out_dir})
+    target_include_directories(${_target} PUBLIC $<BUILD_INTERFACE:${_out_dir}>)
 
     if(LORELEI_INSTALL)
         install(FILES ${_out_file}
@@ -102,11 +102,13 @@ function(lore_add_pkgconfig_dependency _target _pkg)
     if(${_pkg_upper}_FOUND)
         target_include_directories(${PROJECT_NAME} PRIVATE ${${_pkg_upper}_INCLUDE_DIRS})
         target_link_libraries(${PROJECT_NAME} PRIVATE ${${_pkg_upper}_LIBRARIES})
+    else()
+        message(FATAL_ERROR "Failed to find ${_pkg}")
     endif()
 endfunction()
 
 function(lore_configure_library _target)
-    if(LORELEI_INSTALL)
+    if(LORELEI_INSTALL AND NOT LORELEI_SKIP_INSTALL)
         target_include_directories(${_target} PUBLIC "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
         install(TARGETS ${_target}
             EXPORT ${LORELEI_INSTALL_NAME}Targets
@@ -118,7 +120,7 @@ function(lore_configure_library _target)
 endfunction()
 
 function(lore_configure_tool _target)
-    if(LORELEI_INSTALL)
+    if(LORELEI_INSTALL AND NOT LORELEI_SKIP_INSTALL)
         if(LORELEI_VCPKG_TOOLS_HINT)
             set(_tools_dir tools/${LORELEI_INSTALL_NAME})
         else()
@@ -186,7 +188,7 @@ function(lore_generate_thunk _name _input_file _out_file _config_file)
 
     list(APPEND _args ${_input_file})
 
-    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
+    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include" "-I${QMSETUP_BUILD_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
 
     if(FUNC_EXTRA_ARGS)
         list(APPEND _args ${FUNC_EXTRA_ARGS})
@@ -233,7 +235,7 @@ function(_lore_configure_thunk _target _dir)
         endforeach()
     endif()
 
-    if(LORELEI_INSTALL)
+    if(LORELEI_INSTALL AND NOT LORELEI_SKIP_INSTALL)
         install(TARGETS ${_target}
             EXPORT ${LORELEI_INSTALL_NAME}Targets
             RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL
