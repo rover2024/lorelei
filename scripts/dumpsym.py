@@ -43,6 +43,10 @@ def get_exports(so_file_path, nm_cmd='nm'):
 
             # if sym_name.startswith('__') or sym_name.startswith('_'):
             #     continue
+
+            # Strip version
+            if '@@' in sym_name:
+                sym_name = sym_name[:sym_name.index('@@')]
             
             # Determine symbol type
             if sym_type in ('T', 't'):
