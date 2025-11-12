@@ -24,9 +24,9 @@ namespace lore {
 #endif
     }
 
-    extern thread_local uint64_t LoreTicks;
-    extern thread_local uint64_t LoreLastTick;
-    extern thread_local uint64_t LoreTotalTicks;
+    extern thread_local uint64_t timing_ticks;
+    extern thread_local uint64_t timing_last_tick;
+    extern thread_local uint64_t timing_total_ticks;
 
 }
 

@@ -32,11 +32,11 @@ namespace lore {
     static thread_local ThreadContext thread_ctx;
 
     static void before_call(void *proc, int conv, void *opaque) {
-        LoreLastTick = rdtsc();
+        timing_last_tick = rdtsc();
     }
 
     static void after_call(void *proc, int conv, void *opaque) {
-        LoreTicks += rdtsc() - LoreLastTick;
+        timing_ticks += rdtsc() - timing_last_tick;
     }
 
     static void prepare_arg_entry(char fmt, CVargEntry *entry, void *arg) {

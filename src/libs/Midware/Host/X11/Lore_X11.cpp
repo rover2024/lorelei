@@ -3,10 +3,14 @@
 #include <mutex>
 #include <unordered_map>
 
+#ifdef Success
+#undef Success
+#endif
+#include <stdcorelib/support/logging.h>
+#define Success 0
+
 extern "C" {
-#include <X11/Xlib.h>
 #include <X11/Xlibint.h>
-#include <X11/Xutil.h>
 }
 
 #ifdef min
@@ -17,8 +21,6 @@ extern "C" {
 #  undef max
 #endif
 
-#define WARN(msg) ((void) 0)
-
 namespace {
 
     std::mutex display_map_mu;
@@ -27,16 +29,17 @@ namespace {
     // https://github.com/OFFTKP/felix86/blob/2c36eabb087b7963985e31137de6d0bbe29d0739/src/felix86/hle/thunks.cpp#L154
     Display *guestToHostDisplay(Display *guest_display) {
         if (guest_display == nullptr) {
-            WARN("guestToHostDisplay(nil) called?");
             return nullptr;
         }
+
         std::lock_guard<std::mutex> guard(display_map_mu);
         if (auto it = g2h_display.find(guest_display); it != g2h_display.end()) {
             return it->second;
         }
         Display *host_display = XOpenDisplay(guest_display->display_name);
         if (host_display == nullptr) {
-            WARN("Failed to open host display for guest display");
+            stdcWarningF("[HMW] X11: failed to open host display for guest display: %s",
+                         guest_display->display_name);
             return nullptr;
         }
         g2h_display[guest_display] = host_display;
@@ -47,14 +50,14 @@ namespace {
     // https://github.com/OFFTKP/felix86/blob/2c36eabb087b7963985e31137de6d0bbe29d0739/src/felix86/hle/thunks.cpp#L180
     Display *hostToGuestDisplay(Display *host_display) {
         if (host_display == nullptr) {
-            WARN("hostToGuestDisplay(nil) called?");
             return nullptr;
         }
         std::lock_guard<std::mutex> guard(display_map_mu);
         if (auto it = h2g_display.find(host_display); it != h2g_display.end()) {
             return it->second;
         }
-        WARN("Failed to open guest display for host display");
+        stdcWarningF("[HMW] X11: failed to find guest display for host display: %s",
+                     host_display->display_name);
         return nullptr;
     }
 
@@ -71,7 +74,9 @@ namespace {
         if (c >= 1 && host_info != nullptr) {
             return host_info;
         }
-        WARN("host XGetVisualInfo null");
+        stdcWarningF("[HMW] X11: failed to find host visual info for guest visual info:"
+                     "screen=%d, visualid=0x%08x",
+                     guest_info->screen, guest_info->visualid);
         return nullptr;
     }
 

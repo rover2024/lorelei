@@ -147,7 +147,7 @@ namespace TLC {
                                  FI.argumentName(idx),
                                  getTypeString(real.argTypes()[idx].getCanonicalType()),
                                  isCallback ? "MetaProcCBDesc" : "MetaProcDesc",
-                                 isCallback ? "" : "::" + proc.name(), idx, SRC_callList(FI));
+                                 (isCallback ? "" : "::") + proc.name(), idx, SRC_callList(FI));
         };
 
         const auto &getRetFilterStatement = [&]() {
@@ -155,7 +155,7 @@ namespace TLC {
                                  "(ret, MetaProcArgContext(%4));",
                                  getTypeString(real.returnType().getCanonicalType()),
                                  isCallback ? "MetaProcCBDesc" : "MetaProcDesc",
-                                 isCallback ? "" : "::" + proc.name(), SRC_callList(FI));
+                                 (isCallback ? "" : "::") + proc.name(), SRC_callList(FI));
         };
 
         {

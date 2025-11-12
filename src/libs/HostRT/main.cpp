@@ -154,9 +154,9 @@ namespace lore {
         }
     }
 
-    thread_local uint64_t LoreTicks = 0;
-    thread_local uint64_t LoreLastTick = 0;
-    thread_local uint64_t LoreTotalTicks = 0;
+    thread_local uint64_t timing_ticks = 0;
+    thread_local uint64_t timing_last_tick = 0;
+    thread_local uint64_t timing_total_ticks = 0;
 
 }
 
@@ -173,14 +173,14 @@ LOREHOSTRT_EXPORT void LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry
 
 LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadEntry() {
     using namespace lore;
-    LoreLastTick = rdtsc();
+    timing_last_tick = rdtsc();
 }
 
 LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadExit() {
     using namespace lore;
     uint64_t t = rdtsc();
-    LoreTotalTicks = t - LoreTotalTicks;
-    stdcInfoF("TICKS: host=%lu, total=%lu\n", LoreTicks, LoreTotalTicks);
+    timing_total_ticks = t - timing_total_ticks;
+    stdcInfoF("TICKS: host=%lu, total=%lu\n", timing_ticks, timing_total_ticks);
 }
 }
 

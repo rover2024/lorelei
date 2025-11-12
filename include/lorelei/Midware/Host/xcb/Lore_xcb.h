@@ -1,9 +1,9 @@
 #ifndef LORE_XCB_H
 #define LORE_XCB_H
 
-#include <xcb/xcb.h>
+typedef struct xcb_connection_t xcb_connection_t;
 
-#include "Global.h"
+#include <lorelei/Midware/Host/xcb/Global.h>
 
 namespace lore::midware::host {
 

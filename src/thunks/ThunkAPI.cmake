@@ -68,6 +68,10 @@ macro(add_thunk)
         lore_guest_thunk_disable_register(${GTL})
         target_link_libraries(${GTL} PUBLIC LoreGuestRT)
 
+        if(ALL_extra_includes)
+            target_include_directories(${GTL} PRIVATE ${ALL_extra_includes})
+        endif()
+
         if(GTL_extra_includes)
             target_include_directories(${GTL} PRIVATE ${GTL_extra_includes})
         endif()
@@ -130,6 +134,10 @@ macro(add_thunk)
         lore_configure_host_thunk(${HTL})
         lore_host_thunk_disable_register(${HTL})
         target_link_libraries(${HTL} PUBLIC LoreHostRT)
+
+        if(ALL_extra_includes)
+            target_include_directories(${HTL} PRIVATE ${ALL_extra_includes})
+        endif()
 
         if(HTL_extra_includes)
             target_include_directories(${HTL} PRIVATE ${HTL_extra_includes})
