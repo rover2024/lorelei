@@ -4,10 +4,10 @@
 
 namespace plugin {
 
-    void MyASTConsumerAddOn::initialize(clang::ASTContext &ctx) {
+    void MyASTConsumerAddOn::initialize(TLC::DocumentContext &doc) {
     }
 
-    void MyASTConsumerAddOn::handleTranslationUnit(clang::ASTContext &ctx) {
+    void MyASTConsumerAddOn::handleTranslationUnit(TLC::DocumentContext &doc) {
     }
 
 }

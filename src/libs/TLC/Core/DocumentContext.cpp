@@ -277,6 +277,7 @@ namespace TLC {
             for (auto it : std::as_const(listed)) {
                 std::string token = it.first;
                 if (token.front() == '&') {
+                    std::string orgToken = token;
                     // The callback type is referenced from an existing function
                     token = token.substr(1);
                     auto it = allFunctions.find(token);
@@ -288,6 +289,8 @@ namespace TLC {
                             namedCallbackMap[fpTypeStr] = "PFN_AUTO_" + token;
                         }
                         knownCallbacks[fpTypeStr] = fpType;
+                    } else {
+                        _missingCallbacks.insert(orgToken);
                     }
                 } else {
                     auto it = _functionPointerTypedefs.find(token);
@@ -295,6 +298,8 @@ namespace TLC {
                         auto fpType = it->second->getUnderlyingType().getCanonicalType();
                         auto fpTypeStr = getTypeString(fpType);
                         knownCallbacks[fpTypeStr] = fpType;
+                    } else {
+                        _missingCallbacks.insert(token);
                     }
                 }
             }
@@ -767,6 +772,12 @@ namespace TLC {
         for (const auto &item : std::as_const(_missingVars)) {
             os << "// " << item << "\n";
         }
+        os << "\n";
+        os << "//\n// Missing Callback Declarations\n//\n";
+        for (const auto &item : std::as_const(_missingCallbacks)) {
+            os << "// " << item << "\n";
+        }
+        os << "\n";
 
         /// STEP: Add internal tail
         if (_isHost) {

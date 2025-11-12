@@ -9,12 +9,12 @@ namespace plugin {
 
     class MyASTActionPlugin : public TLC::ASTActionPlugin {
     public:
-        std::string key() const {
+        std::string key() const override {
             return "sample";
         }
 
-        std::unique_ptr<TLC::ASTConsumerAddOn> createASTConsumerAddOn(clang::CompilerInstance &CI,
-                                                                      llvm::StringRef inFile) {
+        std::unique_ptr<TLC::ASTConsumerAddOn>
+            createASTConsumerAddOn(clang::CompilerInstance &CI, llvm::StringRef inFile) override {
             return std::make_unique<MyASTConsumerAddOn>();
         }
 

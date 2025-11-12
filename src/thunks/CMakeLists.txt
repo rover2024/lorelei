@@ -8,7 +8,7 @@ add_subdirectory(OpenGL)
 add_subdirectory(GL)
 add_subdirectory(GLX)
 add_subdirectory(EGL)
-add_subdirectory(Vulkan)
+add_subdirectory(vulkan)
 
 # Compression
 add_subdirectory(zlib)

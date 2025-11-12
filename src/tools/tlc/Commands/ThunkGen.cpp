@@ -93,14 +93,14 @@ namespace TLC::commands::thunkGen {
         void Initialize(ASTContext &Context) override {
             g_ctx.docCtx.initialize(g_ctx.thunkConfig);
             for (auto &addOn : addOns) {
-                addOn->initialize(Context);
+                addOn->initialize(g_ctx.docCtx);
             }
         }
 
         void HandleTranslationUnit(ASTContext &Context) override {
             g_ctx.docCtx.handleTranslationUnit(Context);
             for (auto &addOn : addOns) {
-                addOn->handleTranslationUnit(Context);
+                addOn->handleTranslationUnit(g_ctx.docCtx);
             }
         }
 
@@ -112,6 +112,10 @@ namespace TLC::commands::thunkGen {
     class MyASTFrontendAction : public ASTFrontendAction {
     public:
         bool BeginSourceFileAction(CompilerInstance &CI) override {
+            for (const auto &plugin : g_ctx.pluginInstances) {
+                plugin->setDocumentContext(&g_ctx.docCtx);
+            }
+
             if (!g_ctx.docCtx.beginSourceFileAction(CI)) {
                 return false;
             }

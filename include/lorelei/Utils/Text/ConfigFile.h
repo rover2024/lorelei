@@ -24,14 +24,16 @@ namespace lore {
             std::filesystem::path file;
             int line;
 
-            ParseResult(bool s, const std::string &msg = "", const std::filesystem::path &f = "", int l = 0)
+            ParseResult(bool s, const std::string &msg = "", const std::filesystem::path &f = "",
+                        int l = 0)
                 : success(s), errorMessage(msg), file(f), line(l) {
             }
 
             static ParseResult ok() {
                 return ParseResult(true);
             }
-            static ParseResult error(const std::string &msg, const std::filesystem::path &f = "", int l = 0) {
+            static ParseResult error(const std::string &msg, const std::filesystem::path &f = "",
+                                     int l = 0) {
                 return ParseResult(false, msg, f, l);
             }
         };
@@ -105,21 +107,22 @@ namespace lore {
             class Iterator {
             public:
                 using iterator_category = std::random_access_iterator_tag;
-                using value_type = std::pair<const std::string, std::string>;
+                using value_type = std::pair<std::string, std::string>;
                 using difference_type = std::ptrdiff_t;
                 using pointer = value_type *;
                 using reference = value_type &;
 
                 Iterator() = default;
-                Iterator(const std::vector<std::pair<std::string, std::string>> *keyValues, size_t index)
+                Iterator(const std::vector<std::pair<std::string, std::string>> *keyValues,
+                         size_t index)
                     : _keyValues(keyValues), _index(index) {
                 }
 
-                value_type operator*() const {
+                const value_type &operator*() const {
                     return (*_keyValues)[_index];
                 }
 
-                value_type operator->() const {
+                const value_type &operator->() const {
                     return (*_keyValues)[_index];
                 }
 
@@ -222,8 +225,9 @@ namespace lore {
             }
 
         private:
-            std::vector<std::pair<std::string, std::string>> _keyValues; // Store key-value pairs in order
-            std::unordered_map<std::string, size_t> _keyIndex;           // Map key to index in vector
+            std::vector<std::pair<std::string, std::string>>
+                _keyValues;                                    // Store key-value pairs in order
+            std::unordered_map<std::string, size_t> _keyIndex; // Map key to index in vector
             std::string _name;
         };
 
@@ -236,7 +240,8 @@ namespace lore {
             using pointer = Section *;
             using reference = Section &;
 
-            Iterator(std::vector<Section> *sections, size_t index) : _sections(sections), _index(index) {
+            Iterator(std::vector<Section> *sections, size_t index)
+                : _sections(sections), _index(index) {
             }
 
             reference operator*() const {
@@ -328,7 +333,8 @@ namespace lore {
             using pointer = const Section *;
             using reference = const Section &;
 
-            ConstIterator(const std::vector<Section> *sections, size_t index) : _sections(sections), _index(index) {
+            ConstIterator(const std::vector<Section> *sections, size_t index)
+                : _sections(sections), _index(index) {
             }
 
             reference operator*() const {
@@ -520,13 +526,14 @@ namespace lore {
         std::vector<Section> _sections;                        // All sections stored in order
         std::unordered_map<std::string, size_t> _sectionIndex; // Map section name to index
         size_t _currentSectionIndex = 0;                       // Index of current section
-        std::filesystem::path _baseDir;                        // Base directory for include resolution
+        std::filesystem::path _baseDir; // Base directory for include resolution
 
         // Get or create a section
         size_t getOrCreateSection(const std::string &sectionName);
 
         // Parse a single line
-        ParseResult parseLine(const std::string &originalLine, const std::filesystem::path &file, int lineNum);
+        ParseResult parseLine(const std::string &originalLine, const std::filesystem::path &file,
+                              int lineNum);
     };
 
 }

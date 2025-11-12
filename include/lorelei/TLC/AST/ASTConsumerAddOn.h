@@ -1,21 +1,19 @@
 #ifndef ASTCONSUMERADDON_H
 #define ASTCONSUMERADDON_H
 
-namespace clang {
-    class ASTContext;
-}
-
 namespace TLC {
+
+    class DocumentContext;
 
     class ASTConsumerAddOn {
     public:
         virtual ~ASTConsumerAddOn() = default;
 
         /// Called at \c ASTConsumer::Initialize.
-        virtual void initialize(clang::ASTContext &ctx) {};
+        virtual void initialize(DocumentContext &doc) {};
 
         /// Called at \c ASTConsumer::HandleTranslationUnit.
-        virtual void handleTranslationUnit(clang::ASTContext &ctx) {};
+        virtual void handleTranslationUnit(DocumentContext &doc) {};
     };
 
 }

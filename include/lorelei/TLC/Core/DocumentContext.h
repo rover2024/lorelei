@@ -76,6 +76,7 @@ namespace TLC {
 
         std::set<std::string> _missingFunctions;
         std::set<std::string> _missingVars;
+        std::set<std::string> _missingCallbacks;
 
         // Result metadata
         bool _isHost = false;

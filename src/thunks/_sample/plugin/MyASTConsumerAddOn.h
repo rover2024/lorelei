@@ -10,8 +10,8 @@ namespace plugin {
         MyASTConsumerAddOn() {
         }
 
-        void initialize(clang::ASTContext &ctx) override;
-        void handleTranslationUnit(clang::ASTContext &ctx) override;
+        void initialize(TLC::DocumentContext &doc) override;
+        void handleTranslationUnit(TLC::DocumentContext &doc) override;
     };
 
 }

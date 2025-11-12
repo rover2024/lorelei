@@ -14,6 +14,8 @@ namespace clang {
 
 namespace TLC {
 
+    class DocumentContext;
+
     /// ThunkGenPlugin - A plugin for the TLC ThunkGen command.
     /// \endcode
     class ASTActionPlugin : public BasePlugin {
@@ -31,6 +33,19 @@ namespace TLC {
         /// \return A nullable \c ASTConsumerAddOn object.
         virtual std::unique_ptr<ASTConsumerAddOn>
             createASTConsumerAddOn(clang::CompilerInstance &CI, llvm::StringRef inFile) = 0;
+
+        DocumentContext &documentContext() {
+            return *_doc;
+        }
+        const DocumentContext &documentContext() const {
+            return *_doc;
+        }
+        void setDocumentContext(DocumentContext *doc) {
+            _doc = doc;
+        }
+
+    protected:
+        DocumentContext *_doc;
     };
 
 }
