@@ -17,12 +17,12 @@ static const std::set<std::string> ignored_include{
 
 // 判断文件路径是否在项目目录内
 static bool is_descendant(const fs::path &file, const fs::path &dir) {
-    try {
-        auto relative = fs::relative(file, dir);
-        return !relative.empty() && *relative.begin() != "..";
-    } catch (...) {
+    std::error_code ec;
+    auto relative = fs::relative(file, dir, ec);
+    if (ec != std::error_code()) {
         return false;
     }
+    return !relative.empty() && *relative.begin() != "..";
 }
 
 // 命令行参数解析结果
@@ -141,7 +141,8 @@ static void process_file(const Config &cfg) {
                 1 - Start of a new file
                 2 - Returning to previous file
                 3 - Following text comes from a system header file (#include <> vs #include "")
-                4 - Following text should be treated as being wrapped in an implicit extern "C" block."
+                4 - Following text should be treated as being wrapped in an implicit extern "C"
+               block."
             */
 
             // 处理flags
@@ -175,8 +176,8 @@ static void process_file(const Config &cfg) {
                     if (ignore) {
                         // 生成 include 语句，忽略全部内容
                         if (!ignored_include.count(file_path.filename())) {
-                            *out << (is_system ? "#include <" : "#include \"") << fixIncludeFile(filename)
-                                 << (is_system ? ">\n" : "\"\n");
+                            *out << (is_system ? "#include <" : "#include \"")
+                                 << fixIncludeFile(filename) << (is_system ? ">\n" : "\"\n");
                         }
                         level = 1;
                     }

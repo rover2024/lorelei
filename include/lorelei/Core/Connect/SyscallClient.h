@@ -31,7 +31,7 @@ namespace lore {
 
         /// The return value of the remote invocation.
         enum Return {
-            RETURN_ERROR = -1,
+            RETURN_ERROR = -1, // not used now
             RETURN_OK = 0,
             RETURN_NEXT_TASK,
         };

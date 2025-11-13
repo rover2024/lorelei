@@ -14,7 +14,8 @@
             "name": "libSDL2-2.0",
             "alias": [
                 "libSDL2"
-            ]
+            ],
+            "hostLibrary": "${REPOS}/SDL/build/install/lib/libSDL2.so"
         },
         "libvulkan",
         "libz",

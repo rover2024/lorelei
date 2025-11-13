@@ -69,11 +69,7 @@ namespace lore {
         /* Wait until the parent has finished initializing the tls state.  */
 
         void *ret;
-        void *opaque[] = {
-            hostArg,
-            &ret,
-        };
-        client->invokeProc(entry, GuestClient::CONV_THREAD_ENTRY, opaque);
+        client->invokeThreadEntry(entry, hostArg, &ret);
         return ret;
     }
 
@@ -166,7 +162,7 @@ namespace lore {
             const_cast<char *>(path),
             reinterpret_cast<void *>(uintptr_t(flags)),
         };
-        std::ignore = send(REQUEST_LOAD_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_LOAD_LIBRARY, (uintptr_t) a, (uintptr_t) &ret);
         return ret;
     }
 
@@ -175,7 +171,7 @@ namespace lore {
         void *a[] = {
             handle,
         };
-        std::ignore = send(REQUEST_FREE_LIBRARY, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_FREE_LIBRARY, (uintptr_t) a, (uintptr_t) &ret);
         return ret;
     }
 
@@ -185,13 +181,13 @@ namespace lore {
             handle,
             const_cast<char *>(name),
         };
-        std::ignore = send(REQUEST_GET_PROC_ADDRESS, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_PROC_ADDRESS, (uintptr_t) a, (uintptr_t) &ret);
         return ret;
     }
 
     char *GuestClient::getErrorMessage_impl() {
         char *ret = nullptr;
-        std::ignore = send(REQUEST_GET_ERROR_MESSAGE, 0, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_ERROR_MESSAGE, 0, (uintptr_t) &ret);
         return ret;
     }
 
@@ -201,7 +197,7 @@ namespace lore {
             opaque,
             reinterpret_cast<void *>(uintptr_t(isHandle)),
         };
-        std::ignore = send(REQUEST_GET_MODULE_PATH, (uintptr_t) a, (uintptr_t) ret);
+        std::ignore = send(REQUEST_GET_MODULE_PATH, (uintptr_t) a, (uintptr_t) &ret);
         return ret;
     }
 
@@ -211,7 +207,7 @@ namespace lore {
         // Call and wait for the potential callback SyscallClient
         uint64_t syscall_ret = send(REQUEST_INVOKE_PROC, (uintptr_t) proc, conv, (uintptr_t) opaque,
                                     (uintptr_t) &next_task);
-        while (syscall_ret != RETURN_NEXT_TASK) {
+        while (syscall_ret == RETURN_NEXT_TASK) {
             switch (next_task.id) {
                 case ClientTask::TASK_FUNCTION: {
                     typedef void (*FunctionThunk)(void * /*args*/, void * /*ret*/,

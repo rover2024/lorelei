@@ -72,7 +72,7 @@ namespace lorethunk {
     static PFN_vkVoidFunction vulkanApiGetReservedProc(const char *pName);
 
     template <>
-    struct MetaProc<vkGetDeviceProcAddr, _HFN, _GTP> {
+    struct MetaProc<::vkGetDeviceProcAddr, _HFN, _GTP> {
         static PFN_vkVoidFunction invoke(VkDevice device, const char *pName) {
             PFN_vkVoidFunction ret = vulkanApiGetReservedProc(pName);
             if (ret) {
@@ -93,7 +93,7 @@ namespace lorethunk {
     };
 
     template <>
-    struct MetaProc<vkGetInstanceProcAddr, _HFN, _GTP> {
+    struct MetaProc<::vkGetInstanceProcAddr, _HFN, _GTP> {
         static PFN_vkVoidFunction invoke(VkInstance instance, const char *pName) {
             PFN_vkVoidFunction ret = vulkanApiGetReservedProc(pName);
             if (ret) {

@@ -151,15 +151,61 @@ namespace lore {
     static void do_fmt_call(void *func, const char *fmt, void **args, void *ret) {
         const auto len = std::strlen(fmt);
 
-        CVargEntry ret_entry;
-        prepare_ret_entry(fmt[0], &ret_entry);
+        CVargEntry vret;
+        prepare_ret_entry(fmt[0], &vret);
 
         auto vargs = (CVargEntry *) alloca(sizeof(CVargEntry) * (len - 2));
         for (int i = 0; i < len - 2; i++) {
             auto fmt_char = fmt[i + 2];
             prepare_arg_entry(fmt_char, &vargs[i], args[i]);
         }
-        VariadicAdaptor::call(func, len - 2, vargs, 0, nullptr, &ret_entry);
+        VariadicAdaptor::call(func, len - 2, vargs, 0, nullptr, &vret);
+
+        if (ret) {
+            switch (vret.type) {
+                case CVargType_Char:
+                    *(char *) ret = vret.c;
+                    break;
+                case CVargType_UChar:
+                    *(unsigned char *) ret = vret.uc;
+                    break;
+                case CVargType_Short:
+                    *(short *) ret = vret.s;
+                    break;
+                case CVargType_UShort:
+                    *(unsigned short *) ret = vret.us;
+                    break;
+                case CVargType_Int:
+                    *(int *) ret = vret.i;
+                    break;
+                case CVargType_UInt:
+                    *(unsigned int *) ret = vret.u;
+                    break;
+                case CVargType_Long:
+                    *(long *) ret = vret.l;
+                    break;
+                case CVargType_ULong:
+                    *(unsigned long *) ret = vret.ul;
+                    break;
+                case CVargType_LongLong:
+                    *(long long *) ret = vret.ll;
+                    break;
+                case CVargType_ULongLong:
+                    *(unsigned long long *) ret = vret.ull;
+                    break;
+                case CVargType_Float:
+                    *(float *) ret = vret.f;
+                    break;
+                case CVargType_Double:
+                    *(double *) ret = vret.d;
+                    break;
+                case CVargType_Pointer:
+                    *(void **) ret = vret.p;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     static const char *path_get_name(const char *path) {
@@ -250,7 +296,6 @@ namespace lore {
                 auto path = (const char *) a[0];
                 auto flags = (int) (uintptr_t) a[1];
                 *ret = dlopen(path, flags);
-
                 return 0;
             }
 
@@ -261,7 +306,6 @@ namespace lore {
 
                 auto handle = a[0];
                 *ret = dlclose(handle);
-
                 return 0;
             }
 
@@ -277,7 +321,6 @@ namespace lore {
                     sym = dlsym(RTLD_DEFAULT, name);
                 }
                 *ret = sym;
-
                 return 0;
             }
 
@@ -318,7 +361,6 @@ namespace lore {
                         *ret = (char *) info.dli_fname;
                     }
                 }
-
                 return 0;
             }
 
@@ -420,6 +462,7 @@ namespace lore {
                         ret->forward = (CForwardThunkInfo *) &it.value().get().cinfo();
                     }
                 }
+                return 0;
             }
 
             default: {

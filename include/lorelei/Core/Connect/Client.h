@@ -140,14 +140,14 @@ namespace lore {
             invokeProc(proc, CONV_STANDARD_CALLBACK, opaque);
         }
 
-        inline void invokeFormat(const char *format, void **args, void *ret) {
+        inline void invokeFormat(void *proc, const char *format, void **args, void *ret) {
             void *opaque[] = {(void *) format, (void *) args, ret};
-            invokeProc(nullptr, CONV_FORMAT, opaque);
+            invokeProc(proc, CONV_FORMAT, opaque);
         }
 
-        inline void invokeThreadEntry(void *arg, void *ret) {
+        inline void invokeThreadEntry(void *proc, void *arg, void *ret) {
             void *opaque[] = {arg, ret};
-            invokeProc(nullptr, CONV_THREAD_ENTRY, opaque);
+            invokeProc(proc, CONV_THREAD_ENTRY, opaque);
         }
 
     private:

@@ -2,24 +2,49 @@ namespace lorethunk::proc {
 
     void LocalThunkContext::preInitialize() {
 #define _F(NAME)                                                                                   \
-    hostFunctions_GTPs[HostFunction_##NAME].addr =                                                 \
-        (void *) MetaProc<::NAME, CProcKind_HostFunction, CProcThunkPhase_GTP>::invoke;
+    hostFunctions_GTPs[HostFunction_##NAME] = {                                                    \
+        #NAME,                                                                                     \
+        (void *) MetaProc<::NAME, CProcKind_HostFunction, CProcThunkPhase_GTP>::invoke,            \
+    };
         LORETHUNK_HOST_FUNCTION_FOREACH(_F)
 #undef _F
 #define _F(NAME)                                                                                   \
-    guestFunctions_GTPs[GuestFunction_##NAME].addr =                                               \
-        (void *) MetaProc<::NAME, CProcKind_GuestFunction, CProcThunkPhase_GTP>::invoke;
+    guestFunctions_GTPs[GuestFunction_##NAME] = {                                                  \
+        #NAME,                                                                                     \
+        (void *) MetaProc<::NAME, CProcKind_GuestFunction, CProcThunkPhase_GTP>::invoke,           \
+    };
         LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
 #undef _F
 #define _F(NAME, TYPE)                                                                             \
-    hostCallbacks_GTPs[Callback_##NAME].addr =                                                     \
-        (void *) MetaProcCB<NAME, CProcKind_HostCallback, CProcThunkPhase_GTP>::invoke;
+    hostCallbacks_GTPs[Callback_##NAME] = {                                                        \
+        #NAME,                                                                                     \
+        (void *) MetaProcCB<NAME, CProcKind_HostCallback, CProcThunkPhase_GTP>::invoke,            \
+    };
         LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
 #define _F(NAME, TYPE)                                                                             \
-    guestCallbacks_GTPs[Callback_##NAME].addr =                                                    \
-        (void *) MetaProcCB<NAME, CProcKind_GuestCallback, CProcThunkPhase_GTP>::invoke;
+    guestCallbacks_GTPs[Callback_##NAME] = {                                                       \
+        #NAME,                                                                                     \
+        (void *) MetaProcCB<NAME, CProcKind_GuestCallback, CProcThunkPhase_GTP>::invoke,           \
+    };
         LORETHUNK_CALLBACK_FOREACH(_F)
+#undef _F
+
+#define _F(NAME) hostFunctions_HTPs[HostFunction_##NAME].name = #NAME;
+        LORETHUNK_HOST_FUNCTION_FOREACH(_F)
+#undef _F
+#define _F(NAME) guestFunctions_HTPs[GuestFunction_##NAME].name = #NAME;
+        LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
+#undef _F
+#define _F(NAME, TYPE) hostCallbacks_HTPs[Callback_##NAME].name = #NAME;
+        LORETHUNK_CALLBACK_FOREACH(_F)
+#undef _F
+#define _F(NAME, TYPE) guestCallbacks_HTPs[Callback_##NAME].name = #NAME;
+        LORETHUNK_CALLBACK_FOREACH(_F)
+#undef _F
+
+#define _F(NAME) libraryFunctions[GuestFunction_##NAME].name = #NAME;
+        LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
 #undef _F
     }
 

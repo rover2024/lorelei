@@ -16,17 +16,19 @@ namespace lore {
         HostServer *server = HostServer::instance();
 
         /// STEP: load host library
+        const char *path;
         {
             auto info = server->config().forwardThunk(_moduleName);
             if (!info) {
                 stdcCritical("[HTL] %1: failed to get thunk info", _moduleName);
                 std::abort();
             }
-            _handle = dlopen(info->get().hostLibrary.c_str(), RTLD_NOW);
+            path = info->get().hostLibrary.c_str();
+            _handle = dlopen(path, RTLD_NOW);
         }
 
         if (!_handle) {
-            stdcCritical("[HTL] %1: failed to load host library", _moduleName);
+            stdcCritical("[HTL] %1: failed to load host library", path);
             std::abort();
         }
 
@@ -37,8 +39,7 @@ namespace lore {
                 auto &entry = entries.arr[i];
                 entry.addr = dlsym(_handle, entry.name);
                 if (!entry.addr) {
-                    stdcCritical("[HTL] %1: failed to get proc address %2", _moduleName,
-                                 entry.name);
+                    stdcCritical("[HTL] %1: failed to get proc address %2", path, entry.name);
                     std::abort();
                 }
             }
@@ -48,20 +49,20 @@ namespace lore {
         {
             struct LoreThunk_HLContext {
                 void *AddressBoundary;
-                void (*HrtSetThreadCallback)(void *callback);
-                decltype(&LOREHOSTRT_pthread_create) HrtPThreadCreate;
-                decltype(&LOREHOSTRT_pthread_exit) HrtPThreadExit;
+                void (*SetThreadCallback)(void *callback);
+                decltype(&LOREHOSTRT_pthread_create) PThreadCreate;
+                decltype(&LOREHOSTRT_pthread_exit) PThreadExit;
                 void *CFIs[];
             };
             auto ctx = (LoreThunk_HLContext *) dlsym(_handle, "s_LoreThunk_HLContext");
             if (ctx) {
                 ctx->AddressBoundary = _procInfoCtx->emuAddr;
-                ctx->HrtSetThreadCallback = [](void *callback) {
+                ctx->SetThreadCallback = [](void *callback) {
                     extern thread_local void *thread_last_callback;
                     thread_last_callback = callback;
                 };
-                ctx->HrtPThreadCreate = LOREHOSTRT_pthread_create;
-                ctx->HrtPThreadExit = LOREHOSTRT_pthread_exit;
+                ctx->PThreadCreate = LOREHOSTRT_pthread_create;
+                ctx->PThreadExit = LOREHOSTRT_pthread_exit;
 
                 // initialize CFIs
                 auto &CFIs = _procInfoCtx->htpEntries[CProcKind_GuestCallback];
@@ -69,7 +70,7 @@ namespace lore {
                     ctx->CFIs[i] = CFIs.arr[i].addr;
                 }
             } else {
-                stdcWarning("[HTL] %1: host library is not a lorelei-patched library", _moduleName);
+                stdcWarning("[HTL] %1: host library is not a lorelei-patched library", path);
             }
         }
     }

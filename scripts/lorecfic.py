@@ -71,9 +71,9 @@ def main():
                     file = os.path.normpath(os.path.abspath(file))
                     files.add(file)
 
-    cfic_step1_tool = os.path.join(tool_dir, 'lorecfic_step1')
-    cfic_step2_tool = os.path.join(tool_dir, 'lorecfic_step2')
-    cfic_tool = os.path.join(tool_dir, 'lorecfic')
+    cfic_step1_tool = os.path.join(tool_dir, 'LoreCFIC_step1')
+    cfic_step2_tool = os.path.join(tool_dir, 'LoreCFIC_step2')
+    cfic_tool = os.path.join(tool_dir, 'LoreCFIC')
 
     if not os.path.exists(cfic_step1_tool) or not os.path.exists(cfic_step2_tool) or not os.path.exists(cfic_tool):
         print(f'Error: Lorelei CFI tools not found in {tool_dir}')

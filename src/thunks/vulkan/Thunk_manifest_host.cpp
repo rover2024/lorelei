@@ -13,7 +13,7 @@ namespace lorethunk {
     static PFN_vkVoidFunction vulkanApiGetReservedProc(const char *pName);
 
     template <>
-    struct MetaProc<vkCreateDebugReportCallbackEXT, _HFN, _HTP_IMPL> {
+    struct MetaProc<::vkCreateDebugReportCallbackEXT, _HFN, _HTP_IMPL> {
         static VkResult invoke(VkInstance instance,
                                const VkDebugReportCallbackCreateInfoEXT *pCreateInfo,
                                const VkAllocationCallbacks *pAllocator,
@@ -23,14 +23,14 @@ namespace lorethunk {
     };
 
     template <>
-    struct MetaProc<vkDestroyDebugReportCallbackEXT, _HFN, _HTP_IMPL> {
+    struct MetaProc<::vkDestroyDebugReportCallbackEXT, _HFN, _HTP_IMPL> {
         static void invoke(VkInstance instance, VkDebugReportCallbackEXT callback,
                            const VkAllocationCallbacks *pAllocator) {
         }
     };
 
     template <>
-    struct MetaProc<vkCreateInstance, _HFN, _HTP_IMPL> {
+    struct MetaProc<::vkCreateInstance, _HFN, _HTP_IMPL> {
         static VkResult invoke(const VkInstanceCreateInfo *pCreateInfo,
                                const VkAllocationCallbacks *pAllocator, VkInstance *pInstance) {
             // Remove debug callbacks from VkInstanceCreateInfo
@@ -50,7 +50,7 @@ namespace lorethunk {
     };
 
     template <>
-    struct MetaProc<vkGetInstanceProcAddr, _HFN, _HTP_IMPL> {
+    struct MetaProc<::vkGetInstanceProcAddr, _HFN, _HTP_IMPL> {
         static PFN_vkVoidFunction invoke(VkInstance instance, const char *pName) {
             PFN_vkVoidFunction ret = vulkanApiGetReservedProc(pName);
             if (!ret) {
@@ -61,7 +61,7 @@ namespace lorethunk {
     };
 
     template <>
-    struct MetaProc<vkGetDeviceProcAddr, _HFN, _HTP_IMPL> {
+    struct MetaProc<::vkGetDeviceProcAddr, _HFN, _HTP_IMPL> {
         static PFN_vkVoidFunction invoke(VkDevice device, const char *pName) {
             PFN_vkVoidFunction ret = vulkanApiGetReservedProc(pName);
             if (!ret) {

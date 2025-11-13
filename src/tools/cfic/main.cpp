@@ -195,7 +195,7 @@ public:
                 hashIndex = it->second.Index;
             }
             InsertionList.push_back(
-                {fixedRange.getBegin(), "LORELIB_CFI_" + std::to_string(hashIndex) + "(", false});
+                {fixedRange.getBegin(), "LORETHUNK_CFI_" + std::to_string(hashIndex) + "(", false});
             InsertionList.push_back({fixedRange.getEnd(), ")", true});
         }
 
@@ -227,31 +227,31 @@ public:
 //
 // CFI declarations begin
 //
-enum LoreLib_Constants {
-    LoreLib_CFI_Count = %d,
+enum LoreThunk_Constants {
+    LoreThunk_CFI_Count = %d,
 };
 
 struct LoreThunk_HLContext {
     void *AddressBoundary;
 
-    void (*HrtSetThreadCallback)(void *callback);
-    void *HrtPThreadCreate;
-    void *HrtPThreadExit;
+    void (*SetThreadCallback)(void *callback);
+    void *PThreadCreate;
+    void *PThreadExit;
 
-    void *CFIs[LoreLib_CFI_Count];
+    void *CFIs[LoreThunk_CFI_Count];
 };
 
 __attribute__((visibility("default"))) struct LoreThunk_HLContext s_LoreThunk_HLContext;
 
-#define LORELIB_CFI(INDEX, FP)                                                                          \
+#define LORETHUNK_CFI(INDEX, FP)                                                                          \
     ({                                                                                                  \
-        typedef __typeof__(FP) _LORELIB_CFI_TYPE;                                                       \
-        void *_lorelib_cfi_ret = (void *) (FP);                                                         \
-        if ((unsigned long) _lorelib_cfi_ret < (unsigned long) s_LoreThunk_HLContext.AddressBoundary) { \
-            s_LoreThunk_HLContext.HrtSetThreadCallback(_lorelib_cfi_ret);                               \
-            _lorelib_cfi_ret = (void *) s_LoreThunk_HLContext.CFIs[INDEX - 1];                          \
+        typedef __typeof__(FP) _LORETHUNK_CFI_TYPE;                                                       \
+        void *_lore_cfi_ret = (void *) (FP);                                                         \
+        if ((unsigned long) _lore_cfi_ret < (unsigned long) s_LoreThunk_HLContext.AddressBoundary) { \
+            s_LoreThunk_HLContext.SetThreadCallback(_lore_cfi_ret);                               \
+            _lore_cfi_ret = (void *) s_LoreThunk_HLContext.CFIs[INDEX - 1];                          \
         }                                                                                               \
-        (_LORELIB_CFI_TYPE) _lorelib_cfi_ret;                                                           \
+        (_LORETHUNK_CFI_TYPE) _lore_cfi_ret;                                                           \
     })
 )",
             fileName.string().c_str(), int(GlobalContext.Config.Signatures.size()));
@@ -261,7 +261,7 @@ __attribute__((visibility("default"))) struct LoreThunk_HLContext s_LoreThunk_HL
         for (const auto &pair : std::as_const(CFIInfoMap)) {
             auto &info = pair.second;
             out << "// decl: " << info.Signature << "\n";
-            out << llvm::format("#define LORELIB_CFI_%d(FP) LORELIB_CFI(%d, FP)\n", info.Index,
+            out << llvm::format("#define LORETHUNK_CFI_%d(FP) LORETHUNK_CFI(%d, FP)\n", info.Index,
                                 info.Index);
             out << "\n";
         }

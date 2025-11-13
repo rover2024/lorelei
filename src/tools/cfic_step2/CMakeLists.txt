@@ -1,8 +1,10 @@
-project(lorecfic_step2)
+project(LoreCFIC_step2)
 
-file(GLOB_RECURSE _src *.h *.cpp)
+file(GLOB_RECURSE _src *.h *.c *.cpp)
 add_executable(${PROJECT_NAME} ${_src})
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
-
-lorelei_install_tool(${PROJECT_NAME})
+lore_include_recursive(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+lore_configure_target_common(${PROJECT_NAME})
+lore_configure_tool(${PROJECT_NAME})
