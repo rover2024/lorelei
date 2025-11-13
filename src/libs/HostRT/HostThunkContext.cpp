@@ -5,7 +5,7 @@
 #include <stdcorelib/support/logging.h>
 
 #include "HostServer.h"
-#include "MultiThreading_p.h"
+#include "MultiThreading.h"
 
 namespace lore {
 

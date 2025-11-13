@@ -8,5 +8,7 @@ set(ALL_extra_includes
 )
 set(GTL_alias libSDL2.so libSDL2-2.0.so.0)
 set(GTL_extra_links dl)
+set(GTL_extra_options -Wno-deprecated-declarations)
+set(HTL_extra_options -Wno-deprecated-declarations)
 
 add_thunk()

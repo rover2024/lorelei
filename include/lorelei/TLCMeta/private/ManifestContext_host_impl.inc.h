@@ -41,7 +41,7 @@ namespace lorethunk {
 
 extern "C" {
 
-LORETHUNK_EXPORT void __LORETHUNK_exchange(CStaticProcInfoContext *ctx) {
+LORETHUNK_EXPORT void LORETHUNK_exchange(CStaticProcInfoContext *ctx) {
     using namespace lorethunk::proc;
 
     const auto &copyProcs = [](CStaticProcInfo *src, CStaticProcInfo *dest, size_t size) {

@@ -33,7 +33,7 @@ namespace lore {
 
         /// STEPS: exchange thunks
         {
-            void *init = client->getProcAddress(_handle, "__LORETHUNK_exchange");
+            void *init = client->getProcAddress(_handle, "LORETHUNK_exchange");
             if (!init) {
                 stdcCritical("[GTL] %1: failed to get init proc", _moduleName);
                 std::abort();

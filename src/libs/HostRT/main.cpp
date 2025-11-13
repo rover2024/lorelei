@@ -93,13 +93,13 @@ namespace lore {
             }
 
             std::map<std::string, std::string> configVars = {
-                {"ROOT",    rootDir.string()                                          },
-                {"GUEST_ROOT", guestRootDir.string()                                  },
-                {"HOME",    std::getenv("HOME")                                       },
-                {"GTL_DIR", (guestRootDir / "lib" / "x86_64-loreg-linux-gnu").string()},
-                {"HTL_DIR", (rootDir / "lib" / _ARCH "-loreh-linux-gnu").string()     },
-                {"ARCH",    _ARCH                                                     },
-                {"SYSLIB",  sysLibDir                                                 },
+                {"ROOT",       rootDir.string()                                          },
+                {"GUEST_ROOT", guestRootDir.string()                                     },
+                {"HOME",       std::getenv("HOME")                                       },
+                {"GTL_DIR",    (guestRootDir / "lib" / "x86_64-loreg-linux-gnu").string()},
+                {"HTL_DIR",    (rootDir / "lib" / _ARCH "-loreh-linux-gnu").string()     },
+                {"ARCH",       _ARCH                                                     },
+                {"SYSLIB",     sysLibDir                                                 },
             };
             if (auto config_vars_str = std::getenv("LORELEI_THUNKS_CONFIG_VARIABLES");
                 config_vars_str) {
@@ -177,32 +177,35 @@ namespace lore {
 
 }
 
-extern "C" {
-LOREHOSTRT_EXPORT uint64_t LOREHOSTRT_dispatchSyscall(uint64_t num, uint64_t a1, uint64_t a2,
-                                                      uint64_t a3, uint64_t a4, uint64_t a5,
-                                                      uint64_t a6) {
+// implementation of "EmulatorIntegration"
+#include "EmulatorIntegration.h"
+
+uint64_t LOREHOSTRT_dispatchSyscall(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
+                                    uint64_t a4, uint64_t a5, uint64_t a6) {
     return lore::runtime_instance.server.dispatch(num, a1, a2, a3, a4, a5, a6);
 }
 
-LOREHOSTRT_EXPORT void LOREHOSTRT_setRunTaskEntry(lore::HostServer::RunTaskEntry runTask) {
-    lore::HostServer::setRunTaskEntry(runTask);
+void LOREHOSTRT_setRunTaskEntry(void *runTask) {
+    lore::HostServer::setRunTaskEntry((lore::HostServer::RunTaskEntry) runTask);
 }
 
-LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadEntry() {
+void LOREHOSTRT_notifyThreadEntry() {
     using namespace lore;
     timing_last_tick = rdtsc();
 }
 
-LOREHOSTRT_EXPORT void LOREHOSTRT_notifyThreadExit() {
+void LOREHOSTRT_notifyThreadExit() {
     using namespace lore;
     uint64_t t = rdtsc();
     timing_total_ticks = t - timing_total_ticks;
     stdcInfoF("TICKS: host=%lu, total=%lu\n", timing_ticks, timing_total_ticks);
 }
-}
+
 
 // implementation of "MultiThreading"
-#include "MultiThreading_p.h"
+#include "MultiThreading.h"
+
+using PFN_GetLastPThreadId = pthread_t (*)(void);
 
 static PFN_GetLastPThreadId s_getLastPThreadId = nullptr;
 
