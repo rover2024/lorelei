@@ -1,8 +1,9 @@
 #include <cassert>
 
+#include <lorelei/TLCMeta/ManifestConfig.h>
+#include <lorelei/TLCMeta/ManifestlGlobal.h>
 #include <lorelei/TLCMeta/MetaConfig.h>
 #include <lorelei/TLCMeta/MetaProc.h>
-#include <lorelei/TLCMeta/ManifestlGlobal.h>
 
 #include <lorelei/GuestRT/GuestThunkContext.h>
 #include <lorelei/GuestRT/GuestClient.h>

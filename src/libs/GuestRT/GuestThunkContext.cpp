@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include <lorelei/TLCMeta/ManifestConfig.h>
+
 #include <stdcorelib/support/logging.h>
 
 #include "GuestClient.h"
@@ -33,6 +35,7 @@ namespace lore {
             std::abort();
         }
 
+#ifndef LORETHUNK_CONFIG_GUEST_FUNCTION_STATIC_LINK
         /// STEP: initialize GTL library functions
         {
             auto &entries = _procInfoCtx->libEntries;
@@ -40,11 +43,14 @@ namespace lore {
                 auto &entry = entries.arr[i];
                 entry.addr = dlsym(nullptr, entry.name);
                 if (!entry.addr) {
-                    stdcCritical("[GTL] %1: failed to get proc address %2", path, entry.name);
-                    std::abort();
+                    stdcCritical("[GTL] %1: failed to get proc address %2", _moduleName,
+                                 entry.name);
+                    reinterpret_cast<int *>(0)[0] = 0;
+                    // std::abort();
                 }
             }
         }
+#endif
 
         /// STEPS: exchange thunks
         {

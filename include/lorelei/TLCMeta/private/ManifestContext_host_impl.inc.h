@@ -43,9 +43,19 @@ namespace lorethunk::proc {
         LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-#define _F(NAME) libraryFunctions[HostFunction_##NAME].name = #NAME;
+#ifndef LORETHUNK_CONFIG_HOST_FUNCTION_STATIC_LINK
+#  define _F(NAME) libraryFunctions[HostFunction_##NAME].name = #NAME;
         LORETHUNK_HOST_FUNCTION_FOREACH(_F)
-#undef _F
+#  undef _F
+#else
+#  define _F(NAME)                                                                                 \
+      libraryFunctions[HostFunction_##NAME] = {                                                    \
+          #NAME,                                                                                   \
+          (void *) ::NAME,                                                                         \
+      };
+        LORETHUNK_HOST_FUNCTION_FOREACH(_F)
+#  undef _F
+#endif
 
         staticProcInfoContext.emuAddr = (void *) server->runTaskEntry();
     }

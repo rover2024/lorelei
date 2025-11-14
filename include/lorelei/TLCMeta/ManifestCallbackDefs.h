@@ -45,6 +45,9 @@ namespace lorethunk {
               size_t Count = kMaxCallbackTrampolineCount>
     static auto allocCallbackTrampoline(void *input) {
         using ReturnType = decltype(F);
+        if (!input) {
+            return (ReturnType) nullptr;
+        }
         static thread_local lore::CallbackTrampolineTable *trampoline = nullptr;
         if (!trampoline) {
             trampoline = lore::CallbackTrampolineTable::create(Count, (void *) F);

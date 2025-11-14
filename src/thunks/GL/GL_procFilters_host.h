@@ -35,12 +35,7 @@ namespace lorethunk {
         template <class MetaDesc, CProcKind ProcKind, class... Args>
         static void filter(::Display *&display, MetaProcArgContext<Args...> ctx) {
             if constexpr (CProcKind_isHost(ProcKind)) {
-                display = lore::midware::host::X11::Display_H2G(display);
-                if (!display) {
-                    display = GTL_XOpenDisplay(nullptr);
-                    GTL_XSync(display, false);
-                    lore::midware::host::X11::Display_G2H(display);
-                }
+                display = lore::midware::host::X11::Display_H2G(display, GTL_XOpenDisplay);
             }
         }
     };

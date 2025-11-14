@@ -2,6 +2,8 @@
 
 #include <dlfcn.h>
 
+#include <lorelei/TLCMeta/ManifestConfig.h>
+
 #include <stdcorelib/support/logging.h>
 
 #include "HostServer.h"
@@ -32,6 +34,7 @@ namespace lore {
             std::abort();
         }
 
+#ifndef LORETHUNK_CONFIG_HOST_FUNCTION_STATIC_LINK
         /// STEP: initialize real library functions
         {
             auto &entries = _procInfoCtx->libEntries;
@@ -44,6 +47,7 @@ namespace lore {
                 }
             }
         }
+#endif
 
         /// STEP: initialize host library context
         {

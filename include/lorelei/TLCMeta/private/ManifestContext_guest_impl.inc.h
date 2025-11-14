@@ -43,15 +43,24 @@ namespace lorethunk::proc {
         LORETHUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-#define _F(NAME) libraryFunctions[GuestFunction_##NAME].name = #NAME;
+#ifndef LORETHUNK_CONFIG_GUEST_FUNCTION_STATIC_LINK
+#  define _F(NAME) libraryFunctions[GuestFunction_##NAME].name = #NAME;
         LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
-#undef _F
+#  undef _F
+#else
+#  define _F(NAME)                                                                                 \
+      libraryFunctions[GuestFunction_##NAME] = {                                                   \
+          #NAME,                                                                                   \
+          (void *) ::NAME,                                                                         \
+      };
+        LORETHUNK_GUEST_FUNCTION_FOREACH(_F)
+#  undef _F
+#endif
     }
 
     void LocalThunkContext::postInitialize() {
         LTC.callChecker.setEmuAddr(staticProcInfoContext.emuAddr);
     }
-
 }
 
 namespace lorethunk {

@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #ifdef Success
-#undef Success
+#  undef Success
 #endif
 #include <stdcorelib/support/logging.h>
 #define Success 0
@@ -28,18 +28,12 @@ namespace {
 
     // https://github.com/OFFTKP/felix86/blob/2c36eabb087b7963985e31137de6d0bbe29d0739/src/felix86/hle/thunks.cpp#L154
     Display *guestToHostDisplay(Display *guest_display) {
-        if (guest_display == nullptr) {
-            return nullptr;
-        }
-
         std::lock_guard<std::mutex> guard(display_map_mu);
         if (auto it = g2h_display.find(guest_display); it != g2h_display.end()) {
             return it->second;
         }
         Display *host_display = XOpenDisplay(guest_display->display_name);
         if (host_display == nullptr) {
-            stdcWarningF("[HMW] X11: failed to open host display for guest display: %s",
-                         guest_display->display_name);
             return nullptr;
         }
         g2h_display[guest_display] = host_display;
@@ -49,23 +43,15 @@ namespace {
 
     // https://github.com/OFFTKP/felix86/blob/2c36eabb087b7963985e31137de6d0bbe29d0739/src/felix86/hle/thunks.cpp#L180
     Display *hostToGuestDisplay(Display *host_display) {
-        if (host_display == nullptr) {
-            return nullptr;
-        }
         std::lock_guard<std::mutex> guard(display_map_mu);
         if (auto it = h2g_display.find(host_display); it != h2g_display.end()) {
             return it->second;
         }
-        // stdcWarningF("[HMW] X11: failed to find guest display for host display: %s",
-        //              host_display->display_name);
         return nullptr;
     }
 
     // https://github.com/OFFTKP/felix86/blob/2c36eabb087b7963985e31137de6d0bbe29d0739/src/felix86/hle/thunks.cpp#L216
     XVisualInfo *guestToHostVisualInfo(Display *host_display, XVisualInfo *guest_info) {
-        if (guest_info == nullptr) {
-            return nullptr;
-        }
         XVisualInfo v;
         v.screen = guest_info->screen;
         v.visualid = guest_info->visualid;
@@ -98,18 +84,49 @@ namespace {
 namespace lore::midware::host {
 
     Display *X11::Display_G2H(Display *display) {
-        return guestToHostDisplay(display);
+        if (!display) {
+            return nullptr;
+        }
+
+        auto host_display = guestToHostDisplay(display);
+        if (!host_display) {
+            stdcWarningF("[HMW] X11: failed to open host display for guest display: %s",
+                         display->display_name);
+            return nullptr;
+        }
+        return host_display;
     }
 
-    Display *X11::Display_H2G(Display *display) {
-        return hostToGuestDisplay(display);
+    Display *X11::Display_H2G(Display *display, Display *(*guest_open)(const char *) ) {
+        if (!display) {
+            return nullptr;
+        }
+        if (auto guest_display = hostToGuestDisplay(display); guest_display) {
+            return guest_display;
+        }
+        if (guest_open) {
+            auto guest_display = guest_open(display->display_name);
+            if (guest_display) {
+                std::ignore = guestToHostDisplay(guest_display);
+                return guest_display;
+            }
+        }
+        stdcWarningF("[HMW] X11: failed to find guest display for host display: %s",
+                     display->display_name);
+        return nullptr;
     }
 
     XVisualInfo *X11::VisualInfo_G2H(Display *display, XVisualInfo *visualInfo) {
+        if (!visualInfo) {
+            return nullptr;
+        }
         return guestToHostVisualInfo(display, visualInfo);
     }
 
     XVisualInfo *X11::VisualInfo_H2G(Display *display, XVisualInfo *visualInfo) {
+        if (!visualInfo) {
+            return nullptr;
+        }
         return hostToGuestVisualInfo(visualInfo);
     }
 
