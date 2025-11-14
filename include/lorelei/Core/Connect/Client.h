@@ -134,7 +134,7 @@ namespace lore {
             invokeProc(proc, CONV_STANDARD, opaque);
         }
 
-        inline void invokeStandardCallback(void *callback, void *proc, void **args, void *ret,
+        inline void invokeStandardCallback(void *proc, void *callback, void **args, void *ret,
                                            void *metadata) {
             void *opaque[] = {callback, (void *) args, ret, metadata};
             invokeProc(proc, CONV_STANDARD_CALLBACK, opaque);

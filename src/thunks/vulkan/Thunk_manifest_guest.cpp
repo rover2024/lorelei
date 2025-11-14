@@ -1,7 +1,7 @@
 #include "Thunk_procs_desc.h"
 #include <lorelei/TLCMeta/ManifestContext_guest.inc.h>
 
-// #define LORETHUNK_CALLBACK_REPLACE
+#define LORETHUNK_CALLBACK_REPLACE
 
 #include <map>
 #include <string>
@@ -108,7 +108,9 @@ namespace lorethunk {
                 std::abort();
                 return nullptr;
             }
+            void *host_ret = (void *) ret;
             ret = (PFN_vkVoidFunction) pFnAlloc((void *) ret);
+            printf("GTP vkGetInstanceProcAddr: name=%s, host_ret=%p, guest_ret=%p\n", pName, host_ret, (void *) ret);
             return ret;
         }
     };
