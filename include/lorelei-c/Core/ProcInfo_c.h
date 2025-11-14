@@ -4,6 +4,12 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
+#  define _PROCINFO_CONSTEXPR constexpr
+#else
+#  define _PROCINFO_CONSTEXPR
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -15,12 +21,30 @@ enum CProcKind {
     CProcKind_NumProcKind,
 };
 
+static inline _PROCINFO_CONSTEXPR bool CProcKind_isHost(CProcKind kind) {
+    return kind == CProcKind_HostFunction || kind == CProcKind_HostCallback;
+}
+
+static const char *CProcKindNames[CProcKind_NumProcKind] = {
+    "HostFunction",
+    "GuestFunction",
+    "HostCallback",
+    "GuestCallback",
+};
+
 enum CProcThunkPhase {
     CProcThunkPhase_GTP,      /// Guest Thunk Proc
     CProcThunkPhase_GTP_IMPL, /// Guest Thunk Proc Implementation
     CProcThunkPhase_HTP,      /// Host Thunk Proc
     CProcThunkPhase_HTP_IMPL, /// Host Thunk Proc Implementation
     CProcThunkPhase_NumThunkPhase,
+};
+
+static const char *CProcThunkPhaseNames[CProcThunkPhase_NumThunkPhase] = {
+    "GTP",
+    "GTP_IMPL",
+    "HTP",
+    "HTP_IMPL",
 };
 
 struct CStaticProcInfo {

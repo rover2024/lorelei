@@ -62,7 +62,7 @@ namespace lorethunk {
 
     template <>
     struct MetaProcArgFilter<const ::VkAllocationCallbacks *> {
-        template <class MetaDesc, size_t Index, class... Args>
+        template <class MetaDesc, size_t Index, CProcKind ProcKind, class... Args>
         static void filter(const VkAllocationCallbacks *&pAllocator,
                            MetaProcArgContext<Args...> ctx) {
             pAllocator = nullptr;

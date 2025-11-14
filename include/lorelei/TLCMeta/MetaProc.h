@@ -80,7 +80,7 @@ namespace lorethunk {
     struct MetaProcArgFilter {
         using type = T;
 
-        template <class MetaDesc, size_t Index, class... Args>
+        template <class MetaDesc, size_t Index, CProcKind ProcKind, class... Args>
         static constexpr void filter(T &arg, MetaProcArgContext<Args...> ctx) {
             static_assert(Index < sizeof...(Args), "Index out of range");
         }
@@ -91,7 +91,7 @@ namespace lorethunk {
     struct MetaProcReturnFilter {
         using type = T;
 
-        template <class MetaDesc, class... Args>
+        template <class MetaDesc, CProcKind ProcKind, class... Args>
         static constexpr void filter(T &ret, MetaProcArgContext<Args...> ctx) {
             // Do nothing
         }

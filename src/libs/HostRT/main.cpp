@@ -205,20 +205,28 @@ void LOREHOSTRT_notifyThreadExit() {
 // implementation of "MultiThreading"
 #include "MultiThreading.h"
 
-using PFN_GetLastPThreadId = pthread_t (*)(void);
+struct LORE_HOST_THREAD_CONTEXT {
+    const pthread_attr_t *last_attr;
+    pthread_t last_tid;
+};
 
-static PFN_GetLastPThreadId s_getLastPThreadId = nullptr;
+using PFN_GetThreadContext = LORE_HOST_THREAD_CONTEXT *(*)(void);
 
-void LOREHOSTRT_setGetLastPThreadId(PFN_GetLastPThreadId getLastPThreadId) {
-    s_getLastPThreadId = getLastPThreadId;
+static PFN_GetThreadContext s_getThreadContext = nullptr;
+
+void LOREHOSTRT_setGetThreadContext(void *getter) {
+    s_getThreadContext = (PFN_GetThreadContext) getter;
 }
 
 int LOREHOSTRT_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                               void *(*start_routine)(void *), void *arg) {
+    auto &thread_ctx = *s_getThreadContext();
+    thread_ctx.last_attr = attr;
+
     int ret;
     lore::runtime_instance.server.runTaskPthreadCreate(thread, (void *) attr,
                                                        (void *) start_routine, arg, &ret);
-    *thread = s_getLastPThreadId();
+    *thread = thread_ctx.last_tid;
     return ret;
 }
 

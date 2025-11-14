@@ -33,6 +33,19 @@ namespace lore {
             std::abort();
         }
 
+        /// STEP: initialize GTL library functions
+        {
+            auto &entries = _procInfoCtx->libEntries;
+            for (size_t i = 0; i < entries.size; ++i) {
+                auto &entry = entries.arr[i];
+                entry.addr = dlsym(nullptr, entry.name);
+                if (!entry.addr) {
+                    stdcCritical("[GTL] %1: failed to get proc address %2", path, entry.name);
+                    std::abort();
+                }
+            }
+        }
+
         /// STEPS: exchange thunks
         {
             void *init = client->getProcAddress(_handle, "LORETHUNK_exchange");

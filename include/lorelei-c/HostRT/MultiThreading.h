@@ -9,8 +9,10 @@
 
 extern "C" {
 
-LOREHOSTRT_EXPORT void LOREHOSTRT_setGetLastPThreadId(pthread_t (*getLastPThreadId)(void));
+// Called by the emulator.
+LOREHOSTRT_EXPORT void LOREHOSTRT_setGetThreadContext(void *getter);
 
+// Called by the host libraries.
 LOREHOSTRT_EXPORT int  LOREHOSTRT_pthread_create(pthread_t *thread,
                                                  const pthread_attr_t *attr,
                                                  void *(*start_routine)(void *), void *arg);

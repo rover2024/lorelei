@@ -12,42 +12,8 @@ namespace TLC {
     std::string ProcContext::text(CProcThunkPhase phase, bool decl, clang::ASTContext &ast) const {
         auto &source = _sources[phase];
 
-        const char *phaseStr;
-        switch (phase) {
-            case CProcThunkPhase_GTP:
-                phaseStr = "GTP";
-                break;
-            case CProcThunkPhase_GTP_IMPL:
-                phaseStr = "GTP_IMPL";
-                break;
-            case CProcThunkPhase_HTP:
-                phaseStr = "HTP";
-                break;
-            case CProcThunkPhase_HTP_IMPL:
-                phaseStr = "HTP_IMPL";
-                break;
-            default:
-                break;
-        }
-
-        const char *kindStr;
-        switch (_procKind) {
-            case CProcKind_HostFunction:
-                kindStr = "HostFunction";
-                break;
-            case CProcKind_GuestFunction:
-                kindStr = "GuestFunction";
-                break;
-            case CProcKind_HostCallback:
-                kindStr = "HostCallback";
-                break;
-            case CProcKind_GuestCallback:
-                kindStr = "GuestCallback";
-                break;
-            default:
-                break;
-        }
-
+        const char *kindStr = CProcKindNames[_procKind];
+        const char *phaseStr = CProcThunkPhaseNames[phase];
         std::string res;
         if (decl) {
             res += "template <>\n";

@@ -12,7 +12,7 @@ namespace lorethunk {
 
     template <>
     struct MetaConfig<MCS_User> {
-        _DESC char moduleName[] = "zstd";
+        _DESC char moduleName[] = "libzstd";
     };
 
 }

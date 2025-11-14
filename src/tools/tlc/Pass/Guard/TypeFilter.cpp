@@ -140,27 +140,28 @@ namespace TLC {
 
         bool isCallback =
             proc.procKind() == CProcKind_HostCallback || proc.procKind() == CProcKind_GuestCallback;
+        const char *procKind_str = CProcKindNames[proc.procKind()];
 
         const auto &getArgFilterStatement = [&](size_t idx) {
-            return stdc::formatN("MetaProcArgFilter<%2>::filter<%3<%4>, %5>"
-                                 "(%1, MetaProcArgContext(%6));",
-                                 FI.argumentName(idx),
-                                 getTypeString(real.argTypes()[idx].getCanonicalType()),
-                                 isCallback ? "MetaProcCBDesc" : "MetaProcDesc",
-                                 (isCallback ? "" : "::") + proc.name(), idx, SRC_callList(FI));
+            return stdc::formatN(
+                "MetaProcArgFilter<%2>::filter<%3<%4>, %5, CProcKind_%6>"
+                "(%1, MetaProcArgContext(%7));",
+                FI.argumentName(idx), getTypeString(real.argTypes()[idx].getCanonicalType()),
+                isCallback ? "MetaProcCBDesc" : "MetaProcDesc",
+                (isCallback ? "" : "::") + proc.name(), idx, procKind_str, SRC_callList(FI));
         };
 
         const auto &getRetFilterStatement = [&]() {
-            return stdc::formatN("MetaProcReturnFilter<%1>::filter<%2<%3>>"
-                                 "(ret, MetaProcArgContext(%4));",
+            return stdc::formatN("MetaProcReturnFilter<%1>::filter<%2<%3>, CProcKind_%4>"
+                                 "(ret, MetaProcArgContext(%5));",
                                  getTypeString(real.returnType().getCanonicalType()),
                                  isCallback ? "MetaProcCBDesc" : "MetaProcDesc",
-                                 (isCallback ? "" : "::") + proc.name(), SRC_callList(FI));
+                                 (isCallback ? "" : "::") + proc.name(), procKind_str,
+                                 SRC_callList(FI));
         };
 
         {
-            bool isHost = proc.procKind() == CProcKind_HostFunction ||
-                          proc.procKind() == CProcKind_HostCallback;
+            bool isHost = CProcKind_isHost(proc.procKind());
 
             auto &XTP = isHost ? GTP : HTP;
             auto &XTP_IMPL = isHost ? GTP_IMPL : HTP_IMPL;

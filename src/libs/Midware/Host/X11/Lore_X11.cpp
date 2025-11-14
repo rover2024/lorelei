@@ -56,8 +56,8 @@ namespace {
         if (auto it = h2g_display.find(host_display); it != h2g_display.end()) {
             return it->second;
         }
-        stdcWarningF("[HMW] X11: failed to find guest display for host display: %s",
-                     host_display->display_name);
+        // stdcWarningF("[HMW] X11: failed to find guest display for host display: %s",
+        //              host_display->display_name);
         return nullptr;
     }
 
