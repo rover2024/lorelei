@@ -63,7 +63,7 @@ namespace lore {
             if (it == _forwardThunkMap.end()) {
                 return {};
             }
-            return _forwardThunks.at(it->second);
+            return _forwardThunks[it->second];
         }
 
         std::optional<std::reference_wrapper<const ReversedThunkInfo>>
@@ -72,7 +72,7 @@ namespace lore {
             if (it == _reversedThunkMap.end()) {
                 return {};
             }
-            return _reversedThunks.at(it->second);
+            return _reversedThunks[it->second];
         }
 
     protected:

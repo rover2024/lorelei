@@ -19,7 +19,7 @@ namespace lore {
 #  define _ARCH "riscv64"
 #endif
 
-    static const char kSystemLibraryDir[] = "/usr/lib/" _ARCH "-linux-gnu/";
+    static const char kSystemLibraryDir[] = "/usr/lib/" _ARCH "-linux-gnu";
 
     static void logCallback(int level, const stdc::LogContext &ctx, const std::string_view &s);
 

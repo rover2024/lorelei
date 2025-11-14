@@ -29,6 +29,14 @@
                 "libOpenGL",
                 "libGL"
             ]
+        },
+        {
+            "name": "libGLX_mesa",
+            "fileName": "libGLX_mesa.so.0",
+            "thunks": [
+                "libGLX",
+                "libGL"
+            ]
         }
     ]
 }

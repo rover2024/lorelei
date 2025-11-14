@@ -278,8 +278,8 @@ namespace lore {
                     const char *function;
                     const char *category;
                 };
-                auto context = (const CLogContext *) a2;
-                auto msg = (const char *) a3;
+                auto context = (const CLogContext *) a3;
+                auto msg = (const char *) a4;
 
                 // align
                 stdc::LogContext new_ctx(context->file, context->line, context->function,
@@ -448,14 +448,14 @@ namespace lore {
 
                 auto &ctx = thread_ctx;
                 if (isReserve) {
-                    auto it = _config.reversedThunk(path);
+                    auto it = _config.reversedThunk(name);
                     if (!it) {
                         ret->reversed = nullptr;
                     } else {
                         ret->reversed = (CReversedThunkInfo *) &it.value().get().cinfo();
                     }
                 } else {
-                    auto it = _config.forwardThunk(path);
+                    auto it = _config.forwardThunk(name);
                     if (!it) {
                         ret->forward = nullptr;
                     } else {

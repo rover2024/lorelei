@@ -110,7 +110,6 @@ namespace lorethunk {
             }
             void *host_ret = (void *) ret;
             ret = (PFN_vkVoidFunction) pFnAlloc((void *) ret);
-            printf("GTP vkGetInstanceProcAddr: name=%s, host_ret=%p, guest_ret=%p\n", pName, host_ret, (void *) ret);
             return ret;
         }
     };
