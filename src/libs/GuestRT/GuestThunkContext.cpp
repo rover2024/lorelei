@@ -13,6 +13,10 @@
 namespace lore {
 
     GuestThunkContext::~GuestThunkContext() {
+        if (_handle) {
+            GuestClient *client = GuestClient::instance();
+            std::ignore = client->freeLibrary(_handle);
+        }
     }
 
     void GuestThunkContext::initialize() {

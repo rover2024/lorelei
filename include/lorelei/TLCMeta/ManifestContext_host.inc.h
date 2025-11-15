@@ -175,6 +175,9 @@ namespace lorethunk {
         }
         template <typename... Args>
         static inline auto invoke(Args &&...args) {
+            // auto f = fopen("/tmp/1.txt", "a");
+            // fprintf(f, "HostFunction: %s\n", proc::hostFunctions_HTPs[proc::getHostFunctionIndex<F>()].name);
+            // fclose(f);
             return ((lore::remove_attr_t<F>) get())(args...);
         }
 #  endif
@@ -198,6 +201,9 @@ namespace lorethunk {
     struct MetaProcCBExec<F, CProcKind_HostCallback> {
         template <class... Args>
         static inline auto invoke(void *callback, Args &&...args) {
+            // auto f = fopen("/tmp/1.txt", "a");
+            // fprintf(f, "HostCallback: %s\n", proc::hostCallbacks_HTPs[proc::getCallbackIndex<F>()].name);
+            // fclose(f);
             return ((F) callback)(args...);
         }
     };

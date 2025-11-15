@@ -94,6 +94,8 @@ def main():
 
     compile_commands = CompileCommand.from_json(compile_commands_file)
     compile_commands_count = len(compile_commands)
+
+    processed_files = set()
     for i in range(0, compile_commands_count):
         compile_command = compile_commands[i]
 
@@ -106,6 +108,12 @@ def main():
         if len(files) > 0 and not source_file in files:
             print('SKIPPED')
             continue
+        
+        if source_file in processed_files:
+            print('SKIPPED (processed)')
+            continue
+        
+        processed_files.add(source_file)
 
         temp_file_org = os.path.join(os.path.dirname(source_file), f'{get_name_without_ext(filename)}__cfic_tmp_org__.c')
         temp_file_pp = os.path.join(os.path.dirname(source_file), f'{get_name_without_ext(filename)}__cfic_tmp_pp__.c')

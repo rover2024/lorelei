@@ -50,6 +50,9 @@ namespace TLC {
         const std::map<std::string, clang::QualType> &callbacks() const {
             return _callbacks;
         }
+        const std::map<std::string, llvm::SmallVector<std::string, 10>> &callbackTraceInfos() const {
+            return _callbackTraceInfos;
+        }
 
         /// Result metadata
         bool isHost() const {
@@ -73,6 +76,7 @@ namespace TLC {
 
         std::map<std::string, const clang::FunctionDecl *> _guestFunctions;
         std::map<std::string, clang::QualType> _callbacks;
+        std::map<std::string, llvm::SmallVector<std::string, 10>> _callbackTraceInfos;
 
         std::set<std::string> _missingFunctions;
         std::set<std::string> _missingVars;

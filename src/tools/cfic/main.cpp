@@ -18,6 +18,8 @@
 
 #include <lorelei/TLC/AST/TypeExtras.h>
 
+#include <stdcorelib/str.h>
+
 using namespace clang;
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -42,7 +44,7 @@ public:
             std::string line;
             int i = 0;
             while (std::getline(iss, line)) {
-                if (line.empty()) {
+                if (line.empty() || stdc::starts_with(line, "#")) {
                     continue;
                 }
                 config.Signatures[line] = ++i;

@@ -191,7 +191,30 @@ namespace TLC::commands::thunkGen {
 
     private:
         void generateCallbacks(llvm::raw_ostream &os) {
+            const auto &callbackTrace =
+                [](const SmallVectorImpl<std::string> &origin) -> std::string {
+                if (origin.empty()) {
+                    return {};
+                }
+                std::string res;
+                res += "# " + origin[0];
+                for (size_t i = 1; i < origin.size(); ++i) {
+                    res += "\n# " + std::string(i * 2, ' ') + origin[i];
+                }
+                return res;
+            };
+            size_t i = 0;
             for (auto &pair : g_ctx.docCtx.callbacks()) {
+                os << "# [" << i++ << "] " << "\n";
+
+                if (auto it = g_ctx.docCtx.callbackTraceInfos().find(pair.first);
+                    it != g_ctx.docCtx.callbackTraceInfos().end()) {
+                    os << callbackTrace(it->second) << "\n";
+                } else if (auto it =
+                               g_ctx.docCtx.procContexts(CProcKind_GuestCallback).find(pair.first);
+                           it != g_ctx.docCtx.procContexts(CProcKind_GuestCallback).end()) {
+                    os << "# " << it->second->name() << "\n";
+                }
                 os << getTypeString(pair.second.getCanonicalType()) << "\n";
             }
         }

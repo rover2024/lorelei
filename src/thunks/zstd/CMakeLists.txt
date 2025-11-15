@@ -1,4 +1,3 @@
-
 project(zstd)
 
 include("../ThunkAPI.cmake")

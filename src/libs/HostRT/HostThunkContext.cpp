@@ -12,6 +12,9 @@
 namespace lore {
 
     HostThunkContext::~HostThunkContext() {
+        if (_handle) {
+            std::ignore = dlclose(_handle);
+        }
     }
 
     void HostThunkContext::initialize() {

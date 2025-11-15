@@ -296,6 +296,7 @@ namespace lore {
                 auto path = (const char *) a[0];
                 auto flags = (int) (uintptr_t) a[1];
                 *ret = dlopen(path, flags);
+                printf("[HRT] load library: %s\n", path);
                 return 0;
             }
 
@@ -305,6 +306,11 @@ namespace lore {
                 auto ret = (int *) a3;
 
                 auto handle = a[0];
+                if (struct link_map * lm; dlinfo(handle, RTLD_DI_LINKMAP, &lm) == 0) {
+                    if (lm->l_name && lm->l_name[0] != '\0') {
+                        printf("[HRT] free library: %s", lm->l_name);
+                    }
+                }
                 *ret = dlclose(handle);
                 return 0;
             }

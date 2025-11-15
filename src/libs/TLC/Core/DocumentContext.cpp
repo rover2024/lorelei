@@ -350,23 +350,33 @@ namespace TLC {
 
         /// STEP: Collect callbacks in function arguments and return types
         {
-            SmallVector<QualType> stack;
-            const auto &pushFunctionView = [&](const FunctionTypeView &func) {
-                stack.push_back(func.returnType());
-                for (const auto &argType : func.argTypes()) {
-                    stack.push_back(argType);
+            struct TypeTrace {
+                QualType type;
+                SmallVector<std::string, 10> origin;
+            };
+            SmallVector<TypeTrace, 4096> stack;
+            const auto &pushFunctionView = [&](const FunctionTypeView &func,
+                                               const std::string &name) {
+                std::string originPrefix = name + "[" +
+                                           getTypeString(_ast->getPointerType(
+                                               func.buildQualType(*_ast).getCanonicalType())) +
+                                           "]";
+                stack.push_back({func.returnType(), {originPrefix + "@ret"}});
+                const auto &argTypes = func.argTypes();
+                for (size_t i = 0; i < argTypes.size(); ++i) {
+                    stack.push_back({argTypes[i], {originPrefix + "@arg" + std::to_string(i + 1)}});
                 }
             };
             const auto &pushFunctionDecl = [&](const FunctionDecl *func) {
                 FunctionTypeView view(func->getType());
-                pushFunctionView(view);
+                pushFunctionView(view, func->getName().str());
 
                 auto it = _metaProcDescs.find(func->getName().str());
                 if (it != _metaProcDescs.end()) {
                     auto &desc = it->second;
                     if (desc.overlayType()) {
                         FunctionTypeView overlayView(desc.overlayType().value());
-                        pushFunctionView(overlayView);
+                        pushFunctionView(overlayView, func->getName().str() + "@OVERLAY");
                     }
                 }
             };
@@ -378,7 +388,9 @@ namespace TLC {
                 pushFunctionDecl(pair.second);
             }
             for (const auto &it : std::as_const(knownCallbacks)) {
-                stack.push_back(it.second);
+                auto it2 = namedCallbackMap.find(it.first);
+                std::string name = it2 != namedCallbackMap.end() ? it2->second : it.first;
+                stack.push_back({it.second, {name + "@self"}});
             }
 
             // Disabled. May break the consistency of guest and host items
@@ -392,7 +404,8 @@ namespace TLC {
 
             std::set<std::string> visitedTypes;
             while (!stack.empty()) {
-                auto type = stack.pop_back_val().getCanonicalType();
+                auto trace = stack.pop_back_val();
+                auto type = trace.type;
                 while (true) {
                     if (type->isFunctionPointerType()) {
                         break;
@@ -419,24 +432,36 @@ namespace TLC {
                     auto functionType = type->getPointeeType();
                     if (functionType->isFunctionProtoType()) {
                         auto FPT = functionType->getAs<FunctionProtoType>();
-                        if (auto retType = FPT->getReturnType(); !retType->isVoidType())
-                            stack.push_back(FPT->getReturnType());
-                        for (const auto &T : FPT->param_types()) {
-                            stack.push_back(T);
+                        if (auto retType = FPT->getReturnType(); !retType->isVoidType()) {
+                            auto origin = trace.origin;
+                            origin.push_back("[" + typeStr + "]@ret");
+                            stack.push_back({FPT->getReturnType(), origin});
+                        }
+                        for (size_t i = 0; i < FPT->param_types().size(); ++i) {
+                            auto origin = trace.origin;
+                            origin.push_back("[" + typeStr + "]@arg" + std::to_string(i + 1));
+                            stack.push_back({FPT->param_types()[i], origin});
                         }
                         _callbacks[typeStr] = type;
+                        _callbackTraceInfos[typeStr] = trace.origin;
                         continue;
                     }
                     if (functionType->isFunctionNoProtoType()) {
                         auto FNT = functionType->getAs<FunctionNoProtoType>();
-                        stack.push_back(FNT->getReturnType());
+                        auto origin = trace.origin;
+                        origin.push_back("[" + typeStr + "]@ret");
+                        stack.push_back({FNT->getReturnType(), origin});
                         _callbacks[typeStr] = type;
+                        _callbackTraceInfos[typeStr] = origin;
                         continue;
                     }
                 } else if (type->isRecordType()) {
                     auto recType = type->getAs<RecordType>();
                     for (const auto &field : recType->getDecl()->fields()) {
-                        stack.push_back(field->getType());
+                        auto origin = trace.origin;
+                        origin.push_back(recType->getDecl()->getName().str() + "[" + typeStr +
+                                         "]@" + field->getName().str());
+                        stack.push_back({field->getType(), origin});
                     }
                     continue;
                 }
@@ -474,9 +499,9 @@ namespace TLC {
         for (auto it : std::as_const(_callbacks)) {
             auto type = it.second;
             std::string nameHint;
-            if (auto it = namedCallbackMap.find(getTypeString(type.getCanonicalType()));
-                it != namedCallbackMap.end()) {
-                nameHint = it->second;
+            if (auto it2 = namedCallbackMap.find(getTypeString(type.getCanonicalType()));
+                it2 != namedCallbackMap.end()) {
+                nameHint = it2->second;
             } else {
                 numUnknownCallback++;
                 nameHint = "PFN_UnknownCallback_" + std::to_string(numUnknownCallback);

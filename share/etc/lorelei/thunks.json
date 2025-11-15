@@ -19,7 +19,16 @@
         },
         "libvulkan",
         "libz",
-        "libzstd"
+        "libzstd",
+        {
+            "name": "libX11",
+            "hostLibrary": "${REPOS}/libX11/build/install/lib/libX11.so"
+        },
+        {
+            "name": "libX11-xcb",
+            "hostLibrary": "${REPOS}/libX11/build/install/lib/libX11-xcb.so"
+        },
+        "libxcb"
     ],
     "reversedThunks": [
         {
