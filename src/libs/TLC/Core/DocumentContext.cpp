@@ -122,7 +122,11 @@ namespace TLC {
                     ast, metaProcTDecl->getTemplatedDecl()->getTagKind(),
                     metaProcTDecl->getTemplatedDecl()->getDeclContext(),
                     metaProcTDecl->getTemplatedDecl()->getLocation(), metaProcTDecl->getLocation(),
-                    metaProcTDecl, tArgs, nullptr);
+                    metaProcTDecl, tArgs,
+#if LLVM_VERSION_MAJOR > 18
+                    false,
+#endif
+                    nullptr);
             }
 
             if (!spec) {

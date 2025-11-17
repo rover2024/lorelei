@@ -161,7 +161,7 @@ namespace lore {
                 // guestThunk
                 it = forwardObj.find("guestThunk");
                 if (it == forwardObj.end() && !defualtGuestThunkPath.empty()) {
-                    result.guestThunk = defaultHostThunkPath + "/" + result.name + ".so";
+                    result.guestThunk = defualtGuestThunkPath + "/" + result.name + ".so";
                 } else {
                     if (!it->second.is_string()) {
                         continue;
