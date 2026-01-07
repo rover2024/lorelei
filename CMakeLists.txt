@@ -1,51 +1,45 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.19)
 
-project(lorelei VERSION 0.0.0.1 LANGUAGES C CXX)
+project(lorelei
+    VERSION 0.0.1.0
+    LANGUAGES C CXX
+    DESCRIPTION "Cross-Architecture Compatibility Layer For Binary Translators."
+    HOMEPAGE_URL "https://github.com/rover2024/lorelei"
+)
 
 # ----------------------------------
 # Build Options
 # ----------------------------------
-option(LORELEI_ENABLE_GUEST "Build guest targets" OFF)
-option(LORELEI_ENABLE_HOST "Build host targets" ON)
-option(LORELEI_BUILD_TOOLS "Build tool targets" ON)
-option(LORELEI_BUILD_THUNKS "Build thunk targets" ON)
-option(LORELEI_BUILD_PROGRAMS "Build program targets" OFF)
-option(LORELEI_BUILD_TESTS "Build test targets" OFF)
-option(LORELEI_INSTALL "Install library" ON)
-option(LORELEI_VCPKG_TOOLS_HINT "Install executables to tools directory" OFF)
+option(LORE_BUILD_SHARED "Build shared libraries" ON)
+option(LORE_BUILD_STATIC "Build static libraries" OFF)
+option(LORE_ENABLE_GUEST "Build guest targets" OFF)
+option(LORE_ENABLE_HOST "Build host targets" ON)
+option(LORE_BUILD_TOOLS "Build tool targets" ON)
+option(LORE_BUILD_THUNKS "Build thunk targets" ON)
+option(LORE_BUILD_TESTS "Build test targets" OFF)
+option(LORE_DEVEL "Install developer files" ON)
+option(LORE_INSTALL "Install library" ON)
 
 # ----------------------------------
 # CMake Settings
 # ----------------------------------
-if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-endif()
-
-if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-endif()
-
-if(NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-endif()
-
 if(MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /manifest:no")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /manifest:no")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /manifest:no")
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
 
-    if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-        set(CMAKE_DEBUG_POSTFIX "d")
-    endif()
+    # if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    #     set(CMAKE_DEBUG_POSTFIX "d")
+    # endif()
 elseif(MINGW)
     set(CMAKE_STATIC_LIBRARY_PREFIX "")
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
+    set(CMAKE_IMPORT_LIBRARY_PREFIX "")
 endif()
 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-if(LORELEI_INSTALL)
+if(LORE_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 endif()
@@ -53,26 +47,30 @@ endif()
 # ----------------------------------
 # Project Variables
 # ----------------------------------
-set(LORELEI_VERSION ${PROJECT_VERSION})
-set(LORELEI_INSTALL_NAME ${PROJECT_NAME})
-set(LORELEI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(LORE_VERSION ${PROJECT_VERSION})
+set(LORE_DESCRIPTION ${PROJECT_DESCRIPTION})
+set(LORE_HOMEPAGE_URL ${PROJECT_HOMEPAGE_URL})
+set(LORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(LORELEI_GUEST_ARCH "x86_64")
+# ----------------------------------
+# Add external modules
+# ----------------------------------
+add_subdirectory(external)
 
-if(NOT DEFINED LORELEI_HOST_ARCH)
-    set(_arch ${CMAKE_SYSTEM_PROCESSOR})
+# ----------------------------------
+# Initialize QMSetup (Required)
+# ----------------------------------
+find_package(qmsetup REQUIRED)
 
-    if(_arch MATCHES "x86_64|amd64")
-        set(LORELEI_HOST_ARCH "x86_64")
-    elseif(_arch MATCHES "aarch64|arm64")
-        set(LORELEI_HOST_ARCH "aarch64")
-    elseif(_arch MATCHES "riscv64")
-        set(LORELEI_HOST_ARCH "riscv64")
-    endif()
+qm_import(Filesystem)
+
+if(NOT DEFINED QMSETUP_BUILD_DIR)
+    set(QMSETUP_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/out")
 endif()
 
+qm_init_directories()
+
+# ----------------------------------
+# Add source modules
+# ----------------------------------
 add_subdirectory(src)
-
-if(LORELEI_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()

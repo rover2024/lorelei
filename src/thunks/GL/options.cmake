@@ -1,9 +1,0 @@
-if(LORELEI_ENABLE_GUEST)
-    set(LORELIB_GUEST_SYMLINKS libGL.so.1)
-endif()
-
-if(LORELEI_ENABLE_HOST)
-    # Empty
-endif()
-
-set(LORELIB_TLC_OPTIONS)

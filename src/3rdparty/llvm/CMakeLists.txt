@@ -1,4 +1,4 @@
-project(json11)
+project(llvm-standalone)
 
 file(GLOB_RECURSE _src *.h *.cpp)
 lore_add_library(${PROJECT_NAME} STATIC NO_INSTALL

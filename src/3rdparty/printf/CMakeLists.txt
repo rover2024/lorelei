@@ -1,6 +1,6 @@
-project(json11)
+project(printf)
 
-file(GLOB_RECURSE _src *.h *.cpp)
+file(GLOB_RECURSE _src *.h *.c)
 lore_add_library(${PROJECT_NAME} STATIC NO_INSTALL
     SOURCES ${_src}
 )
