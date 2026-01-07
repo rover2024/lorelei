@@ -8,7 +8,7 @@ extern "C" {
 
 // Generate:
 //     Save current Entry to R11 and jump to address Entry-N
-static void cbt_gen_thunk(void *buf, int64_t N) {
+static void tramp_gen_thunk(void *buf, int64_t N) {
     struct instr {
         struct {
             char op[3];
@@ -32,7 +32,7 @@ static void cbt_gen_thunk(void *buf, int64_t N) {
 
 // Generate:
 //     Jump to address Entry
-static void cbt_gen_jump(void *buf, void *target) {
+static void tramp_gen_jump(void *buf, void *target) {
     struct instr {
         char mov[4]; // mov -0x8(%r11),%r11
         struct {

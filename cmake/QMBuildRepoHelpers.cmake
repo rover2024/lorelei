@@ -97,7 +97,7 @@ macro(${_F}_init_buildsystem)
     if(_prefix)
         set(_V ${_prefix})
     else()
-        string(TOUPPER ${PROJECT_NAME} _V)
+        string(TOUPPER ${_F} _V)
     endif()
 
     # Set source directory

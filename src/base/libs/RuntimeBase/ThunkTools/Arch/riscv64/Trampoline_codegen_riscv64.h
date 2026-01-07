@@ -8,7 +8,7 @@ extern "C" {
 
 // Generate:
 //     Save current Entry to t1 and jump to address Entry-N
-static void cbt_gen_thunk(char *buf, int64_t N) {
+static void tramp_gen_thunk(char *buf, int64_t N) {
     uint32_t *instr = (uint32_t *) buf;
     int32_t imm = -4 - (int32_t) N;
 
@@ -29,7 +29,7 @@ static void cbt_gen_thunk(char *buf, int64_t N) {
 
 // Generate:
 //     Jump to address Entry
-static void cbt_gen_jump(void *buf, void *target) {
+static void tramp_gen_jump(void *buf, void *target) {
     struct instr {
         uint32_t ld_t1;
         uint32_t auipc_t0;

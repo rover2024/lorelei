@@ -8,7 +8,7 @@ extern "C" {
 
 // Generate:
 //     Save current Entry to X16 and jump to address Entry-N
-static void cbt_gen_thunk(void *buf, int64_t N) {
+static void tramp_gen_thunk(void *buf, int64_t N) {
     uint32_t *instr = (uint32_t *) buf;
 
     // _start:
@@ -27,7 +27,7 @@ static void cbt_gen_thunk(void *buf, int64_t N) {
 
 // Generate:
 //     Jump to address Entry
-static void cbt_gen_jump(void *buf, void *target) {
+static void tramp_gen_jump(void *buf, void *target) {
     struct instr {
         uint32_t ldr_x16;
         uint32_t ldr_x17;

@@ -372,7 +372,7 @@ namespace lore::str {
         return heap_buffer;
     }
 
-    std::string replace(std::string str, const std::string &from, const std::string &to) {
+    std::string replace(std::string str, std::string_view from, std::string_view to) {
         if (from.empty())
             return str;
 

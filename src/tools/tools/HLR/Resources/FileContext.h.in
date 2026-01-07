@@ -1,0 +1,184 @@
+#ifndef LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
+#define LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+//===----------------------------------------------------------------------===//
+// File Context Declarations
+
+#define __LORE_PRIV__   __attribute__((visibility("hidden")))
+#define __LORE_EXPORT__ __attribute__((visibility("default")))
+
+#define __LORE_LIKELY__(EXPR)   __builtin_expect(!!(EXPR), 1)
+#define __LORE_UNLIKELY__(EXPR) __builtin_expect(!!(EXPR), 0)
+
+#define __LORE_OFFSET_OF__(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
+
+#ifdef _WIN32
+typedef unsigned long long __LORE_SIZE_T__;
+#else
+typedef unsigned long __LORE_SIZE_T__;
+#endif
+
+#define __LORE_MAGIC_SIGN__              0x1234567890ABCDEFULL
+
+struct LoreThunkProcInfo {
+    const char *signature;
+    void **pTramp;
+};
+
+struct LoreFunctionTrampoline {
+    void *saved_function;
+    char thunk_instr[16];
+    __LORE_SIZE_T__ magic_sign;
+};
+
+struct LoreFunctionDecayGuard {
+    void *hostAddr;
+    void *guestTramp;
+};
+
+struct LoreFunctionDecayGuardInfo {
+    const char *signature;
+    int count;
+    struct LoreFunctionDecayGuard **pProcs;
+};
+
+struct LoreRuntimeContext {
+    void *pthread_create;
+    void *pthread_exit;
+};
+
+struct LoreFileContext {
+    struct LoreRuntimeContext *runtimeContext;
+
+    void *emuAddr;
+    void (*setThreadCallback)(void *);
+
+    // Callback check guards
+    struct LoreThunkProcInfo *CCGs;
+
+    // Function decay guards
+    struct LoreFunctionDecayGuardInfo *FDGs;
+};
+
+#define __LORE_THUNK_INSTR_OFFSET__ __LORE_OFFSET_OF__(struct LoreFunctionTrampoline, thunk_instr)
+
+extern __LORE_PRIV__ struct LoreFileContext LoreFileContext_instance;
+
+static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
+    if (__LORE_UNLIKELY__((__LORE_SIZE_T__) addr <
+                          (__LORE_SIZE_T__) LoreFileContext_instance.emuAddr)) {
+        struct LoreFunctionTrampoline *maybeGuestTramp =
+            (struct LoreFunctionTrampoline *) ((char *) addr - __LORE_THUNK_INSTR_OFFSET__);
+        if (__LORE_UNLIKELY__(maybeGuestTramp->magic_sign == __LORE_MAGIC_SIGN__)) {
+            addr = maybeGuestTramp->saved_function;
+        } else {
+            LoreFileContext_instance.setThreadCallback(addr);
+            addr = tramp;
+        }
+    }
+    return addr;
+}
+
+#define LORE_CCG_DECL(NUM) extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM;
+#define LORE_FDG_DECL(NUM1, NUM2, FUNC)                                                            \
+    extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_##NUM1##_##NUM2;
+#define LORE_CCG_IMPL(NUM) __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM = 0;
+#define LORE_FDG_IMPL(NUM1, NUM2, FUNC)                                                            \
+    __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_##NUM1##_##NUM2 = {       \
+        .hostAddr = (void *) &FUNC,                                                                \
+        .guestTramp = 0,                                                                           \
+    };
+
+#define LORE_CCG_GET(NUM, EXPR)                                                                    \
+    ((__typeof__(EXPR)) __LoreFileContext_CCG((void *) (EXPR), LoreFileContext_CCG_Tramp_##NUM))
+#define LORE_FDG_GET(NUM1, NUM2) LoreFileContext_FDG_Proc_##NUM1##_##NUM2##.guestTramp
+//===----------------------------------------------------------------------===//
+
+
+
+
+//===----------------------------------------------------------------------===//
+// File including callback check guards
+__LORE_PRIV__ void *LoreFileContext_CCG_Tramp_1 = 0; // to be initialized
+__LORE_PRIV__ void *LoreFileContext_CCG_Tramp_2 = 0; // to be initialized
+
+#define LORE_CCG_1(X)                                                                              \
+    ((__typeof__(X)) __LoreFileContext_CCG((void *) X, LoreFileContext_CCG_Tramp_1))
+#define LORE_CCG_2(X)                                                                              \
+    ((__typeof__(X)) __LoreFileContext_CCG((void *) X, LoreFileContext_CCG_Tramp_2))
+
+//===----------------------------------------------------------------------===//
+
+
+
+
+//===----------------------------------------------------------------------===//
+// File including function decay guards
+static int func1(int a, int b) {
+    return a + b;
+}
+static void func2() {
+}
+
+__LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_1_1 = {
+    .hostAddr = (void *) &func1,
+    .guestTramp = 0, // to be initialized
+};
+__LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_2_1 = {
+    .hostAddr = (void *) &func2,
+    .guestTramp = 0, // to be initialized
+};
+
+extern __LORE_PRIV__ struct LoreFileContext LoreFileContext_instance;
+//===----------------------------------------------------------------------===//
+
+
+
+
+//===----------------------------------------------------------------------===//
+// Main File
+extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_1;
+extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_2;
+
+extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_1_1;
+extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_2_1;
+
+static struct LoreThunkProcInfo LoreFileContext_CCGs[] = {
+    {.signature = "int (*)(int, int)", .pTramp = &LoreFileContext_CCG_Tramp_1},
+    {.signature = "void (*)()",        .pTramp = &LoreFileContext_CCG_Tramp_2},
+};
+
+static struct LoreFunctionDecayGuard *LoreFileContext_FDG_Proc_1_instances[] = {
+    &LoreFileContext_FDG_Proc_1_1,
+};
+
+static struct LoreFunctionDecayGuard *LoreFileContext_FDG_Proc_2_instances[] = {
+    &LoreFileContext_FDG_Proc_2_1,
+};
+
+static struct LoreFunctionDecayGuardInfo LoreFileContext_FDGs[] = {
+    {"int (*)(int, int)", 1, LoreFileContext_FDG_Proc_1_instances},
+    {"void (*)()",        1, LoreFileContext_FDG_Proc_2_instances},
+};
+
+__LORE_PRIV__ struct LoreFileContext LoreFileContext_instance = {
+    .runtimeContext = 0,
+    .emuAddr = 0,
+    .setThreadCallback = 0,
+    .CCGs = LoreFileContext_CCGs,
+    .FDGs = LoreFileContext_FDGs,
+};
+
+__LORE_EXPORT__ struct LoreFileContext *getLoreFileContext() {
+    return &LoreFileContext_instance;
+}
+//===----------------------------------------------------------------------===//
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // LORE_TOOLS_HLR_FILE_CONTEXT_H_IN

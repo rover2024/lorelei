@@ -1,6 +1,6 @@
 include("conf.cmake")
 
-lore_init_buildsystem(LORE)
+lore_init_buildsystem()
 
 # Target for generating all thunks
 add_custom_target(thunk_gen_all)
