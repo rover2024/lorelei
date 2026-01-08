@@ -64,8 +64,8 @@ namespace lore::tool::HLR {
             }
         }
 
-        callbackCheckGuardSignatures = std::move(callbackCheckGuardSignatures);
-        functionDecayGuardStats = std::move(functionDecayGuardStats);
+        this->callbackCheckGuardSignatures = std::move(callbackCheckGuardSignatures);
+        this->functionDecayGuardStats = std::move(functionDecayGuardStats);
         return true;
     }
 
@@ -97,16 +97,16 @@ namespace lore::tool::HLR {
         root["functionDecayGuardStats"] = std::move(decayGuardsArray);
 
         std::error_code ec;
-        llvm::raw_fd_ostream outStream(filePath, ec, llvm::sys::fs::OF_Append);
+        llvm::raw_fd_ostream os(filePath, ec, llvm::sys::fs::OF_Append);
         if (ec) {
             errorMessage = ec.message();
             return false;
         }
 
-        llvm::json::OStream jsonStream(outStream, 4);
+        llvm::json::OStream jsonStream(os, 4);
         jsonStream.value(std::move(root));
 
-        if (outStream.has_error()) {
+        if (os.has_error()) {
             errorMessage = "Failed to write JSON to file";
             return false;
         }

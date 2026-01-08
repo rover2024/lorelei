@@ -239,13 +239,15 @@ namespace lore::tool::command::mark_macros {
     const char *help = "Mark macros";
 
     int main(int argc, char *argv[]) {
-        cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Mark Macros (Single File)");
-        cl::opt<std::string> outputOption("o", cl::desc("Specify output file"),
-                                          cl::value_desc("output file"), cl::cat(myOptionCat));
-        cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
+        static cl::OptionCategory myOptionCat(
+            "Lorelei Host Library Rewriter - Mark Macros (Single File)");
+        static cl::opt<std::string> outputOption("o", cl::desc("Specify output file"),
+                                                 cl::value_desc("output file"),
+                                                 cl::cat(myOptionCat));
+        static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
-        auto expectedParser =
-            CommonOptionsParser::create(argc, const_cast<const char **>(argv), myOptionCat);
+        auto expectedParser = CommonOptionsParser::create(
+            argc, const_cast<const char **>(argv), myOptionCat, cl::NumOccurrencesFlag::Required);
         if (!expectedParser) {
             llvm::errs() << expectedParser.takeError();
             return 0;
@@ -254,11 +256,6 @@ namespace lore::tool::command::mark_macros {
 
         g_ctx().initialCwd = fs::current_path();
         g_ctx().outputPath = outputOption.getValue();
-
-        if (parser.getSourcePathList().size() > 1) {
-            llvm::errs() << "Only 1 source file is allowed\n";
-            return 1;
-        }
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {

@@ -55,7 +55,10 @@ namespace lore::tool::HLR {
                     }
                 }
                 if (auto CE = parent.get<CallExpr>()) {
-                    return true;
+                    if (E == CE->getCallee()) {
+                        return true;
+                    }
+                    return false;
                 }
             }
             break;
@@ -81,7 +84,7 @@ namespace lore::tool::HLR {
         if (auto DRE = Result.Nodes.getNodeAs<DeclRefExpr>(_id)) {
             if (!isDeclRefForCall(DRE, AST)) {
                 _exprList.push_back(DRE);
-            }
+            } 
         }
     }
 

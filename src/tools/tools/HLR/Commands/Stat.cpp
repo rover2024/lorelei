@@ -78,13 +78,14 @@ namespace lore::tool::command::stat {
     const char *help = "Probe statistics of input files";
 
     int main(int argc, char *argv[]) {
-        cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Statistics");
-        cl::opt<std::string> configOption(
+        static cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Statistics");
+        static cl::opt<std::string> configOption(
             "c", cl::desc("Specify file containing signatures of interest"),
             cl::value_desc("config file"), cl::cat(myOptionCat));
-        cl::opt<std::string> outputOption("o", cl::desc("Specify output file"),
-                                          cl::value_desc("output file"), cl::cat(myOptionCat));
-        cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
+        static cl::opt<std::string> outputOption("o", cl::desc("Specify output file"),
+                                                 cl::value_desc("output file"),
+                                                 cl::cat(myOptionCat));
+        static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
         auto expectedParser =
             CommonOptionsParser::create(argc, const_cast<const char **>(argv), myOptionCat);
