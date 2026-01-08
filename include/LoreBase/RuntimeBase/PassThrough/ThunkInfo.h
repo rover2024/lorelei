@@ -49,15 +49,15 @@ namespace lore {
         bool load(const std::filesystem::path &path,
                   const std::map<std::string, std::string> &vars = {});
 
-        const std::vector<ForwardThunkInfo> &forwardThunks() const {
+        inline const std::vector<ForwardThunkInfo> &forwardThunks() const {
             return _forwardThunks;
         }
 
-        const std::vector<ReversedThunkInfo> &reversedThunks() const {
+        inline const std::vector<ReversedThunkInfo> &reversedThunks() const {
             return _reversedThunks;
         }
 
-        const ForwardThunkInfo *forwardThunk(const std::string &name) const {
+        inline const ForwardThunkInfo *forwardThunk(const std::string &name) const {
             auto it = _forwardThunkMap.find(name);
             if (it == _forwardThunkMap.end()) {
                 return nullptr;
@@ -65,7 +65,7 @@ namespace lore {
             return &_forwardThunks[it->second];
         }
 
-        const ReversedThunkInfo *reversedThunk(const std::string &name) const {
+        inline const ReversedThunkInfo *reversedThunk(const std::string &name) const {
             auto it = _reversedThunkMap.find(name);
             if (it == _reversedThunkMap.end()) {
                 return {};

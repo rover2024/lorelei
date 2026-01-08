@@ -32,7 +32,7 @@ function(_lore_common_configure_target _target)
     lore_set_default_install_rpath(${_target})
 endfunction()
 
-set(LORE_PRE_CONFIGURE_COMMANDS _lore_common_configure_target)
+set(LORE_POST_CONFIGURE_COMMANDS _lore_common_configure_target)
 
 # ----------------------------------
 # Include Build Helpers

@@ -61,6 +61,34 @@ namespace lore::tool::command::batch {
         return llvm::Error::success();
     }
 
+    static llvm::Error runMarkMacros(const std::string &thisExePath, llvm::StringRef sourcePath,
+                                     llvm::StringRef outFile, llvm::StringRef buildPath) {
+        llvm::SmallVector<llvm::StringRef, 8> args = {
+            thisExePath, "mark-macros", "-o", outFile, "-p", buildPath, sourcePath,
+        };
+        std::string err;
+        if (int ret;
+            (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
+            return llvm::make_error<llvm::StringError>("Failed to run mark-macros command: " + err,
+                                                       llvm::inconvertibleErrorCode());
+        }
+        return llvm::Error::success();
+    }
+
+    static llvm::Error runPreprocess(const std::string &thisExePath, llvm::StringRef sourcePath,
+                                     llvm::StringRef outFile, llvm::StringRef buildPath) {
+        llvm::SmallVector<llvm::StringRef, 8> args = {
+            thisExePath, "preprocess", "-o", outFile, "-p", buildPath, sourcePath,
+        };
+        std::string err;
+        if (int ret;
+            (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
+            return llvm::make_error<llvm::StringError>("Failed to run preprocess command: " + err,
+                                                       llvm::inconvertibleErrorCode());
+        }
+        return llvm::Error::success();
+    }
+
     int main(int argc, char *argv[]) {
         static cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Batch");
         static cl::opt<std::string> outputDirOption(
@@ -75,13 +103,13 @@ namespace lore::tool::command::batch {
             cl::sub(cl::SubCommand::getAll()));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
-        // Parse command line options
+        /// STEP: Parse command line options
         if (auto err = parseOptions(argc, const_cast<const char **>(argv), myOptionCat); err) {
             llvm::errs() << err;
             return 1;
         }
 
-        // Load the compilation database
+        /// STEP: Load the compilation database
         std::unique_ptr<CompilationDatabase> compilations;
         if (std::string err;
             !(compilations = CompilationDatabase::autoDetectFromDirectory(buildPathOption, err))) {
@@ -92,7 +120,7 @@ namespace lore::tool::command::batch {
 
         std::vector<std::string> sourcePathList = sourcePathsOption;
 
-        // Make stat result file
+        /// STEP: Make stat result file
         SmallString<128> statResultFile;
         if (std::error_code ec;
             (ec = llvm::sys::fs::createTemporaryFile("prefix", "suffix", statResultFile))) {
@@ -107,7 +135,7 @@ namespace lore::tool::command::batch {
             }
         });
 
-        // Call "Stat" on all files
+        /// STEP: Call "stat" on all files
         llvm::errs() << "Running stat command on " << sourcePathList.size() << " files...\n";
 
         auto thisExePath = llvm::sys::fs::getMainExecutable(argv[0], (void *) main);
@@ -122,9 +150,11 @@ namespace lore::tool::command::batch {
             return 1;
         }
 
-        
+        /// STEP: Call "mark-macros", "preprocess" and "rewrite" on each file
+
+
+        /// STEP: Generate common header and unique source
 
         return 0;
     }
-
 }

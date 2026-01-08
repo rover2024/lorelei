@@ -8,6 +8,7 @@
 
 namespace lore {
 
+    /// ArrayView - A port of \c llvm::ArrayRef.
     template <class T>
     class ArrayView {
     public:
