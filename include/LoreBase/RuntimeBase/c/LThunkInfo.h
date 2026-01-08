@@ -1,13 +1,13 @@
 #ifndef LORE_BASE_RUNTIMEBASE_LTHUNKINFO_H
 #define LORE_BASE_RUNTIMEBASE_LTHUNKINFO_H
 
-#include <LoreBase/CoreLib/c/LVectorIterator.h>
+#include <LoreBase/CoreLib/c/LString.h>
 
 LORE_BEGIN_EXTERN_C
 
 struct LForwardThunkInfo {
     char *name;
-    struct LVectorIterator alias;
+    struct LStringList alias;
     char *guestThunk;
     char *hostThunk;
     char *hostLibrary;
@@ -15,14 +15,14 @@ struct LForwardThunkInfo {
 
 struct LReversedThunkInfo {
     char *name;
-    struct LVectorIterator alias;
+    struct LStringList alias;
     char *fileName;
-    struct LVectorIterator thunks;
+    struct LStringList thunks;
 };
 
 union LThunkInfo {
-    LForwardThunkInfo *forward;
-    LReversedThunkInfo *reversed;
+    struct LForwardThunkInfo *forward;
+    struct LReversedThunkInfo *reversed;
 };
 
 LORE_END_EXTERN_C

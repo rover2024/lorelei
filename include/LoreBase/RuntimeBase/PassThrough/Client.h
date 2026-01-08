@@ -3,9 +3,12 @@
 
 #include <array>
 
+#include <LoreBase/CoreLib/Support/Logging.h>
+#include <LoreBase/RuntimeBase/c/LThunkInfo.h>
+
 namespace lore {
 
-    /// Client - Base client to send invocation request to the the remote server.
+    /// Client - Guest-side client to send invocation request to the the host-side server.
     template <class T = void>
     class Client {
     public:
@@ -57,17 +60,19 @@ namespace lore {
         };
 
     public:
-        /// Check if the connection is established.
-        /// \return 0 if the connection is ok, non-zero otherwise.
-        int checkConnection() {
-            return get()->checkConnection_impl();
+        /// Get an attribute of the host.
+        /// \param key Key of the attribute to query.
+        /// \return Optional string value of the attribute, or \c nullptr if the attribute does
+        /// not exist.
+        LString getHostAttribute(const char *key) {
+            return get()->getHostAttribute_impl(key);
         }
 
         /// Log a message to the remote server.
         /// \param level Log level.
         /// \param context Context pointer.
         /// \param msg Message to log.
-        void logMessage(int level, const void *context, const char *msg) {
+        void logMessage(int level, const LogContext &context, const char *msg) {
             return get()->logMessage_impl(level, context, msg);
         }
 
@@ -122,23 +127,21 @@ namespace lore {
         /// Get information about a thunk library.
         /// \param path Path or filename of the thunk library to query.
         /// \param isReverse True if you want to get the reverse thunk information.
-        CThunkInfo getThunkInfo(const char *path, bool isReverse) {
+        LThunkInfo getThunkInfo(const char *path, bool isReverse) {
             return get()->getThunkInfo_impl(path, isReverse);
         }
 
-        /// Get an attribute of the host.
-        /// \param key Key of the attribute to query.
-        /// \return Optional string value of the attribute, or \c std::nullopt if the attribute does
-        /// not exist.
-        std::optional<std::string> getHostAttribute(const char *key) {
-            return get()->getHostAttribute_impl(key);
+        /// Allocate memory on the heap.
+        /// \param size Size of the memory to allocate.
+        /// \return Pointer to the allocated memory, or NULL if the allocation failed.
+        void *heapAlloc(size_t size) {
+            return get()->heapAlloc_impl(size);
         }
 
-        /// Register a guest procedure to be invoked by the host.
-        /// \param key Key of the procedure to register.
-        /// \param proc Procedure pointer to register.
-        void registerGuestProc(const char *key, void *proc) {
-            get()->registerGuestProc_impl(key, proc);
+        /// Free memory allocated on the heap.
+        /// \param ptr Pointer to the memory to free.
+        void heapFree(void *ptr) {
+            return get()->heapFree_impl(ptr);
         }
 
     public:

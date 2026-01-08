@@ -4,6 +4,11 @@
 
 #include <llvm/Support/Program.h>
 
+extern "C" {
+extern unsigned char res_FileContext_h_c[];
+extern unsigned int res_FileContext_h_c_len;
+};
+
 namespace lore::tool::command::batch {
 
     const char *name = "batch";
