@@ -9,7 +9,7 @@
 
 #include <LoreTools/HLRUtils/Global.h>
 
-namespace HLR {
+namespace lore::tool::HLR {
 
     class LOREHLRUTILS_EXPORT CallbackInvokeExprMatcher
         : public clang::ast_matchers::MatchFinder::MatchCallback {

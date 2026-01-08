@@ -3,7 +3,7 @@
 using namespace clang;
 using namespace clang::ast_matchers;
 
-namespace HLR {
+namespace lore::tool::HLR {
 
     static bool isFunctionPointerCallee(const Expr *E, ASTContext &AST) {
         std::ignore = AST;

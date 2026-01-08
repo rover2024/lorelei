@@ -19,7 +19,10 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-namespace HLR::preprocess {
+namespace lore::tool::command::preprocess {
+
+    using mark_macros::MACRO_BEGIN_TAG;
+    using mark_macros::MACRO_END_TAG;
 
     struct GlobalContext {
         /// Global states

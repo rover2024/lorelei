@@ -3,7 +3,7 @@
 #ifndef LORELEI_HLR_MARKMACROS_H
 #define LORELEI_HLR_MARKMACROS_H
 
-namespace HLR {
+namespace lore::tool::command::mark_macros {
 
     static const char MACRO_BEGIN_TAG[] = "/*__LORELEI_MACRO_BEGIN__*/";
 

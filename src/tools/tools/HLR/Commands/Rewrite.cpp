@@ -1,6 +1,6 @@
 #include <string>
 
-namespace HLR::rewrite {
+namespace lore::tool::command::rewrite {
 
     const char *name = "rewrite";
 

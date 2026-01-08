@@ -2,7 +2,7 @@
 
 #include <LoreBase/CoreLib/ADT/StringExtras.h>
 
-namespace HLR {
+namespace lore::tool {
 
     clang::QualType realCalleeType(const clang::CallExpr *E, clang::ASTContext &AST) {
         auto T = E->getCallee()->getType().getCanonicalType()->getPointeeType();

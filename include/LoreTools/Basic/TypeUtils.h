@@ -10,7 +10,7 @@
 
 #include <LoreTools/Basic/Global.h>
 
-namespace HLR {
+namespace lore::tool {
 
     LORETOOLBASIC_EXPORT clang::QualType realCalleeType(const clang::CallExpr *E,
                                                         clang::ASTContext &AST);

@@ -9,7 +9,7 @@
 
 #include <LoreTools/HLRUtils/Global.h>
 
-namespace HLR {
+namespace lore::tool::HLR {
 
     /// SourceStatistics - Statistics of callback check guards and function decay guards from
     /// a set of source files.

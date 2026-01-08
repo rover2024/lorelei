@@ -11,7 +11,7 @@ namespace lore {
     ///
     /// This class provides a common interface for call checkers, which are used to determine
     /// whether a given function pointer is a guest function or a host function.
-    template <class T = void>
+    template <class T>
     class CallChecker {
     public:
         /// Check whether a given function pointer is a host function.

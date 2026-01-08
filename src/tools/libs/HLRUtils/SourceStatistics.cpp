@@ -4,7 +4,7 @@
 #include <llvm/Support/JSON.h>
 #include <llvm/Support/FileSystem.h>
 
-namespace HLR {
+namespace lore::tool::HLR {
 
     bool SourceStatistics::loadFromJson(const std::string &filePath, std::string &errorMessage) {
         auto buffer = llvm::MemoryBuffer::getFile(filePath);

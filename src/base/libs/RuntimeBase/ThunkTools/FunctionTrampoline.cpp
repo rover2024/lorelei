@@ -1,6 +1,6 @@
 #include "FunctionTrampoline.h"
 
-#ifdef __linux__
+#ifndef _WIN32
 #  include <sys/mman.h>
 #endif
 

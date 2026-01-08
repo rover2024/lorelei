@@ -4,7 +4,7 @@
 
 #include <llvm/Support/Program.h>
 
-namespace HLR::batch {
+namespace lore::tool::command::batch {
 
     const char *name = "batch";
 

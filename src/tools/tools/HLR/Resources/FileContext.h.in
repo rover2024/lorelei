@@ -1,9 +1,6 @@
 #ifndef LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
 #define LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 //===----------------------------------------------------------------------===//
 // File Context Declarations
 
@@ -15,13 +12,19 @@ extern "C" {
 
 #define __LORE_OFFSET_OF__(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
 
+#define __LORE_FUNC_TYPE__(EXPR)                                                                   \
+    __typeof__(({                                                                                  \
+        __auto_type __tmp = (EXPR);                                                                \
+        __tmp;                                                                                     \
+    }))
+
 #ifdef _WIN32
 typedef unsigned long long __LORE_SIZE_T__;
 #else
 typedef unsigned long __LORE_SIZE_T__;
 #endif
 
-#define __LORE_MAGIC_SIGN__              0x1234567890ABCDEFULL
+#define __LORE_MAGIC_SIGN__ 0x1234567890ABCDEFULL
 
 struct LoreThunkProcInfo {
     const char *signature;
@@ -83,7 +86,7 @@ static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
 }
 
 #define LORE_CCG_DECL(NUM) extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM;
-#define LORE_FDG_DECL(NUM1, NUM2, FUNC)                                                            \
+#define LORE_FDG_DECL(NUM1, NUM2)                                                                  \
     extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_##NUM1##_##NUM2;
 #define LORE_CCG_IMPL(NUM) __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM = 0;
 #define LORE_FDG_IMPL(NUM1, NUM2, FUNC)                                                            \
@@ -93,58 +96,38 @@ static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
     };
 
 #define LORE_CCG_GET(NUM, EXPR)                                                                    \
-    ((__typeof__(EXPR)) __LoreFileContext_CCG((void *) (EXPR), LoreFileContext_CCG_Tramp_##NUM))
-#define LORE_FDG_GET(NUM1, NUM2) LoreFileContext_FDG_Proc_##NUM1##_##NUM2##.guestTramp
+    ((__LORE_FUNC_TYPE__(EXPR)) __LoreFileContext_CCG((void *) (EXPR),                             \
+                                                      LoreFileContext_CCG_Tramp_##NUM))
+#define LORE_FDG_GET(NUM1, NUM2, EXPR)                                                             \
+    ((__LORE_FUNC_TYPE__(EXPR)) LoreFileContext_FDG_Proc_##NUM1##_##NUM2.guestTramp)
+//===----------------------------------------------------------------------===//
+
+
+
+
+
+//===----------------------------------------------------------------------===//
+// Generated common header
+LORE_CCG_DECL(1)
+LORE_CCG_DECL(2)
+
+LORE_FDG_DECL(1, 1)
+LORE_FDG_DECL(2, 1)
+
+#define LORE_CCG_1(X) LORE_CCG_GET(1, (X))
+#define LORE_CCG_2(X) LORE_CCG_GET(2, (X))
+
+#define LORE_FDG_1_1(X) LORE_FDG_GET(1, 1, (X))
+#define LORE_FDG_2_1(X) LORE_FDG_GET(2, 1, (X))
 //===----------------------------------------------------------------------===//
 
 
 
 
 //===----------------------------------------------------------------------===//
-// File including callback check guards
-__LORE_PRIV__ void *LoreFileContext_CCG_Tramp_1 = 0; // to be initialized
-__LORE_PRIV__ void *LoreFileContext_CCG_Tramp_2 = 0; // to be initialized
-
-#define LORE_CCG_1(X)                                                                              \
-    ((__typeof__(X)) __LoreFileContext_CCG((void *) X, LoreFileContext_CCG_Tramp_1))
-#define LORE_CCG_2(X)                                                                              \
-    ((__typeof__(X)) __LoreFileContext_CCG((void *) X, LoreFileContext_CCG_Tramp_2))
-
-//===----------------------------------------------------------------------===//
-
-
-
-
-//===----------------------------------------------------------------------===//
-// File including function decay guards
-static int func1(int a, int b) {
-    return a + b;
-}
-static void func2() {
-}
-
-__LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_1_1 = {
-    .hostAddr = (void *) &func1,
-    .guestTramp = 0, // to be initialized
-};
-__LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_2_1 = {
-    .hostAddr = (void *) &func2,
-    .guestTramp = 0, // to be initialized
-};
-
-extern __LORE_PRIV__ struct LoreFileContext LoreFileContext_instance;
-//===----------------------------------------------------------------------===//
-
-
-
-
-//===----------------------------------------------------------------------===//
-// Main File
-extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_1;
-extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_2;
-
-extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_1_1;
-extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_2_1;
+// Generated single source
+LORE_CCG_IMPL(1)
+LORE_CCG_IMPL(2)
 
 static struct LoreThunkProcInfo LoreFileContext_CCGs[] = {
     {.signature = "int (*)(int, int)", .pTramp = &LoreFileContext_CCG_Tramp_1},
@@ -172,13 +155,47 @@ __LORE_PRIV__ struct LoreFileContext LoreFileContext_instance = {
     .FDGs = LoreFileContext_FDGs,
 };
 
-__LORE_EXPORT__ struct LoreFileContext *getLoreFileContext() {
+__LORE_EXPORT__ struct LoreFileContext *__getLoreFileContext() {
     return &LoreFileContext_instance;
 }
 //===----------------------------------------------------------------------===//
 
-#ifdef __cplusplus
+
+
+
+//===----------------------------------------------------------------------===//
+// File including callback check guards
+static void some_method(int (*op)(int, int)) {
+    int x, y, z;
+    z = op(x, y);
+
+    // change to
+    z = LORE_CCG_1(op)(x, y);
 }
-#endif
+//===----------------------------------------------------------------------===//
+
+
+
+
+//===----------------------------------------------------------------------===//
+// File including function decay guards
+static int func1(int a, int b) {
+    return a + b;
+}
+static void func2() {
+}
+
+static void some_method_2() {
+    void (*f)();
+    f = func2;
+
+    // change to
+    f = LORE_FDG_2_1(func2);
+}
+
+// Append to end
+LORE_FDG_IMPL(1, 1, func1)
+LORE_FDG_IMPL(2, 1, func2)
+//===----------------------------------------------------------------------===//
 
 #endif // LORE_TOOLS_HLR_FILE_CONTEXT_H_IN

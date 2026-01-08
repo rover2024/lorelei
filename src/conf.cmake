@@ -13,7 +13,7 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
-    if(NOT WIN32)
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,defs")
     endif()
 endif()
@@ -25,25 +25,14 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # ----------------------------------
 set(LORE_INCLUDE_DIR "../include")
 
-function(_lore_common_configure_target _target _extra_args_ref)
+function(_lore_common_configure_target _target)
     qm_configure_target(${_target}
         FEATURES cxx_std_17
     )
-
-    get_target_property(_type ${_target} LORE_TARGET_TYPE)
-
-    if(_type MATCHES "Plugin")
-        set_target_properties(${_target} PROPERTIES
-            INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../../lib"
-        )
-    else()
-        set_target_properties(${_target} PROPERTIES
-            INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib"
-        )
-    endif()
+    lore_set_default_install_rpath(${_target})
 endfunction()
 
-set(LORE_CONFIGURE_TARGET_COMMANDS _lore_common_configure_target)
+set(LORE_PRE_CONFIGURE_COMMANDS _lore_common_configure_target)
 
 # ----------------------------------
 # Include Build Helpers

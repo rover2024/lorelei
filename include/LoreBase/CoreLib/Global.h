@@ -21,4 +21,20 @@
 #  endif
 #endif
 
+#ifndef LORE_BEGIN_EXTERN_C
+#  ifdef __cplusplus
+#    define LORE_BEGIN_EXTERN_C extern "C" {
+#  else
+#    define LORE_BEGIN_EXTERN_C
+#  endif
+#endif
+
+#ifndef LORE_END_EXTERN_C
+#  ifdef __cplusplus
+#    define LORE_END_EXTERN_C }
+#  else
+#    define LORE_END_EXTERN_C
+#  endif
+#endif
+
 #endif // LORE_BASE_CORELIB_GLOBAL_H

@@ -5,27 +5,27 @@
 
 #include <tuple>
 
-#include "Proc_c.h"
+#include <LoreTools/ThunkInterface/c/LTProc.h>
 
 namespace lore::thunk {
 
     enum ProcKind {
-        Function = CProcKind_Function,
-        Callback = CProcKind_Callback,
-        NumProcKind = CProcKind_NumProcKind,
+        Function = LTProcKind_Function,
+        Callback = LTProcKind_Callback,
+        NumProcKind = LTProcKind_NumProcKind,
     };
 
     enum ProcDirection {
-        GuestToHost = CProcDirection_GuestToHost,
-        HostToGuest = CProcDirection_HostToGuest,
-        NumProcDirection = CProcDirection_NumProcDirection,
+        GuestToHost = LTProcDirection_GuestToHost,
+        HostToGuest = LTProcDirection_HostToGuest,
+        NumProcDirection = LTProcDirection_NumProcDirection,
     };
 
     enum ProcPhase {
-        Entry = CProcPhase_Entry,
-        Caller = CProcPhase_Caller,
-        Exec = CProcPhase_Exec,
-        NumPhases = CProcPhase_NumPhases,
+        Entry = LTProcPhase_Entry,
+        Caller = LTProcPhase_Caller,
+        Exec = LTProcPhase_Exec,
+        NumPhases = LTProcPhase_NumPhases,
     };
 
     /// ProcFnDesc - Thunk proc description block for functions.
@@ -61,8 +61,6 @@ namespace lore::thunk {
     private:
         std::tuple<Args &...> _args_tuple;
 
-        static constexpr size_t s_size = sizeof...(Args);
-
         template <class T, size_t N, size_t Index = 0, size_t Count = 0>
         static constexpr size_t find_type_index() {
             if constexpr (Count == N &&
@@ -83,27 +81,25 @@ namespace lore::thunk {
         constexpr ProcArgContext(Args &...args) : _args_tuple(args...) {
         }
 
-        static constexpr size_t size() {
-            return s_size;
-        }
+        static constexpr size_t Size = sizeof...(Args);
 
         template <class T, size_t N = 0, size_t From = 0>
         constexpr T &type() {
-            static_assert(N < s_size, "N must be less than number of arguments");
+            static_assert(N < Size, "N must be less than number of arguments");
             constexpr size_t index = find_type_index<T, N, From>();
             return std::get<index>(_args_tuple);
         }
 
         template <class T, size_t N = 0, size_t From = 0>
         constexpr bool hasType() const {
-            static_assert(N < s_size, "N must be less than number of arguments");
+            static_assert(N < Size, "N must be less than number of arguments");
             constexpr size_t index = find_type_index<T, N, From>();
-            return index < s_size;
+            return index < Size;
         };
 
         template <size_t N>
         constexpr auto &at() {
-            static_assert(N < s_size, "Index out of range");
+            static_assert(N < Size, "Index out of range");
             return std::get<N>(_args_tuple);
         }
     };

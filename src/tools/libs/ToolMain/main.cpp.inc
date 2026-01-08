@@ -14,14 +14,14 @@
 //     TOOL_MAIN_DESCRIPTION
 //     TOOL_MAIN_VERSION
 
-namespace HLR {
+namespace lore::tool::command {
 
 #define _F(COMMAND)                                                                                \
-    namespace COMMAND {                                                                            \
-        extern const char *name;                                                                   \
-        extern const char *help;                                                                   \
-        extern int main(int argc, char *argv[]);                                                   \
-    }
+  namespace COMMAND {                                                                              \
+    extern const char *name;                                                                       \
+    extern const char *help;                                                                       \
+    extern int main(int argc, char *argv[]);                                                       \
+  }
     TOOL_MAIN_COMMAND_FOREACH(_F)
 #undef _F
 
@@ -45,7 +45,7 @@ namespace HLR {
 
 }
 
-namespace HLR::help {
+namespace lore::tool::command::help {
 
     const char *name = "help";
 
@@ -73,15 +73,15 @@ namespace HLR::help {
 
 int main(int argc, char *argv[]) {
     if (argc < 2 || std::strcmp(argv[1], "--help") == 0 || std::strcmp(argv[1], "-h") == 0) {
-        return HLR::help::main(argc, argv);
+        return lore::tool::command::help::main(argc, argv);
     }
     if (std::strcmp(argv[1], "--version") == 0 || std::strcmp(argv[1], "-v") == 0) {
         printf("%s\n", TOOL_MAIN_VERSION);
         return 0;
     }
-    for (const auto command : HLR::commands) {
+    for (const auto command : lore::tool::command::commands) {
         if (std::strcmp(argv[1], command.name) == 0) {
-            std::string commandName = HLR::app_name(argv[0]) + " " + command.name;
+            std::string commandName = lore::tool::command::app_name(argv[0]) + " " + command.name;
             std::vector<char *> args;
             args.resize(argc - 1);
             args[0] = commandName.data();

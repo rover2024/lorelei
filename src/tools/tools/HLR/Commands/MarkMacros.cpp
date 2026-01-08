@@ -25,7 +25,7 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-namespace HLR::mark_macros {
+namespace lore::tool::command::mark_macros {
 
     struct GlobalContext {
         /// Global states
@@ -221,8 +221,8 @@ namespace HLR::mark_macros {
         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                        StringRef InFile) override {
             _rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-            return std::make_unique<FunctionExprConsumer>(_fileData.callbackInvokeExprList,
-                                                          _fileData.functionDecayExprList);
+            return std::make_unique<HLR::FunctionExprConsumer>(_fileData.callbackInvokeExprList,
+                                                               _fileData.functionDecayExprList);
         }
 
     private:

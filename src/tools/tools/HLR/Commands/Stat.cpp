@@ -17,7 +17,7 @@ using namespace clang::tooling;
 namespace cl = llvm::cl;
 namespace fs = std::filesystem;
 
-namespace HLR::stat {
+namespace lore::tool::command::stat {
 
     struct GlobalContext {
         /// Global states
@@ -26,7 +26,7 @@ namespace HLR::stat {
         std::string outputPath;
 
         /// Runtime data
-        SourceStatistics sourceStat;
+        HLR::SourceStatistics sourceStat;
     };
 
     static GlobalContext &g_ctx() {
@@ -61,8 +61,8 @@ namespace HLR::stat {
         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                        StringRef InFile) override {
             auto &fileData = _fileDataMap[InFile.str()];
-            return std::make_unique<FunctionExprConsumer>(fileData.callbackInvokeExprList,
-                                                          fileData.functionDecayExprList);
+            return std::make_unique<HLR::FunctionExprConsumer>(fileData.callbackInvokeExprList,
+                                                               fileData.functionDecayExprList);
         }
 
     private:

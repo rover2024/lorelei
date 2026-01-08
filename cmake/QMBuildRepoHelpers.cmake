@@ -15,6 +15,7 @@
          <proj>_add_attached_files
          <proj>_sync_include
          <proj>_install
+         <proj>_set_default_install_rpath
     
     Override <proj> with QM_BUILD_REPO_HELPERS_FUNCTION_PREFIX.
 ]] #
@@ -59,7 +60,8 @@ endif()
         <proj>_CONFIG_HEADER_PATH: string, default: null
         <proj>_BUILD_INFO_HEADER_PATH: string, default: null
         <proj>_BUILD_INFO_HEADER_PREFIX: string, default: null
-        <proj>_CONFIGURE_TARGET_COMMANDS: list, default: null
+        <proj>_PRE_CONFIGURE_COMMANDS: list, default: null
+        <proj>_POST_CONFIGURE_COMMANDS: list, default: null
         <proj>_SYNC_INCLUDE_COMMANDS: list, default: null
 
     Generated variables:
@@ -339,6 +341,8 @@ function(${_F}_add_application _target)
             _repo_install_pdb(${_target} ${${_V}_INSTALL_RUNTIME_DIR})
         endif()
     endif()
+
+    _repo_post_configure_target_internal(${_target})
 endfunction()
 
 #[[
@@ -413,6 +417,8 @@ function(${_F}_add_plugin _target)
             _repo_install_pdb(${_target} ${_install_output_dir})
         endif()
     endif()
+
+    _repo_post_configure_target_internal(${_target})
 endfunction()
 
 #[[
@@ -498,9 +504,7 @@ function(${_F}_add_library _target)
         endif()
     endif()
 
-    set_target_properties(${_target} PROPERTIES
-        ${_V}_TARGET_TYPE Library
-    )
+    _repo_post_configure_target_internal(${_target})
 endfunction()
 
 #[[
@@ -562,9 +566,7 @@ function(${_F}_add_executable _target)
         endif()
     endif()
 
-    set_target_properties(${_target} PROPERTIES
-        ${_V}_TARGET_TYPE Executable
-    )
+    _repo_post_configure_target_internal(${_target})
 endfunction()
 
 #[[
@@ -705,6 +707,37 @@ function(${_F}_install)
     endif()
 endfunction()
 
+#[[
+    Set default install rpath for a target.
+
+    <proj>_set_default_install_rpath(<target>)
+]] #
+function(${_F}_set_default_install_rpath _target)
+    get_target_property(_type ${_target} ${_V}_TARGET_TYPE)
+
+    if(APPLE)
+        if(${_V}_MACOSX_BUNDLE_NAME)
+            set_target_properties(${_target} PROPERTIES
+                INSTALL_RPATH "@executable_path/../Frameworks" "@loader_path"
+            )
+        else()
+            set_target_properties(${_target} PROPERTIES
+                INSTALL_RPATH "@executable_path/../lib" "@loader_path"
+            )
+        endif()
+    else()
+        if(_type STREQUAL "Plugin")
+            set_target_properties(${_target} PROPERTIES
+                INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../../lib"
+            )
+        else()
+            set_target_properties(${_target} PROPERTIES
+                INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../lib"
+            )
+        endif()
+    endif()
+endfunction()
+
 # ----------------------------------
 # BuildAPI Internal Functions
 # ----------------------------------
@@ -756,14 +789,27 @@ macro(_repo_install_pdb _target _dest)
 endmacro()
 
 #[[
-    Configure a target with include directories.
+    Pre-configure a target.
 
-    _repo_configure_target_internal(<target>)
+    _repo_pre_configure_target_internal(<target>)
+]] #
+macro(_repo_pre_configure_target_internal _target _extra_args_ref)
+    if(${_V}_PRE_CONFIGURE_COMMANDS)
+        foreach(_cmd IN LISTS ${_V}_PRE_CONFIGURE_COMMANDS)
+            cmake_language(CALL ${_cmd} ${_target} ${_extra_args_ref})
+        endforeach()
+    endif()
+endmacro()
+
+#[[
+    Post-configure a target.
+
+    _repo_post_configure_target_internal(<target>)
 
     Required variables:
         FUNC_NO_INSTALL (nullable)
-]] #
-macro(_repo_configure_target_internal _target _extra_args_ref)
+#]]
+macro(_repo_post_configure_target_internal _target)
     if(${_V}_INCLUDE_DIR)
         target_include_directories(${_target} PUBLIC
             $<BUILD_INTERFACE:${${_V}_INCLUDE_DIR}>
@@ -774,16 +820,16 @@ macro(_repo_configure_target_internal _target _extra_args_ref)
         $<BUILD_INTERFACE:${${_V}_BUILD_INCLUDE_DIR}>
     )
 
-    if(${_V}_CONFIGURE_TARGET_COMMANDS)
-        foreach(_cmd IN LISTS ${_V}_CONFIGURE_TARGET_COMMANDS)
-            cmake_language(CALL ${_cmd} ${_target} ${_extra_args_ref})
-        endforeach()
-    endif()
-
     if(${_V}_INSTALL AND ${_V}_DEVEL AND NOT FUNC_NO_INSTALL)
         target_include_directories(${_target} PUBLIC
             $<INSTALL_INTERFACE:${${_V}_INSTALL_INCLUDE_DIR}>
         )
+    endif()
+
+    if(${_V}_POST_CONFIGURE_COMMANDS)
+        foreach(_cmd IN LISTS ${_V}_POST_CONFIGURE_COMMANDS)
+            cmake_language(CALL ${_cmd} ${_target})
+        endforeach()
     endif()
 endmacro()
 
@@ -808,7 +854,7 @@ function(_repo_add_executable_internal _target _type _extra_args_ref)
     set_target_properties(${_target} PROPERTIES
         ${_V}_TARGET_TYPE ${_type}
     )
-    _repo_configure_target_internal(${_target} ${_extra_args_ref})
+    _repo_pre_configure_target_internal(${_target} ${_extra_args_ref})
     qm_configure_target(${_target} ${FUNC_UNPARSED_ARGUMENTS})
 
     set(${_extra_args_ref} ${${_extra_args_ref}} PARENT_SCOPE)
@@ -881,7 +927,7 @@ function(_repo_add_library_internal _target _type _extra_args_ref)
         qm_export_defines(${_target} ${_options})
     endif()
 
-    _repo_configure_target_internal(${_target} ${_extra_args_ref})
+    _repo_pre_configure_target_internal(${_target} ${_extra_args_ref})
     qm_configure_target(${_target} ${FUNC_UNPARSED_ARGUMENTS})
 
     set(${_extra_args_ref} ${${_extra_args_ref}} PARENT_SCOPE)

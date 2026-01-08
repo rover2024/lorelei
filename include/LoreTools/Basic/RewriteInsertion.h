@@ -9,7 +9,7 @@
 
 #include <clang/Basic/SourceLocation.h>
 
-namespace HLR {
+namespace lore::tool {
 
     class RewriteInsertion {
     public:
