@@ -718,11 +718,11 @@ function(${_F}_set_default_install_rpath _target)
     if(APPLE)
         if(${_V}_MACOSX_BUNDLE_NAME)
             set_target_properties(${_target} PROPERTIES
-                INSTALL_RPATH "@executable_path/../Frameworks" "@loader_path"
+                INSTALL_RPATH "@executable_path/../Frameworks;@loader_path"
             )
         else()
             set_target_properties(${_target} PROPERTIES
-                INSTALL_RPATH "@executable_path/../lib" "@loader_path"
+                INSTALL_RPATH "@executable_path/../lib;@loader_path"
             )
         endif()
     else()
@@ -753,10 +753,12 @@ macro(_repo_normalize_path _path)
     endif()
 endmacro()
 
-macro(_repo_set_cmake_qt_autogen _val)
-    set(CMAKE_AUTOMOC ${_val})
-    set(CMAKE_AUTOUIC ${_val})
-    set(CMAKE_AUTORCC ${_val})
+macro(_repo_set_cmake_qt_autogen _target)
+    set_target_properties(${_target} PROPERTIES
+        AUTOMOC TRUE
+        AUTOUIC TRUE
+        AUTORCC TRUE
+    )
 endmacro()
 
 macro(_repo_install_pdb _target _dest)
@@ -847,7 +849,7 @@ function(_repo_add_executable_internal _target _type _extra_args_ref)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(FUNC_QT_AUTOGEN)
-        _repo_set_cmake_qt_autogen()
+        _repo_set_cmake_qt_autogen(${_target})
     endif()
 
     add_executable(${_target})
@@ -878,18 +880,14 @@ function(_repo_add_library_internal _target _type _extra_args_ref)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(FUNC_QT_AUTOGEN)
-        _repo_set_cmake_qt_autogen()
+        _repo_set_cmake_qt_autogen(${_target})
     endif()
 
     set(_options)
 
     if(FUNC_MACRO_PREFIX)
-        set(_prefix ${FUNC_MACRO_PREFIX})
-    else()
-        string(TOUPPER ${_target} _prefix)
+        list(APPEND _options PREFIX ${FUNC_MACRO_PREFIX})
     endif()
-
-    list(APPEND _options PREFIX ${_prefix})
 
     if(FUNC_LIBRARY_MACRO)
         list(APPEND _options LIBRARY ${FUNC_LIBRARY_MACRO})

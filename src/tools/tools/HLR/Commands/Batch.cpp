@@ -10,18 +10,21 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 
 #include <LoreBase/CoreLib/ADT/ScopeGuard.h>
+#include <LoreBase/CoreLib/ADT/StringExtras.h>
 #include <LoreTools/HLRUtils/SourceStatistics.h>
 
 extern "C" {
 extern unsigned char res_FileContext_h_c[];
 extern unsigned int res_FileContext_h_c_len;
+
+extern unsigned char res_Warning_txt_c[];
+extern unsigned int res_Warning_txt_c_len;
 };
 
 using namespace clang;
 using namespace clang::tooling;
 
 namespace cl = llvm::cl;
-namespace fs = std::filesystem;
 
 namespace lore::tool::command::batch {
 
@@ -44,53 +47,51 @@ namespace lore::tool::command::batch {
         return llvm::Error::success();
     }
 
-    static llvm::Error runStat(const std::string &thisExePath,
-                               const llvm::ArrayRef<std::string> &sourcePathList,
-                               llvm::StringRef statResultFile, llvm::StringRef buildPath) {
+    static llvm::Error runSubCommand(StringRef thisExePath, StringRef subCommand,
+                                     const llvm::ArrayRef<std::string> &sourcePathList,
+                                     llvm::StringRef outFile, llvm::StringRef buildPath,
+                                     const llvm::ArrayRef<StringRef> &extraArgs = {}) {
         llvm::SmallVector<llvm::StringRef, 32> args = {
-            thisExePath, "stat", "-o", statResultFile, "-p", buildPath,
+            thisExePath, subCommand, "-o", outFile, "-p", buildPath,
         };
         args.insert(args.end(), sourcePathList.begin(), sourcePathList.end());
+        args.insert(args.end(), extraArgs.begin(), extraArgs.end());
 
         std::string err;
         if (int ret;
             (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
-            return llvm::make_error<llvm::StringError>("Failed to run stat command: " + err,
-                                                       llvm::inconvertibleErrorCode());
+            return llvm::make_error<llvm::StringError>(
+                "Failed to run " + subCommand + " command: " + err, llvm::inconvertibleErrorCode());
         }
         return llvm::Error::success();
     }
 
-    static llvm::Error runMarkMacros(const std::string &thisExePath, llvm::StringRef sourcePath,
-                                     llvm::StringRef outFile, llvm::StringRef buildPath) {
-        llvm::SmallVector<llvm::StringRef, 8> args = {
-            thisExePath, "mark-macros", "-o", outFile, "-p", buildPath, sourcePath,
-        };
-        std::string err;
-        if (int ret;
-            (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
-            return llvm::make_error<llvm::StringError>("Failed to run mark-macros command: " + err,
+    static llvm::Error adjustContent(StringRef filePath, llvm::StringRef header) {
+        auto buffer = llvm::MemoryBuffer::getFile(filePath);
+        if (auto ec = buffer.getError()) {
+            return llvm::make_error<llvm::StringError>(ec.message(),
                                                        llvm::inconvertibleErrorCode());
         }
-        return llvm::Error::success();
-    }
+        auto oldContent = buffer->get()->getBuffer();
 
-    static llvm::Error runPreprocess(const std::string &thisExePath, llvm::StringRef sourcePath,
-                                     llvm::StringRef outFile, llvm::StringRef buildPath) {
-        llvm::SmallVector<llvm::StringRef, 8> args = {
-            thisExePath, "preprocess", "-o", outFile, "-p", buildPath, sourcePath,
-        };
-        std::string err;
-        if (int ret;
-            (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
-            return llvm::make_error<llvm::StringError>("Failed to run preprocess command: " + err,
+        std::error_code ec;
+        llvm::raw_fd_ostream out(filePath, ec);
+        if (ec) {
+            return llvm::make_error<llvm::StringError>(ec.message(),
                                                        llvm::inconvertibleErrorCode());
         }
+        out << llvm::format<const char *, const char *>((const char *) res_Warning_txt_c,
+                                                        filePath.data(), TOOL_VERSION)
+            << "\n\n"
+            << header << oldContent;
         return llvm::Error::success();
     }
 
     int main(int argc, char *argv[]) {
         static cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Batch");
+        static cl::opt<std::string> configOption(
+            "c", cl::desc("Function type configuration file"), cl::value_desc("config file"),
+            cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
         static cl::opt<std::string> outputDirOption(
             "o", cl::desc("Output directory of generated files"), cl::Required,
             cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
@@ -98,9 +99,8 @@ namespace lore::tool::command::batch {
                                                     cl::cat(myOptionCat),
                                                     cl::sub(cl::SubCommand::getAll()));
         static cl::list<std::string> sourcePathsOption(
-            cl::Positional, cl::desc("<source0> [... <sourceN>]"),
-            cl::NumOccurrencesFlag::OneOrMore, cl::cat(myOptionCat),
-            cl::sub(cl::SubCommand::getAll()));
+            cl::Positional, cl::desc("<source0> [... <sourceN>]"), cl::OneOrMore,
+            cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
         /// STEP: Parse command line options
@@ -119,6 +119,31 @@ namespace lore::tool::command::batch {
         }
 
         std::vector<std::string> sourcePathList = sourcePathsOption;
+
+        SmallString<128> initialCwd;
+        if (std::error_code ec; (ec = llvm::sys::fs::current_path(initialCwd))) {
+            llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
+            return 1;
+        }
+
+        SmallString<128> outputDir = StringRef(outputDirOption.getValue());
+        llvm::sys::fs::make_absolute(initialCwd, outputDir);
+
+        const auto &getRelativeToOutputDir = [&](llvm::StringRef path) {
+            SmallString<128> fileDir = StringRef(path);
+            llvm::sys::fs::make_absolute(initialCwd, fileDir);
+            fileDir = llvm::sys::path::parent_path(fileDir);
+
+            auto relativePath =
+                std::filesystem::relative(outputDir.str().str(), fileDir.str().str());
+            return str::conv<std::filesystem::path>::normalize_separators(relativePath.string(),
+                                                                          false);
+        };
+
+        SmallString<128> outputCommonHeader = outputDir;
+        outputCommonHeader += "/FileContext.h";
+        SmallString<128> outputSingleSource = outputDir;
+        outputSingleSource += "/FileContext.c";
 
         /// STEP: Make stat result file
         SmallString<128> statResultFile;
@@ -139,7 +164,11 @@ namespace lore::tool::command::batch {
         llvm::errs() << "Running stat command on " << sourcePathList.size() << " files...\n";
 
         auto thisExePath = llvm::sys::fs::getMainExecutable(argv[0], (void *) main);
-        if (auto err = runStat(thisExePath, sourcePathList, statResultFile, buildPathOption); err) {
+        if (auto err =
+                runSubCommand(thisExePath, "stat", sourcePathList, statResultFile, buildPathOption,
+                              configOption.empty() ? ArrayRef<StringRef>()
+                                                   : ArrayRef<StringRef>({"-c", configOption}));
+            err) {
             llvm::errs() << "Failed to run stat command: " << err << "\n";
             return 1;
         }
@@ -150,11 +179,172 @@ namespace lore::tool::command::batch {
             return 1;
         }
 
+        /// STEP: Make output directory
+        if (!llvm::sys::fs::exists(outputDir)) {
+            if (std::error_code ec; (ec = llvm::sys::fs::create_directories(outputDir))) {
+                llvm::errs() << "Failed to create output directory " << outputDir << ": "
+                             << ec.message() << "\n";
+                return 1;
+            }
+        }
+
         /// STEP: Call "mark-macros", "preprocess" and "rewrite" on each file
+        for (const auto &file : std::as_const(sourcePathList)) {
+            llvm::errs() << "Running mark-macros on \"" << file << "\"\n";
+            if (auto err = runSubCommand(thisExePath, "mark-macros", file, file, buildPathOption,
+                                         {"-s", statResultFile});
+                err) {
+                llvm::errs() << "Failed to run mark-macros command: " << err << "\n";
+                return 1;
+            }
 
+            llvm::errs() << "Running preprocess on \"" << file << "\"\n";
+            if (auto err = runSubCommand(thisExePath, "preprocess", file, file, buildPathOption);
+                err) {
+                llvm::errs() << "Failed to run preprocess command: " << err << "\n";
+                return 1;
+            }
 
-        /// STEP: Generate common header and unique source
+            llvm::errs() << "Running rewrite on \"" << file << "\"\n";
+            if (auto err = runSubCommand(thisExePath, "rewrite", file, file, buildPathOption,
+                                         {"-s", statResultFile});
+                err) {
+                llvm::errs() << "Failed to run rewrite command: " << err << "\n";
+                return 1;
+            }
 
+            // Add common header inclusion
+            std::string fileToInclude = getRelativeToOutputDir(file) + "/FileContext.h";
+            if (auto err = adjustContent(file, "#include \"" + fileToInclude + "\"\n"); err) {
+                llvm::errs() << "Failed to adjust content: " << err << "\n";
+                return 1;
+            }
+        }
+
+        /// STEP: Write common header
+        {
+            std::error_code ec;
+            llvm::raw_fd_ostream out(outputCommonHeader, ec);
+            if (ec) {
+                llvm::errs() << "Failed to create common header file " << outputCommonHeader << ": "
+                             << ec.message() << "\n";
+                return 1;
+            }
+            out << res_FileContext_h_c;
+            out << "\n\n";
+
+            size_t i = 0;
+            for (const auto &guard : stat.callbackCheckGuardSignatures) {
+                out << "LORE_CCG_DECL(" << i + 1 << ")\n";
+                ++i;
+            }
+            out << "\n";
+
+            i = 0;
+            for (const auto &guard : stat.functionDecayGuardStats) {
+                size_t j = 0;
+                for (const auto &_ : guard.second.locations) {
+                    out << "LORE_FDG_DECL(" << i + 1 << ", " << j + 1 << ")\n";
+                    ++j;
+                }
+                ++i;
+            }
+            out << "\n";
+
+            i = 0;
+            for (const auto &guard : stat.callbackCheckGuardSignatures) {
+                out << "#define LORE_CCG_" << i + 1 << "(X) LORE_CCG_GET(" << i + 1 << ", (X))\n";
+                ++i;
+            }
+            out << "\n";
+
+            i = 0;
+            for (const auto &guard : stat.functionDecayGuardStats) {
+                size_t j = 0;
+                for (const auto &_ : guard.second.locations) {
+                    out << "#define LORE_FDG_" << i + 1 << "_" << j + 1 << "(X) LORE_FDG_GET("
+                        << i + 1 << ", " << j + 1 << ", (X))\n";
+                    ++j;
+                }
+                ++i;
+            }
+        }
+
+        /// STEP: Write single source
+        {
+            std::error_code ec;
+            llvm::raw_fd_ostream out(outputSingleSource, ec);
+            if (ec) {
+                llvm::errs() << "Failed to create single source file " << outputSingleSource << ": "
+                             << ec.message() << "\n";
+                return 1;
+            }
+
+            size_t i = 0;
+            for (const auto &guard : stat.callbackCheckGuardSignatures) {
+                out << "LORE_CCG_IMPL(" << i + 1 << ")\n";
+                ++i;
+            }
+
+            i = 0;
+            out << "static struct LoreThunkProcInfo LoreFileContext_CCGs[] = {\n";
+            for (const auto &guard : stat.callbackCheckGuardSignatures) {
+                out << "    {\"" << guard << "\", &LoreFileContext_CCG_Tramp_" << i + 1 << "},\n";
+                ++i;
+            }
+            out << "};\n\n";
+
+            i = 0;
+            for (const auto &guard : stat.functionDecayGuardStats) {
+                out << "static struct LoreFunctionDecayGuard *LoreFileContext_FDG_Proc_" << i + 1
+                    << "_instances[] = {\n";
+                size_t j = 0;
+                for (const auto &_ : guard.second.locations) {
+                    out << "    &LoreFileContext_FDG_Proc_" << i + 1 << "_" << j + 1 << ",\n";
+                    ++j;
+                }
+                out << "};\n\n";
+                ++i;
+            }
+
+            i = 0;
+            out << "static struct LoreFunctionDecayGuardInfo LoreFileContext_FDGs[] = {\n";
+            for (const auto &guard : stat.functionDecayGuardStats) {
+                out << "    {\"" << guard.first << "\", " << guard.second.locations.size()
+                    << ", LoreFileContext_FDG_Proc_" << i + 1 << "_instances},\n";
+                ++i;
+            }
+            out << "};\n\n";
+
+            out << "__LORE_PRIV__ struct LoreFileContext LoreFileContext_instance = {\n";
+            out << "    .runtimeContext = 0,\n";
+            out << "    .emuAddr = 0,\n";
+            out << "    .setThreadCallback = 0,\n";
+            out << "    .CCGs = LoreFileContext_CCGs,\n";
+            out << "    .FDGs = LoreFileContext_FDGs,\n";
+            out << "};\n\n";
+
+            out << "__LORE_EXPORT__ struct LoreFileContext *__getLoreFileContext() {\n";
+            out << "    return &LoreFileContext_instance;\n";
+            out << "}\n\n";
+        }
+
+        /// STEP: Append single source inclusion to the first source file
+        {
+            std::error_code ec;
+            llvm::raw_fd_ostream out(sourcePathList[0], ec, llvm::sys::fs::OF_Append);
+            if (ec) {
+                llvm::errs() << "Failed to append single source inclusion to the first source file "
+                             << sourcePathList[0] << ": " << ec.message() << "\n";
+                return 1;
+            }
+
+            std::string fileToInclude =
+                getRelativeToOutputDir(sourcePathList[0]) + "/FileContext.c";
+            out << "\n";
+            out << "#include \"" << fileToInclude << "\"\n";
+        }
         return 0;
     }
+
 }

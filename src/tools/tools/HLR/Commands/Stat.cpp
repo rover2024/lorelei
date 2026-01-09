@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 #include <string>
-#include <filesystem>
 
 #include <llvm/Support/Program.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -15,13 +14,12 @@ using namespace clang;
 using namespace clang::tooling;
 
 namespace cl = llvm::cl;
-namespace fs = std::filesystem;
 
 namespace lore::tool::command::stat {
 
     struct GlobalContext {
         /// Global states
-        std::filesystem::path initialCwd;
+        SmallString<128> initialCwd;
         std::string configPath;
         std::string outputPath;
 
@@ -54,7 +52,7 @@ namespace lore::tool::command::stat {
                 auto T = AST.getPointerType(FD->getType());
                 assert(FD);
                 g_ctx().sourceStat.functionDecayGuardStats[getTypeString(T)].locations.insert(
-                    FD->getBeginLoc().printToString(SM));
+                    std::make_pair(FD->getBeginLoc().printToString(SM), inFile));
             }
         }
 
@@ -95,7 +93,10 @@ namespace lore::tool::command::stat {
         }
         auto &parser = expectedParser.get();
 
-        g_ctx().initialCwd = fs::current_path();
+        if (std::error_code ec; (ec = llvm::sys::fs::current_path(g_ctx().initialCwd))) {
+            llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
+            return 1;
+        }
         g_ctx().outputPath = outputOption.getValue();
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());

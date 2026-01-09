@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-#include <filesystem>
 #include <cstdlib>
 #include <set>
 
@@ -12,9 +11,12 @@
 #include <clang/Tooling/Tooling.h>
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Support/FileSystem.h>
 
 #include <LoreTools/Basic/RewriteInsertion.h>
+#include <LoreTools/Basic/TypeUtils.h>
 #include <LoreTools/HLRUtils/ASTConsumers.h>
+#include <LoreTools/HLRUtils/SourceStatistics.h>
 
 #include "MarkMacros.h"
 
@@ -23,16 +25,16 @@ using namespace clang::ast_matchers;
 using namespace clang::tooling;
 
 namespace cl = llvm::cl;
-namespace fs = std::filesystem;
 
 namespace lore::tool::command::mark_macros {
 
     struct GlobalContext {
         /// Global states
-        std::filesystem::path initialCwd;
+        SmallString<128> initialCwd;
         std::string outputPath;
 
         /// Runtime data
+        HLR::SourceStatistics sourceStat;
         std::string outBuffer;
     };
 
@@ -90,6 +92,13 @@ namespace lore::tool::command::mark_macros {
 
             RewriteRangePackerSet insertions;
             for (const CallExpr *CE : std::as_const(_fileData.callbackInvokeExprList)) {
+                auto T = realCalleeType(CE, AST);
+                auto signature = getTypeString(T);
+                auto it = g_ctx().sourceStat.callbackCheckGuardSignatures.find(signature);
+                if (it == g_ctx().sourceStat.callbackCheckGuardSignatures.end()) {
+                    continue;
+                }
+
                 auto range = CE->getCallee()->getSourceRange();
                 auto beginLoc = range.getBegin();
                 auto endLoc = range.getEnd();
@@ -169,6 +178,15 @@ namespace lore::tool::command::mark_macros {
             }
 
             for (const DeclRefExpr *DRE : std::as_const(_fileData.functionDecayExprList)) {
+                auto FD = DRE->getDecl()->getAsFunction();
+                assert(FD);
+                auto T = AST.getPointerType(FD->getType());
+                auto signature = getTypeString(T);
+                auto it = g_ctx().sourceStat.functionDecayGuardStats.find(signature);
+                if (it == g_ctx().sourceStat.functionDecayGuardStats.end()) {
+                    continue;
+                }
+
                 auto range = DRE->getSourceRange();
                 auto beginLoc = range.getBegin();
                 auto endLoc = range.getEnd();
@@ -241,34 +259,48 @@ namespace lore::tool::command::mark_macros {
     int main(int argc, char *argv[]) {
         static cl::OptionCategory myOptionCat(
             "Lorelei Host Library Rewriter - Mark Macros (Single File)");
+        static cl::opt<std::string> statOption("s", cl::desc("Specify statistics file"),
+                                               cl::value_desc("statistics file"),
+                                               cl::cat(myOptionCat), cl::Required);
         static cl::opt<std::string> outputOption("o", cl::desc("Specify output file"),
                                                  cl::value_desc("output file"),
                                                  cl::cat(myOptionCat));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
-        auto expectedParser = CommonOptionsParser::create(
-            argc, const_cast<const char **>(argv), myOptionCat, cl::NumOccurrencesFlag::Required);
+        auto expectedParser = CommonOptionsParser::create(argc, const_cast<const char **>(argv),
+                                                          myOptionCat, cl::Required);
         if (!expectedParser) {
             llvm::errs() << expectedParser.takeError();
             return 0;
         }
         auto &parser = expectedParser.get();
 
-        g_ctx().initialCwd = fs::current_path();
+        if (std::error_code ec; (ec = llvm::sys::fs::current_path(g_ctx().initialCwd))) {
+            llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
+            return 1;
+        }
         g_ctx().outputPath = outputOption.getValue();
+
+        // Build statistics index maps
+        if (std::string err; !g_ctx().sourceStat.loadFromJson(statOption.getValue(), err)) {
+            llvm::errs() << "Failed to parse statistics file: " << err << "\n";
+            return 1;
+        }
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {
             return ret;
         }
 
-        std::error_code ec;
-        llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
-        if (ec) {
-            llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
-            return 1;
+        if (!g_ctx().outBuffer.empty()) {
+            std::error_code ec;
+            llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
+            if (ec) {
+                llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
+                return 1;
+            }
+            out << g_ctx().outBuffer;
         }
-        out << g_ctx().outBuffer;
         return 0;
     }
 

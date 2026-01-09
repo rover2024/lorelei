@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: MIT
-
-#include <filesystem>
 #include <cstdlib>
 
 #include <clang/Basic/SourceManager.h>
@@ -26,7 +24,7 @@ namespace lore::tool::command::preprocess {
 
     struct GlobalContext {
         /// Global states
-        std::filesystem::path initialCwd;
+        SmallString<128> initialCwd;
         std::string outputPath;
 
         /// Runtime data
@@ -161,15 +159,18 @@ namespace lore::tool::command::preprocess {
                                                  cl::cat(myOptionCat));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
-        auto expectedParser = CommonOptionsParser::create(
-            argc, const_cast<const char **>(argv), myOptionCat, cl::NumOccurrencesFlag::Required);
+        auto expectedParser = CommonOptionsParser::create(argc, const_cast<const char **>(argv),
+                                                          myOptionCat, cl::Required);
         if (!expectedParser) {
             llvm::errs() << expectedParser.takeError();
             return 0;
         }
         auto &parser = expectedParser.get();
 
-        g_ctx().initialCwd = fs::current_path();
+        if (std::error_code ec; (ec = llvm::sys::fs::current_path(g_ctx().initialCwd))) {
+            llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
+            return 1;
+        }
         g_ctx().outputPath = outputOption.getValue();
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());

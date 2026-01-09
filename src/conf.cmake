@@ -18,8 +18,6 @@ else()
     endif()
 endif()
 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 # ----------------------------------
 # Project Constants
 # ----------------------------------

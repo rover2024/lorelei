@@ -16,9 +16,9 @@ namespace lore::tool::HLR {
     class LOREHLRUTILS_EXPORT SourceStatistics {
     public:
         struct FunctionDecayGuardData {
-            /// Each location is a string representation of the begin source location of a
-            /// function declaration.
-            std::set<std::string> locations;
+            /// Each location is map from the string representation of the begin source location of
+            /// a function declaration to the last referenced file name.
+            std::map<std::string, std::string> locations;
         };
 
         SourceStatistics() = default;
