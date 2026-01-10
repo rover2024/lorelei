@@ -189,23 +189,24 @@ namespace lore::tool::command::batch {
         }
 
         /// STEP: Call "mark-macros", "preprocess" and "rewrite" on each file
-        for (const auto &file : std::as_const(sourcePathList)) {
-            llvm::errs() << "Running mark-macros on \"" << file << "\"\n";
+        llvm::errs() << "Running mark-macros/preprocess/rewrite on " << sourcePathList.size()
+                     << " files...\n";
+        for (size_t i = 0; i < sourcePathList.size(); ++i) {
+            const auto &file = sourcePathList[i];
+            llvm::errs() << "[" + std::to_string(i + 1) + "/" +
+                                std::to_string(sourcePathList.size()) + "] Processing file " + file
+                         << ".\n";
             if (auto err = runSubCommand(thisExePath, "mark-macros", file, file, buildPathOption,
                                          {"-s", statResultFile});
                 err) {
                 llvm::errs() << "Failed to run mark-macros command: " << err << "\n";
                 return 1;
             }
-
-            llvm::errs() << "Running preprocess on \"" << file << "\"\n";
             if (auto err = runSubCommand(thisExePath, "preprocess", file, file, buildPathOption);
                 err) {
                 llvm::errs() << "Failed to run preprocess command: " << err << "\n";
                 return 1;
             }
-
-            llvm::errs() << "Running rewrite on \"" << file << "\"\n";
             if (auto err = runSubCommand(thisExePath, "rewrite", file, file, buildPathOption,
                                          {"-s", statResultFile});
                 err) {

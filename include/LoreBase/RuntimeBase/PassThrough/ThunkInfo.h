@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <optional>
 #include <filesystem>
+#include <memory>
 
 #include <LoreBase/CoreLib/ADT/LinkedMap.h>
 #include <LoreBase/RuntimeBase/c/LThunkInfo.h>
@@ -24,7 +24,8 @@ namespace lore {
         ~ForwardThunkInfo();
 
     protected:
-        mutable std::optional<LForwardThunkInfo> _c_data;
+        struct CDataGuard;
+        mutable std::unique_ptr<CDataGuard> _c_data;
     };
 
     struct LORERTBASE_EXPORT ReversedThunkInfo {
@@ -37,7 +38,8 @@ namespace lore {
         ~ReversedThunkInfo();
 
     protected:
-        mutable std::optional<LReversedThunkInfo> _c_data;
+        struct CDataGuard;
+        mutable std::unique_ptr<CDataGuard> _c_data;
     };
 
     class LORERTBASE_EXPORT ThunkInfoConfig {

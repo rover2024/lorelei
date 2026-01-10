@@ -49,18 +49,11 @@ namespace lore::tool::HLR {
                     }
 
                     FunctionDecayGuardData data;
-                    if (auto locs = obj->getArray("locations")) {
-                        for (auto &loc : *locs) {
-                            if (auto pairArr = loc.getAsArray()) {
-                                auto &pair = *pairArr;
-                                if (pair.size() == 2) {
-                                    if (auto str1 = pair[0].getAsString()) {
-                                        if (auto str2 = pair[1].getAsString()) {
-                                            data.locations.insert(
-                                                std::make_pair(str1->str(), str2->str()));
-                                        }
-                                    }
-                                }
+                    if (auto locObj = obj->getObject("locations")) {
+                        for (auto &loc : *locObj) {
+                            if (auto locStr = loc.second.getAsString()) {
+                                data.locations.insert(
+                                    std::make_pair(loc.first.str(), locStr->str()));
                             }
                         }
                     }
@@ -94,11 +87,11 @@ namespace lore::tool::HLR {
             llvm::json::Object decayGuardObj;
             decayGuardObj["signature"] = signature;
 
-            llvm::json::Array locationsArray;
+            llvm::json::Object locationsObj;
             for (const auto &location : data.locations) {
-                locationsArray.push_back(llvm::json::Array{location.first, location.second});
+                locationsObj[location.first] = location.second;
             }
-            decayGuardObj["locations"] = std::move(locationsArray);
+            decayGuardObj["locations"] = std::move(locationsObj);
 
             decayGuardsArray.push_back(std::move(decayGuardObj));
         }

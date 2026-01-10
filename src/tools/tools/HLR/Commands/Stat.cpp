@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 #include <string>
+#include <sstream>
 
 #include <llvm/Support/Program.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 
+#include <LoreBase/CoreLib/Support/ConfigFile.h>
 #include <LoreTools/Basic/TypeUtils.h>
 #include <LoreTools/HLRUtils/ASTConsumers.h>
 #include <LoreTools/HLRUtils/SourceStatistics.h>
@@ -23,7 +25,8 @@ namespace lore::tool::command::stat {
         std::string configPath;
         std::string outputPath;
 
-        /// Runtime data
+        /// Runtime
+        std::set<std::string> interestedSignatures;
         HLR::SourceStatistics sourceStat;
     };
 
@@ -44,14 +47,22 @@ namespace lore::tool::command::stat {
 
             for (const auto &E : fileData.callbackInvokeExprList) {
                 auto T = realCalleeType(E, AST);
-                g_ctx().sourceStat.callbackCheckGuardSignatures.insert(getTypeString(T));
+                auto typeStr = getTypeString(T);
+                if (!g_ctx().interestedSignatures.count(typeStr)) {
+                    continue;
+                }
+                g_ctx().sourceStat.callbackCheckGuardSignatures.insert(typeStr);
             }
 
             for (const auto &E : fileData.functionDecayExprList) {
                 auto FD = E->getDecl()->getAsFunction();
                 auto T = AST.getPointerType(FD->getType());
+                auto typeStr = getTypeString(T);
+                if (!g_ctx().interestedSignatures.count(typeStr)) {
+                    continue;
+                }
                 assert(FD);
-                g_ctx().sourceStat.functionDecayGuardStats[getTypeString(T)].locations.insert(
+                g_ctx().sourceStat.functionDecayGuardStats[typeStr].locations.insert(
                     std::make_pair(FD->getBeginLoc().printToString(SM), inFile));
             }
         }
@@ -98,6 +109,25 @@ namespace lore::tool::command::stat {
             return 1;
         }
         g_ctx().outputPath = outputOption.getValue();
+
+        /// STEP: Read config file
+        {
+            auto buffer = llvm::MemoryBuffer::getFile(configOption.getValue());
+            if (std::error_code EC = buffer.getError()) {
+                llvm::errs() << "Failed to open config file: " << EC.message() << "\n";
+                return 1;
+            }
+            std::istringstream iss(buffer->get()->getBuffer().str());
+            std::string line;
+            int i = 0;
+            while (std::getline(iss, line)) {
+                StringRef trimmedLine = StringRef(line).trim();
+                if (trimmedLine.empty() || trimmedLine.starts_with("#")) {
+                    continue;
+                }
+                g_ctx().interestedSignatures.insert(trimmedLine.str());
+            }
+        }
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret == 1) {

@@ -28,43 +28,55 @@ namespace lore {
         return res;
     }
 
-    const LForwardThunkInfo &ForwardThunkInfo::c_data() const {
-        if (!_c_data.has_value()) {
-            LForwardThunkInfo info;
-            info.name = (char *) name.c_str();
-            info.alias = buildStringList(alias);
-            info.guestThunk = (char *) guestThunk.c_str();
-            info.hostThunk = (char *) hostThunk.c_str();
-            info.hostLibrary = (char *) hostLibrary.c_str();
-            _c_data = info;
+    struct ForwardThunkInfo::CDataGuard {
+        explicit CDataGuard(const ForwardThunkInfo &info) {
+            data.name = (char *) info.name.c_str();
+            data.alias = buildStringList(info.alias);
+            data.guestThunk = (char *) info.guestThunk.c_str();
+            data.hostThunk = (char *) info.hostThunk.c_str();
+            data.hostLibrary = (char *) info.hostLibrary.c_str();
         }
-        return _c_data.value();
+
+        ~CDataGuard() {
+            delete[] data.alias.data;
+        }
+
+        LForwardThunkInfo data;
+    };
+
+    const LForwardThunkInfo &ForwardThunkInfo::c_data() const {
+        if (!_c_data) {
+            _c_data = std::make_unique<CDataGuard>(*this);
+        }
+        return _c_data->data;
     }
 
-    ForwardThunkInfo::~ForwardThunkInfo() {
-        if (_c_data.has_value()) {
-            delete[] _c_data->alias.data;
+    ForwardThunkInfo::~ForwardThunkInfo() = default;
+
+    struct ReversedThunkInfo::CDataGuard {
+        explicit CDataGuard(const ReversedThunkInfo &info) {
+            data.name = (char *) info.name.c_str();
+            data.alias = buildStringList(info.alias);
+            data.fileName = (char *) info.fileName.c_str();
+            data.thunks = buildStringList(info.thunks);
         }
-    }
+
+        ~CDataGuard() {
+            delete[] data.alias.data;
+            delete[] data.thunks.data;
+        }
+
+        LReversedThunkInfo data;
+    };
 
     const LReversedThunkInfo &ReversedThunkInfo::c_data() const {
-        if (!_c_data.has_value()) {
-            LReversedThunkInfo info;
-            info.name = (char *) name.c_str();
-            info.alias = buildStringList(alias);
-            info.fileName = (char *) fileName.c_str();
-            info.thunks = buildStringList(thunks);
-            _c_data = info;
+        if (!_c_data) {
+            _c_data = std::make_unique<CDataGuard>(*this);
         }
-        return _c_data.value();
+        return _c_data->data;
     }
 
-    ReversedThunkInfo::~ReversedThunkInfo() {
-        if (_c_data.has_value()) {
-            delete[] _c_data->alias.data;
-            delete[] _c_data->thunks.data;
-        }
-    }
+    ReversedThunkInfo::~ReversedThunkInfo() = default;
 
     bool ThunkInfoConfig::load(const std::filesystem::path &path,
                                const std::map<std::string, std::string> &vars) {
