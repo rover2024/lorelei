@@ -1,25 +1,25 @@
 # Guest architecture: x86_64
-set(LORELEI_GUEST_ARCH "x86_64")
-set(LORELEI_GUEST_FIXED_REGISTER "r11")
+set(LORE_GUEST_ARCH "x86_64")
+set(LORE_GUEST_FIXED_REGISTER "r11")
 
-if(NOT DEFINED LORELEI_HOST_ARCH)
+if(NOT DEFINED LORE_HOST_ARCH)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
-        set(LORELEI_HOST_ARCH "x86_64")
-        set(LORELEI_HOST_FIXED_REGISTER "r11")
+        set(LORE_HOST_ARCH "x86_64")
+        set(LORE_HOST_FIXED_REGISTER "r11")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-        set(LORELEI_HOST_ARCH "aarch64")
-        set(LORELEI_HOST_FIXED_REGISTER "x16")
+        set(LORE_HOST_ARCH "aarch64")
+        set(LORE_HOST_FIXED_REGISTER "x16")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
-        set(LORELEI_HOST_ARCH "riscv64")
-        set(LORELEI_HOST_FIXED_REGISTER "t1")
+        set(LORE_HOST_ARCH "riscv64")
+        set(LORE_HOST_FIXED_REGISTER "t1")
     endif()
 endif()
 
-if(NOT DEFINED LORELEI_THUNK_SOURCES_DIR)
-    set(LORELEI_THUNK_GENERATE on)
-    set(LORELEI_THUNK_SOURCES_DIR ${LORELEI_BUILD_BASE_DIR}/src/thunks)
+if(NOT DEFINED LORE_THUNK_SOURCES_DIR)
+    set(LORE_THUNK_GENERATE on)
+    set(LORE_THUNK_SOURCES_DIR ${LORE_BUILD_BASE_DIR}/src/thunks)
 else()
-    set(LORELEI_THUNK_GENERATE off)
+    set(LORE_THUNK_GENERATE off)
 endif()
 
 #[[
@@ -100,25 +100,25 @@ function(lore_generate_global_header _target _rel_path)
 #endif
 ")
 
-    set(_out_dir ${LORELEI_BUILD_INCLUDE_DIR}/${_rel_path})
+    set(_out_dir ${LORE_BUILD_INCLUDE_DIR}/${_rel_path})
     set(_out_file "${_out_dir}/Global.h")
     file(MAKE_DIRECTORY ${_out_dir})
     file(WRITE ${_out_file} ${_content})
     target_include_directories(${_target} PUBLIC $<BUILD_INTERFACE:${_out_dir}>)
 
-    if(LORELEI_INSTALL)
+    if(LORE_INSTALL)
         install(FILES ${_out_file}
-            DESTINATION ${LORELEI_INSTALL_INCLUDE_DIR}/${_rel_path}
+            DESTINATION ${LORE_INSTALL_INCLUDE_DIR}/${_rel_path}
         )
     endif()
 endfunction()
 
 function(lore_guest_thunk_disable_register _target)
-    target_compile_options(${_target} PRIVATE "-ffixed-${LORELEI_GUEST_FIXED_REGISTER}")
+    target_compile_options(${_target} PRIVATE "-ffixed-${LORE_GUEST_FIXED_REGISTER}")
 endfunction()
 
 function(lore_host_thunk_disable_register _target)
-    target_compile_options(${_target} PRIVATE "-ffixed-${LORELEI_HOST_FIXED_REGISTER}")
+    target_compile_options(${_target} PRIVATE "-ffixed-${LORE_HOST_FIXED_REGISTER}")
 endfunction()
 
 function(lore_generate_thunk _name _input_file _out_file _config_file)
@@ -146,7 +146,7 @@ function(lore_generate_thunk _name _input_file _out_file _config_file)
 
     list(APPEND _args ${_input_file})
 
-    list(APPEND _args "--" "-xc++" "-I${LORELEI_SOURCE_DIR}/include" "-I${QMSETUP_BUILD_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
+    list(APPEND _args "--" "-xc++" "-I${LORE_SOURCE_DIR}/include" "-I${QMSETUP_BUILD_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
 
     if(FUNC_EXTRA_ARGS)
         list(APPEND _args ${FUNC_EXTRA_ARGS})
@@ -173,11 +173,11 @@ function(lore_configure_guest_thunk _target)
         set_target_properties(${_target} PROPERTIES OUTPUT_NAME ${CMAKE_MATCH_1})
     endif()
 
-    _lore_configure_thunk(${_target} ${LORELEI_GUEST_ARCH}-loreg-linux-gnu)
+    _lore_configure_thunk(${_target} ${LORE_GUEST_ARCH}-loreg-linux-gnu)
 endfunction()
 
 function(lore_configure_host_thunk _target)
-    _lore_configure_thunk(${_target} ${LORELEI_HOST_ARCH}-loreh-linux-gnu)
+    _lore_configure_thunk(${_target} ${LORE_HOST_ARCH}-loreh-linux-gnu)
 endfunction()
 
 function(_lore_configure_thunk _target _dir)
@@ -196,12 +196,12 @@ function(_lore_configure_thunk _target _dir)
         endforeach()
     endif()
 
-    if(LORELEI_INSTALL AND NOT LORELEI_SKIP_INSTALL)
+    if(LORE_INSTALL AND NOT LORE_SKIP_INSTALL)
         install(TARGETS ${_target}
-            EXPORT ${LORELEI_EXPORT}
-            RUNTIME DESTINATION "${LORELEI_INSTALL_RUNTIME_DIR}" OPTIONAL
-            LIBRARY DESTINATION "${LORELEI_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
-            ARCHIVE DESTINATION "${LORELEI_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
+            EXPORT ${LORE_EXPORT}
+            RUNTIME DESTINATION "${LORE_INSTALL_RUNTIME_DIR}" OPTIONAL
+            LIBRARY DESTINATION "${LORE_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
+            ARCHIVE DESTINATION "${LORE_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
         )
 
         if(_links)
@@ -224,3 +224,10 @@ macro(lore_add_resource _target _in_file)
     qm_add_binary_resource(${_in_file} ${_res_out_file})
     target_sources(${_target} PRIVATE ${_res_out_file})
 endmacro()
+
+function(lore_add_auto_test _src)
+    get_filename_component(_name ${_src} NAME_WE)
+    add_executable(${_name} ${_src})
+    target_link_libraries(${_name} PRIVATE Boost::unit_test_framework)
+    add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
+endfunction()

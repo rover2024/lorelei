@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include <lorelei-c/Core/VariadicAdaptor_c.h>
+#include <LoreBase/RuntimeBase/c/LVariadicArgs.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,10 +43,10 @@ static inline void _out_null_scanf(char character, void *buffer, size_t idx, siz
 //     }
 // }
 
-int _vsnprintf_scanf(out_fct_type out, char *buffer, const size_t maxlen, const char *format, va_list va,
-                     struct CVargEntry *entries);
+int mp_vsnprintf_scanf(out_fct_type out, char *buffer, const size_t maxlen, const char *format,
+                       va_list va, struct LVargEntry *entries);
 
-int _vprintf_scanf(const char *format, va_list va, struct CVargEntry *entries);
+// int mp_vprintf_scanf(const char *format, va_list va, struct LVargEntry *entries);
 
 #ifdef __cplusplus
 }

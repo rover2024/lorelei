@@ -139,7 +139,7 @@ namespace lore {
                         result.guestThunk = defaultGuestThunkPath + "/" + name + ".so";
                         result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
                         result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
-                        _forwardThunks.push_back(result);
+                        _forwardThunks.emplace_back(std::move(result));
                     }
                 }
 
@@ -220,7 +220,7 @@ namespace lore {
                         result.hostLibrary = resolvePath(val);
                     }
                 }
-                _forwardThunks.push_back(result);
+                _forwardThunks.emplace_back(std::move(result));
             }
         }
 
@@ -289,7 +289,7 @@ namespace lore {
                     }
                 }
 
-                _reversedThunks.push_back(result);
+                _reversedThunks.emplace_back(std::move(result));
             }
         }
 

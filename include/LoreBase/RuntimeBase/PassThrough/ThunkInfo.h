@@ -21,6 +21,10 @@ namespace lore {
         std::string hostLibrary;
 
         const LForwardThunkInfo &c_data() const;
+
+        ForwardThunkInfo() = default;
+        ForwardThunkInfo(ForwardThunkInfo &&) noexcept = default;
+        ForwardThunkInfo &operator=(ForwardThunkInfo &&) noexcept = default;
         ~ForwardThunkInfo();
 
     protected:
@@ -35,6 +39,10 @@ namespace lore {
         std::vector<std::string> thunks;
 
         const LReversedThunkInfo &c_data() const;
+
+        ReversedThunkInfo() = default;
+        ReversedThunkInfo(ReversedThunkInfo &&) noexcept = default;
+        ReversedThunkInfo &operator=(ReversedThunkInfo &&) noexcept = default;
         ~ReversedThunkInfo();
 
     protected:
@@ -46,6 +54,9 @@ namespace lore {
     public:
         ThunkInfoConfig() = default;
         ~ThunkInfoConfig() = default;
+
+        ThunkInfoConfig(const ThunkInfoConfig &) = delete;
+        ThunkInfoConfig &operator=(const ThunkInfoConfig &) = delete;
 
     public:
         bool load(const std::filesystem::path &path,
@@ -84,6 +95,5 @@ namespace lore {
     };
 
 }
-
 
 #endif // LORE_BASE_RUNTIMEBASE_THUNKINFO_H

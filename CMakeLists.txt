@@ -12,8 +12,7 @@ project(lorelei
 # ----------------------------------
 option(LORE_BUILD_SHARED "Build shared libraries" ON)
 option(LORE_BUILD_STATIC "Build static libraries" OFF)
-option(LORE_ENABLE_GUEST "Build guest targets" OFF)
-option(LORE_ENABLE_HOST "Build host targets" ON)
+option(LORE_BUILD_GUEST_TARGETS "Build guest targets" OFF)
 option(LORE_BUILD_TOOLS "Build tool targets" ON)
 option(LORE_BUILD_THUNKS "Build thunk targets" ON)
 option(LORE_BUILD_TESTS "Build test targets" OFF)

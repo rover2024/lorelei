@@ -35,6 +35,7 @@
 #include <stdarg.h>
 
 #include "printf_scanf.h"
+#include "va_type.h"
 
 
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
@@ -117,8 +118,6 @@
 #if defined(PRINTF_SUPPORT_FLOAT)
 #include <float.h>
 #endif
-
-#include "printf.h"
 
 // output function type
 typedef void (*out_fct_type)(char character, void* buffer, size_t idx, size_t maxlen);
@@ -548,100 +547,8 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #endif  // PRINTF_SUPPORT_EXPONENTIAL
 #endif  // PRINTF_SUPPORT_FLOAT
 
-#define va_int(ap)                                                                                                     \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_unsigned_int(ap)                                                                                            \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_long(ap)                                                                                                    \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_unsigned_long(ap)                                                                                           \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_long_long(ap)                                                                                               \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_unsigned_long_long(ap)                                                                                      \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_float(ap)                                                                                                   \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_double(ap)                                                                                                  \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        0;                                                                                                             \
-    })
-#define va_string(ap)                                                                                                  \
-    ({                                                                                                                 \
-        char *_val = va_arg(va, char *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        _val;                                                                                                          \
-    })
-#define va_pointer(ap)                                                                                                 \
-    ({                                                                                                                 \
-        void *_val = va_arg(va, void *);                                                                               \
-        struct CVargEntry entry = {.type = CVargType_Pointer};                                                      \
-        entry.p = _val;                                                                                                \
-        (*entries) = entry;                                                                                            \
-        entries++;                                                                                                     \
-        _val;                                                                                                          \
-    })
-
-
 // internal vsnprintf
-int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct CVargEntry *entries)
+int mp_vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct LVargEntry *entries)
 {
   unsigned int flags, width, precision, n;
   size_t idx = 0U;
@@ -920,7 +827,7 @@ int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const 
   out((char)0, buffer, idx < maxlen ? idx : maxlen - 1U, maxlen);
 
   {
-    struct CVargEntry terminate_null;
+    struct LVargEntry terminate_null;
     terminate_null.type = 0;
     terminate_null.p = NULL;
     *entries = terminate_null;
@@ -933,7 +840,7 @@ int _vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const 
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// int _vprintf(const char *format, va_list va, struct CVargEntry *entries) {
+// int _vprintf(const char *format, va_list va, struct LVargEntry *entries) {
 //   char buffer[1];
 //   const int ret = _vsnprintf(_out_char, buffer, (size_t)-1, format, va, entries);
 //   return ret;
