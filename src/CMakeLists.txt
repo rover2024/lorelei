@@ -7,6 +7,8 @@ add_custom_target(thunk_gen_all)
 
 add_subdirectory(3rdparty)
 add_subdirectory(base)
+add_subdirectory(modules)
+
 
 if(LORE_BUILD_TOOLS)
     add_subdirectory(tools)

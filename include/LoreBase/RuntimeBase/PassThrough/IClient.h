@@ -8,7 +8,7 @@
 
 namespace lore {
 
-    /// \brief Calling conventions for \c Client<T>::invokeProc.
+    /// ClientCallingConvention - Calling conventions for \c Client<T>::invokeProc.
     enum ClientCallingConvention {
         /// The standard calling convention, where all arguments are passed through pointer on
         /// the stack.
@@ -55,7 +55,17 @@ namespace lore {
         CC_ThreadEntry = 0x80,
     };
 
-    /// IClient - Interface for guest-side client to send invocation request to the the host-side server.
+    /// ClientSpecialEntry - Special entry points of guest-side environment.
+    enum ClientSpecialEntry {
+        /// Get the address of a function in a library.
+        CE_GetProcAddress = 1,
+
+        /// Reentry loop of guest-side runtime.
+        CE_ReentryLoop,
+    };
+
+    /// IClient - Interface for guest-side client to send invocation request to the the host-side
+    /// server.
     template <class T>
     class IClient {
     public:
@@ -141,6 +151,13 @@ namespace lore {
         /// \param ptr Pointer to the memory to free.
         static void heapFree(void *ptr) {
             return T::heapFree_impl(ptr);
+        }
+
+        /// Set the special entry point of the guest-side runtime.
+        /// \param entry Special entry point to set.
+        /// \param addr Address of the special entry point.
+        static void setSpecialEntry(int id, void *addr) {
+            T::setSpecialEntry_impl(id, addr);
         }
 
     public:
