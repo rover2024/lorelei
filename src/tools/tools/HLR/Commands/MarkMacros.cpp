@@ -13,10 +13,11 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/FileSystem.h>
 
-#include <LoreTools/Basic/RewriteInsertion.h>
-#include <LoreTools/Basic/TypeUtils.h>
-#include <LoreTools/HLRUtils/ASTConsumers.h>
-#include <LoreTools/HLRUtils/SourceStatistics.h>
+#include <lorelei/Tools/ToolUtils/RewriteInsertion.h>
+#include <lorelei/Tools/ToolUtils/TypeUtils.h>
+
+#include "Utils/ASTConsumers.h"
+#include "Utils/SourceStatistics.h"
 
 #include "MarkMacros.h"
 

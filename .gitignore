@@ -93,4 +93,7 @@ CMakeSettings.json
 /data
 /*.natvis
 
+.clangd
+.codex
+
 .git-credentials

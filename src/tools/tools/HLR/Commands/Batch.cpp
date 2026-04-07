@@ -9,9 +9,10 @@
 #include <llvm/Support/CommandLine.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 
-#include <LoreBase/CoreLib/ADT/ScopeGuard.h>
-#include <LoreBase/CoreLib/ADT/StringExtras.h>
-#include <LoreTools/HLRUtils/SourceStatistics.h>
+#include <lorelei/Base/Support/ScopeGuard.h>
+#include <lorelei/Base/Support/StringExtras.h>
+
+#include "Utils/SourceStatistics.h"
 
 extern "C" {
 extern unsigned char res_FileContext_h_c[];

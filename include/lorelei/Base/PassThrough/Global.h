@@ -1,0 +1,18 @@
+#ifndef LORE_BASE_PASSTHROUGH_GLOBAL_H
+#define LORE_BASE_PASSTHROUGH_GLOBAL_H
+
+#include <lorelei/Base/Support/Global.h>
+
+#ifndef LOREPASSTHROUGH_EXPORT
+#  ifdef LOREPASSTHROUGH_STATIC
+#    define LOREPASSTHROUGH_EXPORT
+#  else
+#    ifdef LOREPASSTHROUGH_LIBRARY
+#      define LOREPASSTHROUGH_EXPORT LORE_DECL_EXPORT
+#    else
+#      define LOREPASSTHROUGH_EXPORT LORE_DECL_IMPORT
+#    endif
+#  endif
+#endif
+
+#endif // LORE_BASE_PASSTHROUGH_GLOBAL_H

@@ -25,7 +25,7 @@ set(LORE_INCLUDE_DIR "../include")
 
 function(_lore_common_configure_target _target)
     qm_configure_target(${_target}
-        FEATURES cxx_std_17
+        FEATURES cxx_std_20
     )
     lore_set_default_install_rpath(${_target})
 endfunction()

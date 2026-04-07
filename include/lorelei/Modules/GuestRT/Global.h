@@ -1,0 +1,18 @@
+#ifndef LORE_MODULES_GUESTRT_GLOBAL_H
+#define LORE_MODULES_GUESTRT_GLOBAL_H
+
+#include <lorelei/Base/Support/Global.h>
+
+#ifndef LOREGUESTRT_EXPORT
+#  ifdef LOREGUESTRT_STATIC
+#    define LOREGUESTRT_EXPORT
+#  else
+#    ifdef LOREGUESTRT_LIBRARY
+#      define LOREGUESTRT_EXPORT LORE_DECL_EXPORT
+#    else
+#      define LOREGUESTRT_EXPORT LORE_DECL_IMPORT
+#    endif
+#  endif
+#endif
+
+#endif // LORE_MODULES_GUESTRT_GLOBAL_H

@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include <LoreBase/RuntimeBase/c/LVariadicArgs.h>
+#include <lorelei/Base/PassThrough/c/CVariadicArgs.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,9 +44,9 @@ static inline void _out_null(char character, void *buffer, size_t idx, size_t ma
 // }
 
 int mp_vsnprintf(out_fct_type out, char *buffer, const size_t maxlen, const char *format, va_list va,
-               struct LVargEntry *entries);
+               struct CVargEntry *entries);
 
-// int mp_vprintf(const char *format, va_list va, struct LVargEntry *entries);
+// int mp_vprintf(const char *format, va_list va, struct CVargEntry *entries);
 
 #ifdef __cplusplus
 }

@@ -7,10 +7,11 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 
-#include <LoreBase/CoreLib/Support/ConfigFile.h>
-#include <LoreTools/Basic/TypeUtils.h>
-#include <LoreTools/HLRUtils/ASTConsumers.h>
-#include <LoreTools/HLRUtils/SourceStatistics.h>
+#include <lorelei/Base/Support/ConfigFile.h>
+#include <lorelei/Tools/ToolUtils/TypeUtils.h>
+
+#include "Utils/ASTConsumers.h"
+#include "Utils/SourceStatistics.h"
 
 using namespace clang;
 using namespace clang::tooling;

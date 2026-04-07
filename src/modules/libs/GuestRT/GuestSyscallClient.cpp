@@ -6,7 +6,7 @@ namespace lore::mod {
 
     GuestSyscallClient::~GuestSyscallClient() = default;
 
-    LString GuestSyscallClient::getHostAttribute_impl(const char *key) {
+    CString GuestSyscallClient::getHostAttribute_impl(const char *key) {
         return {};
     }
 
@@ -38,7 +38,7 @@ namespace lore::mod {
         return {};
     }
 
-    LThunkInfo GuestSyscallClient::getThunkInfo_impl(const char *path, bool isReverse) {
+    CThunkInfo GuestSyscallClient::getThunkInfo_impl(const char *path, bool isReverse) {
         return {};
     }
 

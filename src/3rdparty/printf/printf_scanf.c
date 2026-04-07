@@ -548,7 +548,7 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 #endif  // PRINTF_SUPPORT_FLOAT
 
 // internal vsnprintf
-int mp_vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct LVargEntry *entries)
+int mp_vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, const char* format, va_list va, struct CVargEntry *entries)
 {
   unsigned int flags, width, precision, n;
   size_t idx = 0U;
@@ -827,7 +827,7 @@ int mp_vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, cons
   out((char)0, buffer, idx < maxlen ? idx : maxlen - 1U, maxlen);
 
   {
-    struct LVargEntry terminate_null;
+    struct CVargEntry terminate_null;
     terminate_null.type = 0;
     terminate_null.p = NULL;
     *entries = terminate_null;
@@ -840,7 +840,7 @@ int mp_vsnprintf_scanf(out_fct_type out, char* buffer, const size_t maxlen, cons
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// int _vprintf(const char *format, va_list va, struct LVargEntry *entries) {
+// int _vprintf(const char *format, va_list va, struct CVargEntry *entries) {
 //   char buffer[1];
 //   const int ret = _vsnprintf(_out_char, buffer, (size_t)-1, format, va, entries);
 //   return ret;

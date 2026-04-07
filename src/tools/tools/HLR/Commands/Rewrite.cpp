@@ -9,10 +9,11 @@
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <llvm/Support/MemoryBuffer.h>
 
-#include <LoreTools/Basic/RewriteInsertion.h>
-#include <LoreTools/Basic/TypeUtils.h>
-#include <LoreTools/HLRUtils/ASTConsumers.h>
-#include <LoreTools/HLRUtils/SourceStatistics.h>
+#include <lorelei/Tools/ToolUtils/RewriteInsertion.h>
+#include <lorelei/Tools/ToolUtils/TypeUtils.h>
+
+#include "Utils/ASTConsumers.h"
+#include "Utils/SourceStatistics.h"
 
 using namespace clang;
 using namespace clang::ast_matchers;

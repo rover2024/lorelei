@@ -13,7 +13,7 @@
 #  define va_int(ap)                                                                               \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -22,7 +22,7 @@
 #  define va_unsigned_int(ap)                                                                      \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -31,7 +31,7 @@
 #  define va_long(ap)                                                                              \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -40,7 +40,7 @@
 #  define va_unsigned_long(ap)                                                                     \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -49,7 +49,7 @@
 #  define va_long_long(ap)                                                                         \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -58,7 +58,7 @@
 #  define va_unsigned_long_long(ap)                                                                \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -67,7 +67,7 @@
 #  define va_float(ap)                                                                             \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -76,7 +76,7 @@
 #  define va_double(ap)                                                                            \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -85,7 +85,7 @@
 #  define va_string(ap)                                                                            \
       ({                                                                                           \
         char *_val = va_arg(va, char *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \
@@ -94,7 +94,7 @@
 #  define va_pointer(ap)                                                                           \
       ({                                                                                           \
         void *_val = va_arg(va, void *);                                                           \
-        struct LVargEntry entry = {.type = LVargType_Pointer};                                     \
+        struct CVargEntry entry = {.type = CVargType_Pointer};                                     \
         entry.p = _val;                                                                            \
         (*entries) = entry;                                                                        \
         entries++;                                                                                 \

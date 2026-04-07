@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-#ifndef LORELEI_HLR_MARKMACROS_H
-#define LORELEI_HLR_MARKMACROS_H
+#ifndef LORE_TOOLS_HLR_MARKMACROS_H
+#define LORE_TOOLS_HLR_MARKMACROS_H
 
 namespace lore::tool::command::mark_macros {
 
