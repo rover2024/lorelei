@@ -28,7 +28,7 @@ namespace lore {
 
     protected:
         struct CDataGuard;
-        mutable std::unique_ptr<CDataGuard> _c_data;
+        mutable std::unique_ptr<CDataGuard> m_c_data;
     };
 
     struct LOREPASSTHROUGH_EXPORT ReversedThunkInfo {
@@ -46,7 +46,7 @@ namespace lore {
 
     protected:
         struct CDataGuard;
-        mutable std::unique_ptr<CDataGuard> _c_data;
+        mutable std::unique_ptr<CDataGuard> m_c_data;
     };
 
     class LOREPASSTHROUGH_EXPORT ThunkInfoConfig {
@@ -62,35 +62,35 @@ namespace lore {
                   const std::map<std::string, std::string> &vars = {});
 
         inline const std::vector<ForwardThunkInfo> &forwardThunks() const {
-            return _forwardThunks;
+            return m_forwardThunks;
         }
 
         inline const std::vector<ReversedThunkInfo> &reversedThunks() const {
-            return _reversedThunks;
+            return m_reversedThunks;
         }
 
         inline const ForwardThunkInfo *forwardThunk(const std::string &name) const {
-            auto it = _forwardThunkMap.find(name);
-            if (it == _forwardThunkMap.end()) {
+            auto it = m_forwardThunkMap.find(name);
+            if (it == m_forwardThunkMap.end()) {
                 return nullptr;
             }
-            return &_forwardThunks[it->second];
+            return &m_forwardThunks[it->second];
         }
 
         inline const ReversedThunkInfo *reversedThunk(const std::string &name) const {
-            auto it = _reversedThunkMap.find(name);
-            if (it == _reversedThunkMap.end()) {
+            auto it = m_reversedThunkMap.find(name);
+            if (it == m_reversedThunkMap.end()) {
                 return {};
             }
-            return &_reversedThunks[it->second];
+            return &m_reversedThunks[it->second];
         }
 
     protected:
-        std::vector<ForwardThunkInfo> _forwardThunks;
-        std::vector<ReversedThunkInfo> _reversedThunks;
+        std::vector<ForwardThunkInfo> m_forwardThunks;
+        std::vector<ReversedThunkInfo> m_reversedThunks;
 
-        std::map<std::string, size_t> _forwardThunkMap;
-        std::map<std::string, size_t> _reversedThunkMap;
+        std::map<std::string, size_t> m_forwardThunkMap;
+        std::map<std::string, size_t> m_reversedThunkMap;
     };
 
 }

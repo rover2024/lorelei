@@ -98,7 +98,7 @@ namespace lore::tool::HLR {
         root["functionDecayGuardStats"] = std::move(decayGuardsArray);
 
         std::error_code ec;
-        llvm::raw_fd_ostream os(filePath, ec, llvm::sys::fs::OF_Append);
+        llvm::raw_fd_ostream os(filePath, ec, llvm::sys::fs::OF_Text);
         if (ec) {
             errorMessage = ec.message();
             return false;

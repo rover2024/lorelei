@@ -8,8 +8,11 @@ namespace lore::mod {
 
     class LOREGUESTRT_EXPORT GuestSyscallClient : public IClient<GuestSyscallClient> {
     public:
-        GuestSyscallClient();
-        ~GuestSyscallClient();
+        GuestSyscallClient() = delete;
+        ~GuestSyscallClient() = delete;
+
+    public:
+        void *convertHostProcAddress(const char *name, void *addr);
 
     protected:
         static CString getHostAttribute_impl(const char *key);
@@ -19,7 +22,7 @@ namespace lore::mod {
         static void *getProcAddress_impl(void *handle, const char *name);
         static char *getErrorMessage_impl();
         static char *getModulePath_impl(void *opaque, bool isHandle);
-        static int invokeProc_impl(void *proc, int conv, void *opaque);
+        static int invokeProc_impl(const InvocationArguments *args);
         static CThunkInfo getThunkInfo_impl(const char *path, bool isReverse);
         static void *heapAlloc_impl(size_t size);
         static void heapFree_impl(void *ptr);

@@ -44,7 +44,7 @@ namespace lore::tool::command::stat {
             auto &AST = CI.getASTContext();
 
             auto inFile = getCurrentFile().str();
-            const auto &fileData = _fileDataMap[inFile];
+            const auto &fileData = m_fileDataMap[inFile];
 
             for (const auto &E : fileData.callbackInvokeExprList) {
                 auto T = realCalleeType(E, AST);
@@ -70,7 +70,7 @@ namespace lore::tool::command::stat {
 
         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                        StringRef InFile) override {
-            auto &fileData = _fileDataMap[InFile.str()];
+            auto &fileData = m_fileDataMap[InFile.str()];
             return std::make_unique<HLR::FunctionExprConsumer>(fileData.callbackInvokeExprList,
                                                                fileData.functionDecayExprList);
         }
@@ -80,7 +80,7 @@ namespace lore::tool::command::stat {
             llvm::SmallVector<const CallExpr *, 20> callbackInvokeExprList;
             llvm::SmallVector<const DeclRefExpr *, 20> functionDecayExprList;
         };
-        std::map<std::string, ConsumedFileData> _fileDataMap;
+        std::map<std::string, ConsumedFileData> m_fileDataMap;
     };
 
     const char *name = "stat";

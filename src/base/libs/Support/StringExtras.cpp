@@ -121,7 +121,7 @@ namespace lore::str {
     /*!
         Joins all the string list's str into a single string.
     */
-    std::string join(std::span<const std::string> &v, const std::string_view &delimiter) {
+    std::string join(std::span<const std::string> v, const std::string_view &delimiter) {
         if (v.empty())
             return {};
 
@@ -141,7 +141,7 @@ namespace lore::str {
         return res;
     }
 
-    std::string join(std::span<const std::string_view> &v, const std::string_view &delimiter) {
+    std::string join(std::span<const std::string_view> v, const std::string_view &delimiter) {
         if (v.empty())
             return {};
 
@@ -229,7 +229,7 @@ namespace lore::str {
         Replaces occurrences of \c %N in \a fmt string with the corresponding argument from
         \a args.
     */
-    std::string format(const std::string_view &fmt, std::span<const std::string> &args) {
+    std::string format(const std::string_view &fmt, std::span<const std::string> args) {
         struct Part {
             const char *data;
             size_t size;

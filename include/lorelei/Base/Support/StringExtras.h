@@ -87,7 +87,7 @@ namespace lore {
             }
 
             LORESUPPORT_EXPORT static std::string normalize_separators(const std::string &utf8_path,
-                                                                    bool native);
+                                                                       bool native);
         };
 
         template <class T>
@@ -117,29 +117,29 @@ namespace lore {
             }
         }
 
-        LORESUPPORT_EXPORT std::string join(std::span<const std::string> &v,
-                                         const std::string_view &delimiter);
+        LORESUPPORT_EXPORT std::string join(std::span<const std::string> v,
+                                            const std::string_view &delimiter);
 
         // @overload: join(vector<string_view>, string_view)
-        LORESUPPORT_EXPORT std::string join(std::span<const std::string_view> &v,
-                                         const std::string_view &delimiter);
+        LORESUPPORT_EXPORT std::string join(std::span<const std::string_view> v,
+                                            const std::string_view &delimiter);
 
         LORESUPPORT_EXPORT std::vector<std::string_view> split(const std::string_view &s,
-                                                            const std::string_view &delimiter);
+                                                               const std::string_view &delimiter);
 
         // @overload: split(string &&, string_view)
         LORESUPPORT_EXPORT std::vector<std::string> split(std::string &&s,
-                                                       const std::string_view &delimiter);
+                                                          const std::string_view &delimiter);
 
         LORESUPPORT_EXPORT std::string format(const std::string_view &fmt,
-                                           std::span<const std::string> &args);
+                                              std::span<const std::string> args);
 
         template <class Arg1, class... Args>
         std::string formatN(const std::string_view &fmt, Arg1 &&arg1, Args &&...args) {
-            return format(fmt, {
+            return format(fmt, std::span<const std::string>({
                                    to_string(std::forward<Arg1>(arg1)),
                                    to_string(std::forward<Args>(args))...,
-                               });
+                               }));
         }
 
         // @overload: formatN(string_view)
@@ -375,7 +375,7 @@ namespace lore {
     namespace str {
 
         LORESUPPORT_EXPORT std::string replace(std::string str, std::string_view from,
-                                            std::string_view to);
+                                               std::string_view to);
 
     }
 

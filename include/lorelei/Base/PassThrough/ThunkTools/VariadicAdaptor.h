@@ -11,8 +11,8 @@ namespace lore {
     class LOREPASSTHROUGH_EXPORT VariadicAdaptor {
     public:
         enum FormatStyle {
-            FS_printf,
-            FS_scanf,
+            PrintF,
+            ScanF,
         };
 
         /// Extracts the arguments from a variadic argument list and stores them in a
@@ -27,6 +27,26 @@ namespace lore {
         /// a \c va_list as the last argument.
         static void vcall(void *func, int argc1, CVargEntry *argv1, int argc2, CVargEntry *argv2,
                           CVargEntry *ret);
+
+        /// Calls a function with the Box64-style format string.
+        ///
+        /// Format: <ret>_<a1><a2><a3>...
+        /// \example v_iulLpfF
+        ///     c: char
+        ///     C: unsigned char
+        ///     s: short
+        ///     S: unsigned short
+        ///     i: int
+        ///     I: unsigned int
+        ///     l: long
+        ///     u: unsigned long
+        ///     L: long long
+        ///     U: unsigned long long
+        ///     f: float
+        ///     F: double
+        ///     p: pointer
+        ///     v: void (return only)
+        static void callFormatBox64(void *func, const char *fmt, void **args, void *ret);
     };
 
 }

@@ -3,7 +3,7 @@
 
 namespace lore {
 
-    static constexpr int SyscallPathThroughNumber = 2048;
+    static constexpr int SyscallPathThroughNumber = 4096;
 
     enum SyscallPassThroughID {
         SPID_GetHostAttribute = 1,
@@ -14,6 +14,7 @@ namespace lore {
         SPID_GetErrorMessage,
         SPID_GetModulePath,
         SPID_InvokeProc,
+        SPID_ResumeInvocation, // Not avaiable to user
         SPID_GetThunkInfo,
         SPID_HeapAlloc,
         SPID_HeapFree,

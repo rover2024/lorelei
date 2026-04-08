@@ -221,7 +221,7 @@ macro(lore_add_resource _target _in_file)
     qm_import(private/Generate)
     set(_res_out_file)
     qm_make_output_file(${_in_file} "res_" "c" _res_out_file)
-    qm_add_binary_resource(${_in_file} ${_res_out_file} ${ARGN})
+    qm_add_binary_resource(${_in_file} ${_res_out_file} USE_SCRIPT)
     target_sources(${_target} PRIVATE ${_res_out_file})
 endmacro()
 

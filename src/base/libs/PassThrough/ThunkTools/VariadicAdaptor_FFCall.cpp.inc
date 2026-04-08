@@ -6,7 +6,7 @@
 
 namespace lore {
 
-    static inline void avcall_start_helper(av_alist *list, void *func, struct CVargEntry *entry) {
+    static inline void avcall_start_helper(av_alist *list, void *func, CVargEntry *entry) {
         switch (entry->type) {
             case 0: {
                 av_start_void(*list, func);
@@ -69,7 +69,7 @@ namespace lore {
         }
     }
 
-    static inline void avcall_arg_helper(av_alist *list, struct CVargEntry *entry) {
+    static inline void avcall_arg_helper(av_alist *list, CVargEntry *entry) {
         switch (entry->type) {
             case CVargType_Char: {
                 av_char(*list, entry->c);
@@ -128,8 +128,7 @@ namespace lore {
         }
     }
 
-    static void vcall_forward(void *func, int argc1, struct CVargEntry *argv1,
-                              struct CVargEntry *ret, ...) {
+    static void vcall_forward(void *func, int argc1, CVargEntry *argv1, CVargEntry *ret, ...) {
 
         va_list ap;
         va_start(ap, ret);

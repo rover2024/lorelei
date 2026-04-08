@@ -5,6 +5,11 @@ using namespace clang::ast_matchers;
 
 namespace lore::tool::HLR {
 
+    /// Return true when `E` represents a call through a function-pointer-like callee expression.
+    ///
+    /// Supported shapes:
+    /// 1. `fp(...)` where `fp` has function pointer type.
+    /// 2. `(*fp)(...)` where the callee is an explicit dereference expression.
     static bool isFunctionPointerCallee(const Expr *E, ASTContext &AST) {
         std::ignore = AST;
 
@@ -34,6 +39,13 @@ namespace lore::tool::HLR {
         return false;
     }
 
+    /// Return true when the given `DeclRefExpr` is used as the direct callee of a call.
+    ///
+    /// The check walks parent nodes and skips transparent wrappers such as casts, parentheses and
+    /// unary `*`/`&`, then verifies whether the final parent call uses this expression as callee.
+    ///
+    /// If this returns false, the reference is treated as a function-decay candidate (for example
+    /// assigning/storing/passing a function pointer value).
     static bool isDeclRefForCall(const DeclRefExpr *DRE, ASTContext &AST) {
         const Expr *E = DRE;
         while (E) {
@@ -68,22 +80,24 @@ namespace lore::tool::HLR {
 
     void CallbackInvokeExprMatcher::run(const MatchFinder::MatchResult &Result) {
         auto &AST = *Result.Context;
-        if (auto CE = Result.Nodes.getNodeAs<CallExpr>(_id)) {
+        if (auto CE = Result.Nodes.getNodeAs<CallExpr>(m_id)) {
+            // Keep only call expressions whose callee is function-pointer based.
             const Expr *calleeExpr = CE->getCallee()->IgnoreImpCasts()->IgnoreParens();
             if (!calleeExpr)
                 return;
 
             if (isFunctionPointerCallee(calleeExpr, AST)) {
-                _exprList.push_back(CE);
+                m_exprList.push_back(CE);
             }
         }
     }
 
     void FunctionDecayExprMatcher::run(const MatchFinder::MatchResult &Result) {
         auto &AST = *Result.Context;
-        if (auto DRE = Result.Nodes.getNodeAs<DeclRefExpr>(_id)) {
+        if (auto DRE = Result.Nodes.getNodeAs<DeclRefExpr>(m_id)) {
+            // Exclude direct call-site callees; keep non-call function references as decay sites.
             if (!isDeclRefForCall(DRE, AST)) {
-                _exprList.push_back(DRE);
+                m_exprList.push_back(DRE);
             } 
         }
     }

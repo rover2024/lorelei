@@ -5,6 +5,7 @@
 #include <shared_mutex>
 #include <mutex>
 #include <unordered_set>
+#include <cassert>
 
 namespace lore {
 
@@ -46,17 +47,18 @@ namespace lore {
         FILE *out;
         switch (level) {
             case Logger::Success:
-            out = stdout;
+                out = stdout;
                 break;
             case Logger::Warning:
-            out = stderr;
+                out = stderr;
                 break;
             case Logger::Critical:
             case Logger::Fatal:
-            out = stderr;
+                out = stderr;
                 break;
             default:
-                break;
+                assert(false);
+                return;
         }
         fprintf(out, "%s\n", message.data());
     }

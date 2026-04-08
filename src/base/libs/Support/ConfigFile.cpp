@@ -135,14 +135,14 @@ namespace lore {
     }
 
     void ConfigFile::Section::addKeyValue(const std::string &key, const std::string &value) {
-        auto it = _keyIndex.find(key);
-        if (it == _keyIndex.end()) {
+        auto it = m_keyIndex.find(key);
+        if (it == m_keyIndex.end()) {
             // New key, add to both vector and map
-            _keyValues.emplace_back(key, value);
-            _keyIndex[key] = _keyValues.size() - 1;
+            m_keyValues.emplace_back(key, value);
+            m_keyIndex[key] = m_keyValues.size() - 1;
         } else {
             // Existing key, update value
-            _keyValues[it->second].second = value;
+            m_keyValues[it->second].second = value;
         }
     }
     std::optional<int> ConfigFile::Section::getInt(const std::string &key) const {
@@ -196,14 +196,14 @@ namespace lore {
         return std::nullopt;
     }
     size_t ConfigFile::getOrCreateSection(const std::string &sectionName) {
-        auto it = _sectionIndex.find(sectionName);
-        if (it != _sectionIndex.end()) {
+        auto it = m_sectionIndex.find(sectionName);
+        if (it != m_sectionIndex.end()) {
             return it->second;
         }
 
-        _sections.emplace_back(sectionName);
-        size_t index = _sections.size() - 1;
-        _sectionIndex[sectionName] = index;
+        m_sections.emplace_back(sectionName);
+        size_t index = m_sections.size() - 1;
+        m_sectionIndex[sectionName] = index;
         return index;
     }
     ConfigFile::ParseResult ConfigFile::parseLine(const std::string &originalLine, const std::filesystem::path &file,
@@ -226,7 +226,8 @@ namespace lore {
 
             includeFile = unquoteString(includeFile);
 
-            fs::path includePath = _baseDir / includeFile;
+            fs::path includePath =
+                (m_baseDirStack.empty() ? fs::path(".") : m_baseDirStack.back()) / includeFile;
             if (!fs::exists(includePath)) {
                 return ParseResult::error("Included file not found: " + includePath.string(), file, lineNum);
             }
@@ -246,7 +247,7 @@ namespace lore {
                 return ParseResult::error("Invalid section name format", file, lineNum);
             }
 
-            _currentSectionIndex = getOrCreateSection(*parsedSection);
+            m_currentSectionIndex = getOrCreateSection(*parsedSection);
             return ParseResult::ok();
         }
 
@@ -288,14 +289,14 @@ namespace lore {
             return ParseResult::error("Invalid value format", file, lineNum);
         }
 
-        _sections[_currentSectionIndex].addKeyValue(*parsedKey, *parsedValue);
+        m_sections[m_currentSectionIndex].addKeyValue(*parsedKey, *parsedValue);
         return ParseResult::ok();
     }
     ConfigFile::ConfigFile() {
         // Initialize with global section
-        _sections.emplace_back(GlobalSectionName);
-        _sectionIndex[GlobalSectionName] = 0;
-        _currentSectionIndex = 0;
+        m_sections.emplace_back(GlobalSectionName);
+        m_sectionIndex[GlobalSectionName] = 0;
+        m_currentSectionIndex = 0;
     }
     ConfigFile::ParseResult ConfigFile::load(const std::filesystem::path &filename) {
         std::ifstream file(filename);
@@ -303,10 +304,11 @@ namespace lore {
             return ParseResult::error("Cannot open file: " + filename.string(), filename, 0);
         }
 
-        _baseDir = filename.parent_path();
-        if (_baseDir.empty()) {
-            _baseDir = ".";
+        auto baseDir = filename.parent_path();
+        if (baseDir.empty()) {
+            baseDir = ".";
         }
+        m_baseDirStack.push_back(std::move(baseDir));
 
         std::string line;
         int lineNum = 0;
@@ -315,21 +317,24 @@ namespace lore {
             lineNum++;
             auto result = parseLine(line, filename, lineNum);
             if (!result.success) {
+                m_baseDirStack.pop_back();
                 clear();
                 return result;
             }
         }
 
+        m_baseDirStack.pop_back();
         return ParseResult::ok();
     }
     void ConfigFile::clear() {
-        _sections.clear();
-        _sectionIndex.clear();
+        m_sections.clear();
+        m_sectionIndex.clear();
+        m_baseDirStack.clear();
 
         // Reinitialize with global section
-        _sections.emplace_back(GlobalSectionName);
-        _sectionIndex[GlobalSectionName] = 0;
-        _currentSectionIndex = 0;
+        m_sections.emplace_back(GlobalSectionName);
+        m_sectionIndex[GlobalSectionName] = 0;
+        m_currentSectionIndex = 0;
     }
 
 }

@@ -76,15 +76,15 @@ BOOST_AUTO_TEST_CASE(test_sprintf) {
     expect_ret = sprintf(expect_buffer, fmt, arg1, arg2, arg3);
 
     // sprintf
-    actual_ret = forward_to_sxxxf(VariadicAdaptor::FS_printf, (void *) sprintf, actual_buffer, fmt,
+    actual_ret = forward_to_sxxxf(VariadicAdaptor::PrintF, (void *) sprintf, actual_buffer, fmt,
                                   arg1, arg2, arg3);
 
     BOOST_VERIFY(actual_ret == expect_ret);
     BOOST_VERIFY(std::string_view(actual_buffer) == std::string_view(expect_buffer));
 
     // vsprintf
-    actual_ret = forward_to_vsxxxf(VariadicAdaptor::FS_printf, (void *) vsprintf, actual_buffer,
-                                   fmt, arg1, arg2, arg3);
+    actual_ret = forward_to_vsxxxf(VariadicAdaptor::PrintF, (void *) vsprintf, actual_buffer, fmt,
+                                   arg1, arg2, arg3);
     BOOST_VERIFY(actual_ret == expect_ret);
     BOOST_VERIFY(std::string_view(actual_buffer) == std::string_view(expect_buffer));
 }
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(test_sscanf) {
     expect_ret = sscanf(input, fmt, &expect_arg1, &expect_arg2, &expect_arg3[0]);
 
     // scanf
-    actual_ret = forward_to_sxxxf(VariadicAdaptor::FS_scanf, (void *) sscanf, (char *) input, fmt,
+    actual_ret = forward_to_sxxxf(VariadicAdaptor::ScanF, (void *) sscanf, (char *) input, fmt,
                                   &actual_arg1, &actual_arg2, actual_arg3);
     BOOST_VERIFY(actual_ret == expect_ret);
     BOOST_VERIFY(actual_arg1 == expect_arg1);
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(test_sscanf) {
     BOOST_VERIFY(std::string_view(actual_arg3) == std::string_view(expect_arg3));
 
     // vscanf
-    actual_ret = forward_to_vsxxxf(VariadicAdaptor::FS_scanf, (void *) vsscanf, (char *) input, fmt,
+    actual_ret = forward_to_vsxxxf(VariadicAdaptor::ScanF, (void *) vsscanf, (char *) input, fmt,
                                    &actual_arg1, &actual_arg2, actual_arg3);
     BOOST_VERIFY(actual_ret == expect_ret);
     BOOST_VERIFY(actual_arg1 == expect_arg1);

@@ -51,8 +51,8 @@ namespace lore::tool::command::mark_macros {
         }
 
         void EndSourceFileAction() override {
-            SourceManager &SM = _rewriter.getSourceMgr();
-            LangOptions LO = _rewriter.getLangOpts();
+            SourceManager &SM = m_rewriter.getSourceMgr();
+            LangOptions LO = m_rewriter.getLangOpts();
             ASTContext &AST = getCompilerInstance().getASTContext();
 
             const auto &getEndLoc = [&](SourceLocation loc) {
@@ -92,7 +92,7 @@ namespace lore::tool::command::mark_macros {
             };
 
             RewriteRangePackerSet insertions;
-            for (const CallExpr *CE : std::as_const(_fileData.callbackInvokeExprList)) {
+            for (const CallExpr *CE : std::as_const(m_fileData.callbackInvokeExprList)) {
                 auto T = realCalleeType(CE, AST);
                 auto signature = getTypeString(T);
                 auto it = g_ctx().sourceStat.callbackCheckGuardSignatures.find(signature);
@@ -178,7 +178,7 @@ namespace lore::tool::command::mark_macros {
                 }
             }
 
-            for (const DeclRefExpr *DRE : std::as_const(_fileData.functionDecayExprList)) {
+            for (const DeclRefExpr *DRE : std::as_const(m_fileData.functionDecayExprList)) {
                 auto FD = DRE->getDecl()->getAsFunction();
                 assert(FD);
                 auto T = AST.getPointerType(FD->getType());
@@ -228,20 +228,20 @@ namespace lore::tool::command::mark_macros {
             }
 
             for (const auto &ins : std::as_const(insertions.ranges())) {
-                _rewriter.InsertText(ins.range.getBegin(), ins.textBefore, false);
-                _rewriter.InsertText(ins.range.getEnd(), ins.textAfter, true);
+                m_rewriter.InsertText(ins.range.getBegin(), ins.textBefore, false);
+                m_rewriter.InsertText(ins.range.getEnd(), ins.textAfter, true);
             }
 
             // Generate rewritten code
             llvm::raw_string_ostream out(g_ctx().outBuffer);
-            _rewriter.getEditBuffer(SM.getMainFileID()).write(out);
+            m_rewriter.getEditBuffer(SM.getMainFileID()).write(out);
         }
 
         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                        StringRef InFile) override {
-            _rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-            return std::make_unique<HLR::FunctionExprConsumer>(_fileData.callbackInvokeExprList,
-                                                               _fileData.functionDecayExprList);
+            m_rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
+            return std::make_unique<HLR::FunctionExprConsumer>(m_fileData.callbackInvokeExprList,
+                                                               m_fileData.functionDecayExprList);
         }
 
     private:
@@ -249,8 +249,8 @@ namespace lore::tool::command::mark_macros {
             llvm::SmallVector<const CallExpr *, 20> callbackInvokeExprList;
             llvm::SmallVector<const DeclRefExpr *, 20> functionDecayExprList;
         };
-        ConsumedFileData _fileData;
-        Rewriter _rewriter;
+        ConsumedFileData m_fileData;
+        Rewriter m_rewriter;
     };
 
     const char *name = "mark-macros";

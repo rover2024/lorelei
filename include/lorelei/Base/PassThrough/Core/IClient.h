@@ -21,38 +21,16 @@ namespace lore {
         /// \code
         ///     void (void *callback, void **args, void *ret, void *metadata)
         /// \endcode
-        CC_StandardCallback = 0x10,
+        CC_StandardCallback = 1,
 
-        /// The printf-like calling convention, where the first argument is a format string,
-        /// followed by the arguments.
-        ///
-        /// Format: <ret>_<a1><a2><a3>...
-        /// \example v_iulLpfF
-        ///     c: char
-        ///     C: unsigned char
-        ///     s: short
-        ///     S: unsigned short
-        ///     i: int
-        ///     I: unsigned int
-        ///     l: long
-        ///     u: unsigned long
-        ///     L: long long
-        ///     U: unsigned long long
-        ///     f: float
-        ///     F: double
-        ///     p: pointer
-        ///     v: void (return only)
-        ///
-        /// \code
-        ///     void (const char *format, void **args, void *ret)
-        /// \endcode
-        CC_Format = 0x20,
+        /// \sa \c VariadicAdaptor::callFormatBox64
+        CC_Format = 2,
 
         /// Reserved for thread entry.
         /// \code
         ///     void *(void *arg)
         /// \endcode
-        CC_ThreadEntry = 0x80,
+        CC_ThreadEntry = 3,
     };
 
     /// ClientSpecialEntry - Special entry points of guest-side environment.
@@ -62,6 +40,37 @@ namespace lore {
 
         /// Reentry loop of guest-side runtime.
         CE_ReentryLoop,
+    };
+
+    /// InvocationArguments - Arguments for invoking a function.
+    struct InvocationArguments {
+        int conv;
+        union {
+            struct {
+                void *proc;
+                void **args;
+                void *ret;
+                void *metadata;
+            } standard;
+            struct {
+                void *proc;
+                void *callback;
+                void **args;
+                void *ret;
+                void *metadata;
+            } standardCallback;
+            struct {
+                void *proc;
+                const char *format;
+                void **args;
+                void *ret;
+            } format;
+            struct {
+                void *proc;
+                void *arg;
+                void **ret;
+            } threadEntry;
+        };
     };
 
     /// IClient - Interface for guest-side client to send invocation request to the the host-side
@@ -125,12 +134,9 @@ namespace lore {
         }
 
         /// Invoke a function with a specific calling convention.
-        /// \param proc Function pointer to invoke.
-        /// \param conv Calling convention to use.
-        /// \param opaque Opaque data to pass to the function according to the convention.
-        /// \return 0 if the function was invoked successfully, non-zero otherwise.
-        static int invokeProc(void *proc, int conv, void *opaque) {
-            return T::invokeProc_impl(proc, conv, opaque);
+        /// \param ia The invocation convention and payload.
+        static void invokeProc(const InvocationArguments *ia) {
+            T::invokeProc_impl(ia);
         }
 
         /// Get information about a thunk library.
@@ -162,24 +168,44 @@ namespace lore {
 
     public:
         static inline void invokeStandard(void *proc, void **args, void *ret, void *metadata) {
-            void *opaque[] = {(void *) args, ret, metadata};
-            invokeProc(proc, CC_Standard, opaque);
+            InvocationArguments ia;
+            ia.conv = CC_Standard;
+            ia.standard.proc = proc;
+            ia.standard.args = args;
+            ia.standard.ret = ret;
+            ia.standard.metadata = metadata;
+            invokeProc(&ia);
         }
 
         static inline void invokeStandardCallback(void *proc, void *callback, void **args,
                                                   void *ret, void *metadata) {
-            void *opaque[] = {callback, (void *) args, ret, metadata};
-            invokeProc(proc, CC_StandardCallback, opaque);
+            InvocationArguments ia;
+            ia.conv = CC_StandardCallback;
+            ia.standardCallback.proc = proc;
+            ia.standardCallback.callback = callback;
+            ia.standardCallback.args = args;
+            ia.standardCallback.ret = ret;
+            ia.standardCallback.metadata = metadata;
+            invokeProc(&ia);
         }
 
         static inline void invokeFormat(void *proc, const char *format, void **args, void *ret) {
-            void *opaque[] = {(void *) format, (void *) args, ret};
-            invokeProc(proc, CC_Format, opaque);
+            InvocationArguments ia;
+            ia.conv = CC_Format;
+            ia.format.proc = proc;
+            ia.format.format = format;
+            ia.format.args = args;
+            ia.format.ret = ret;
+            invokeProc(&ia);
         }
 
-        static inline void invokeThreadEntry(void *proc, void *arg, void *ret) {
-            void *opaque[] = {arg, ret};
-            invokeProc(proc, CC_ThreadEntry, opaque);
+        static inline void invokeThreadEntry(void *proc, void *arg, void **ret) {
+            InvocationArguments ia;
+            ia.conv = CC_ThreadEntry;
+            ia.threadEntry.proc = proc;
+            ia.threadEntry.arg = arg;
+            ia.threadEntry.ret = ret;
+            invokeProc(&ia);
         }
     };
 

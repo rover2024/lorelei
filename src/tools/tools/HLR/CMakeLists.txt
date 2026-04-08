@@ -9,5 +9,5 @@ lore_add_executable(${PROJECT_NAME}
 )
 lore_link_clang(${PROJECT_NAME} PRIVATE)
 
-lore_add_resource(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/Resources/FileContext.h.in" USE_SCRIPT)
-lore_add_resource(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Warning.txt.in" USE_SCRIPT)
+lore_add_resource(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/Resources/FileContext.h.in")
+lore_add_resource(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Warning.txt.in")

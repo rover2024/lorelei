@@ -45,10 +45,10 @@ namespace lore {
     };
 
     const CForwardThunkInfo &ForwardThunkInfo::c_data() const {
-        if (!_c_data) {
-            _c_data = std::make_unique<CDataGuard>(*this);
+        if (!m_c_data) {
+            m_c_data = std::make_unique<CDataGuard>(*this);
         }
-        return _c_data->data;
+        return m_c_data->data;
     }
 
     ForwardThunkInfo::~ForwardThunkInfo() = default;
@@ -70,10 +70,10 @@ namespace lore {
     };
 
     const CReversedThunkInfo &ReversedThunkInfo::c_data() const {
-        if (!_c_data) {
-            _c_data = std::make_unique<CDataGuard>(*this);
+        if (!m_c_data) {
+            m_c_data = std::make_unique<CDataGuard>(*this);
         }
-        return _c_data->data;
+        return m_c_data->data;
     }
 
     ReversedThunkInfo::~ReversedThunkInfo() = default;
@@ -97,10 +97,10 @@ namespace lore {
             return false;
         }
 
-        _forwardThunks.clear();
-        _reversedThunks.clear();
-        _forwardThunkMap.clear();
-        _reversedThunkMap.clear();
+        m_forwardThunks.clear();
+        m_reversedThunks.clear();
+        m_forwardThunkMap.clear();
+        m_reversedThunkMap.clear();
 
         const auto &resolvePath = [&](const std::string &path) -> std::string {
             return str::varexp(path, vars);
@@ -139,7 +139,7 @@ namespace lore {
                         result.guestThunk = defaultGuestThunkPath + "/" + name + ".so";
                         result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
                         result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
-                        _forwardThunks.emplace_back(std::move(result));
+                        m_forwardThunks.emplace_back(std::move(result));
                     }
                 }
 
@@ -220,7 +220,7 @@ namespace lore {
                         result.hostLibrary = resolvePath(val);
                     }
                 }
-                _forwardThunks.emplace_back(std::move(result));
+                m_forwardThunks.emplace_back(std::move(result));
             }
         }
 
@@ -289,23 +289,23 @@ namespace lore {
                     }
                 }
 
-                _reversedThunks.emplace_back(std::move(result));
+                m_reversedThunks.emplace_back(std::move(result));
             }
         }
 
         // Build indexes
-        for (size_t i = 0; i < _forwardThunks.size(); i++) {
-            auto &data = _forwardThunks[i];
-            _forwardThunkMap[data.name] = i;
+        for (size_t i = 0; i < m_forwardThunks.size(); i++) {
+            auto &data = m_forwardThunks[i];
+            m_forwardThunkMap[data.name] = i;
             for (const auto &alias : data.alias) {
-                _forwardThunkMap[alias] = i;
+                m_forwardThunkMap[alias] = i;
             }
         }
-        for (size_t i = 0; i < _reversedThunks.size(); i++) {
-            auto &data = _reversedThunks[i];
-            _reversedThunkMap[data.name] = i;
+        for (size_t i = 0; i < m_reversedThunks.size(); i++) {
+            auto &data = m_reversedThunks[i];
+            m_reversedThunkMap[data.name] = i;
             for (const auto &alias : data.alias) {
-                _reversedThunkMap[alias] = i;
+                m_reversedThunkMap[alias] = i;
             }
         }
         return true;

@@ -49,7 +49,7 @@ namespace lore {
     }
 
     // Helper function to get value pointer from CVargEntry
-    static void *get_value_ptr(struct CVargEntry *entry) {
+    static void *get_value_ptr(CVargEntry *entry) {
         switch (entry->type) {
             case CVargType_Char:
                 return &entry->c;
@@ -121,8 +121,7 @@ namespace lore {
         ffi_call(&cif, FFI_FN(func), ret_ptr, arg_values);
     }
 
-    static void vcall_forward(void *func, int argc1, struct CVargEntry *argv1,
-                              struct CVargEntry *ret, ...) {
+    static void vcall_forward(void *func, int argc1, CVargEntry *argv1, CVargEntry *ret, ...) {
         va_list ap;
         va_start(ap, ret);
 
