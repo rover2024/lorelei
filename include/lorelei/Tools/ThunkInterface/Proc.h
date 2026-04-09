@@ -3,27 +3,27 @@
 
 #include <tuple>
 
-#include <LoreTools/ThunkInterface/c/LTProc.h>
+#include <lorelei/Tools/ThunkInterface/c/CTProc.h>
 
 namespace lore::thunk {
 
     enum ProcKind {
-        Function = LTProcKind_Function,
-        Callback = LTProcKind_Callback,
-        NumProcKind = LTProcKind_NumProcKind,
+        Function = CTProcKind_Function,
+        Callback = CTProcKind_Callback,
+        NumProcKind = CTProcKind_NumProcKind,
     };
 
     enum ProcDirection {
-        GuestToHost = LTProcDirection_GuestToHost,
-        HostToGuest = LTProcDirection_HostToGuest,
-        NumProcDirection = LTProcDirection_NumProcDirection,
+        GuestToHost = CTProcDirection_GuestToHost,
+        HostToGuest = CTProcDirection_HostToGuest,
+        NumProcDirection = CTProcDirection_NumProcDirection,
     };
 
     enum ProcPhase {
-        Entry = LTProcPhase_Entry,
-        Caller = LTProcPhase_Caller,
-        Exec = LTProcPhase_Exec,
-        NumPhases = LTProcPhase_NumPhases,
+        Entry = CTProcPhase_Entry,
+        Caller = CTProcPhase_Caller,
+        Exec = CTProcPhase_Exec,
+        NumPhases = CTProcPhase_NumPhases,
     };
 
     /// ProcFnDesc - Thunk proc description block for functions.

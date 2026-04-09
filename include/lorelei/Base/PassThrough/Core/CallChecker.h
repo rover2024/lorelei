@@ -34,23 +34,23 @@ namespace lore {
     /// all host functions are in the high address direction of the emulator.
     class MemoryRegionCallChecker : public CallChecker<MemoryRegionCallChecker> {
     public:
-        explicit MemoryRegionCallChecker(void *emuAddr = nullptr) : _emuAddr(emuAddr) {
+        explicit MemoryRegionCallChecker(void *emuAddr = nullptr) : m_emuAddr(emuAddr) {
         }
 
         inline void *emuAddr() const {
-            return _emuAddr;
+            return m_emuAddr;
         }
 
         inline void setEmuAddr(void *emuAddr) {
-            _emuAddr = emuAddr;
+            m_emuAddr = emuAddr;
         }
 
     protected:
         inline bool isHostAddress_impl(const void *addr) const {
-            return reinterpret_cast<uintptr_t>(addr) > reinterpret_cast<uintptr_t>(_emuAddr);
+            return reinterpret_cast<uintptr_t>(addr) > reinterpret_cast<uintptr_t>(m_emuAddr);
         }
 
-        void *_emuAddr;
+        void *m_emuAddr;
 
         friend class CallChecker<MemoryRegionCallChecker>;
     };

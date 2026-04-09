@@ -813,18 +813,18 @@ endmacro()
 #]]
 macro(_repo_post_configure_target_internal _target)
     if(${_V}_INCLUDE_DIR)
-        target_include_directories(${_target} PUBLIC
-            $<BUILD_INTERFACE:${${_V}_INCLUDE_DIR}>
+        qm_configure_target(${_target}
+            INCLUDE $<BUILD_INTERFACE:${${_V}_INCLUDE_DIR}>
         )
     endif()
 
-    target_include_directories(${_target} PUBLIC
-        $<BUILD_INTERFACE:${${_V}_BUILD_INCLUDE_DIR}>
+    qm_configure_target(${_target}
+        INCLUDE $<BUILD_INTERFACE:${${_V}_BUILD_INCLUDE_DIR}>
     )
 
     if(${_V}_INSTALL AND ${_V}_DEVEL AND NOT FUNC_NO_INSTALL)
-        target_include_directories(${_target} PUBLIC
-            $<INSTALL_INTERFACE:${${_V}_INSTALL_INCLUDE_DIR}>
+        qm_configure_target(${_target}
+            INCLUDE $<INSTALL_INTERFACE:${${_V}_INSTALL_INCLUDE_DIR}>
         )
     endif()
 

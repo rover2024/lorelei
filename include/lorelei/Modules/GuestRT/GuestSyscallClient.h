@@ -12,7 +12,7 @@ namespace lore::mod {
         ~GuestSyscallClient() = delete;
 
     public:
-        void *convertHostProcAddress(const char *name, void *addr);
+        static void *convertHostProcAddress(const char *name, void *addr);
 
     protected:
         static CString getHostAttribute_impl(const char *key);

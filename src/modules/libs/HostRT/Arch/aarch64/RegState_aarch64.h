@@ -1,6 +1,4 @@
-#pragma once
-
-#include <cstdint>
+#include <stdint.h>
 
 struct RegState {
     uintptr_t x19;

@@ -1,7 +1,7 @@
 project(LoreSupport)
 
 file(GLOB_RECURSE _src *.h *.cpp)
-lore_add_library(${PROJECT_NAME}
+lore_add_library(${PROJECT_NAME} SHARED
     SOURCES ${_src}
     LINKS_PRIVATE $<BUILD_INTERFACE:llvm-standalone>
 )

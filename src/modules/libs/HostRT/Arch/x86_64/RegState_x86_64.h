@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 struct RegState {
     uintptr_t rbx;
     uintptr_t rsp;

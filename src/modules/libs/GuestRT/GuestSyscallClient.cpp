@@ -1,4 +1,4 @@
-#include <lorelei/Modules/GuestRT/GuestSyscallClient.h>
+#include "GuestSyscallClient.h"
 
 #include <pthread.h>
 #include <dlfcn.h>

@@ -27,4 +27,28 @@ namespace lore::tool {
         return res;
     }
 
+    static inline bool isCompound(clang::QualType type) {
+        while (type->isPointerType()) {
+            type = type->getPointeeType();
+        }
+        return type->isArrayType() || type->isFunctionType();
+    }
+
+    std::string getTypeStringDecompound(const clang::QualType &type) {
+        std::string ret;
+        if (isCompound(type)) {
+            ret = "__typeof__(" + getTypeString(type) + ")";
+        } else {
+            ret = getTypeString(type);
+        }
+        return ret;
+    }
+
+    std::string getTypeStringWithName(const clang::QualType &type, const std::string &name) {
+        auto typeStr = getTypeStringDecompound(type);
+        if (!llvm::StringRef(typeStr).ends_with("*"))
+            typeStr += " ";
+        return typeStr + name;
+    }
+
 }

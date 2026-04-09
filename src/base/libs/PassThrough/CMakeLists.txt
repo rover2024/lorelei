@@ -3,7 +3,7 @@ project(LorePassThrough)
 file(GLOB_RECURSE _src *.h *.cpp)
 
 # Use a tiny JSON library instead of linking against the huge LLVM JSON library
-lore_add_library(${PROJECT_NAME}
+lore_add_library(${PROJECT_NAME} SHARED
     SOURCES ${_src}
     LINKS LoreSupport
     LINKS_PRIVATE $<BUILD_INTERFACE:json11> $<BUILD_INTERFACE:printf> $<BUILD_INTERFACE:llvm-standalone>
