@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdint>
 
 #include <lorelei/Base/PassThrough/ThunkTools/VariadicAdaptor.h>
 
@@ -121,6 +122,44 @@ BOOST_AUTO_TEST_CASE(test_sscanf) {
     BOOST_VERIFY(actual_arg1 == expect_arg1);
     BOOST_VERIFY(actual_arg2 == expect_arg2);
     BOOST_VERIFY(std::string_view(actual_arg3) == std::string_view(expect_arg3));
+}
+
+static unsigned long long box64_mix(int a, unsigned long b, long long c, float d, double e,
+                                    void *p) {
+    return static_cast<unsigned long long>(a) + static_cast<unsigned long long>(b) +
+           static_cast<unsigned long long>(c) + static_cast<unsigned long long>(d) +
+           static_cast<unsigned long long>(e) +
+           (reinterpret_cast<std::uintptr_t>(p) & 0xFFULL);
+}
+
+static int box64_effect = 0;
+
+static void box64_side_effect(int a, int b) {
+    box64_effect = a * 10 + b;
+}
+
+BOOST_AUTO_TEST_CASE(test_callFormatBox64) {
+    int a = 7;
+    unsigned long b = 9;
+    long long c = 11;
+    float d = 13.0f;
+    double e = 15.0;
+    void *p = reinterpret_cast<void *>(0x1234);
+    void *args[] = {&a, &b, &c, &d, &e, &p};
+
+    unsigned long long expected = box64_mix(a, b, c, d, e, p);
+    unsigned long long actual = 0;
+    VariadicAdaptor::callFormatBox64(reinterpret_cast<void *>(box64_mix), "U_iuLfFp", args,
+                                     &actual);
+    BOOST_VERIFY(actual == expected);
+
+    int x = 3;
+    int y = 5;
+    void *void_args[] = {&x, &y};
+    box64_effect = 0;
+    VariadicAdaptor::callFormatBox64(reinterpret_cast<void *>(box64_side_effect), "v_ii",
+                                     void_args, nullptr);
+    BOOST_VERIFY(box64_effect == 35);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

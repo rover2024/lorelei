@@ -35,6 +35,7 @@
 #include <stdarg.h>
 
 #include "printf_scanf.h"
+#define MP_VA_CAPTURE_POINTERS
 #include "va_type.h"
 
 
