@@ -281,11 +281,13 @@ endmacro()
         [NO_EXPORT]
         [NO_INSTALL]
         [NO_INSTALL_PDB]
+        [RUNTIME_DIRECTORY <dir>]
+        [PDB_DIRECTORY <dir>]
     )
 ]] #
 function(${_F}_add_application _target)
     set(options NO_EXPORT NO_INSTALL NO_INSTALL_PDB)
-    set(oneValueArgs)
+    set(oneValueArgs RUNTIME_DIRECTORY PDB_DIRECTORY)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -298,9 +300,8 @@ function(${_F}_add_application _target)
 
     # Set target properties and build output directories
     if(APPLE AND ${_V}_MACOSX_BUNDLE_NAME)
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_BASE_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_BASE_DIR})
+        set(_install_runtime_dir ${${_V}_INSTALL_BASE_DIR})
     else()
         if(WIN32)
             if(NOT ${_V}_CONSOLE_APPLICATION)
@@ -310,10 +311,16 @@ function(${_F}_add_application _target)
             endif()
         endif()
 
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_RUNTIME_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_RUNTIME_DIR})
+        set(_install_runtime_dir ${${_V}_INSTALL_RUNTIME_DIR})
     endif()
+
+    set(_install_pdb_dir ${${_V}_INSTALL_RUNTIME_DIR})
+    _repo_add_target_generate_output_dirs(EXECUTABLE)
+
+    set_target_properties(${_target} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${_build_runtime_dir}
+    )
 
     # Install target
     if(NOT FUNC_NO_INSTALL AND ${_V}_INSTALL)
@@ -323,22 +330,14 @@ function(${_F}_add_application _target)
             set(_export EXPORT ${${_V}_EXPORT})
         endif()
 
-        if(APPLE AND ${_V}_MACOSX_BUNDLE_NAME)
-            install(TARGETS ${_target}
-                ${_export}
-                DESTINATION . OPTIONAL
-                PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-            )
-        else()
-            install(TARGETS ${_target}
-                ${_export}
-                DESTINATION ${${_V}_INSTALL_RUNTIME_DIR} OPTIONAL
-                PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-            )
-        endif()
+        install(TARGETS ${_target}
+            ${_export}
+            DESTINATION ${_install_runtime_dir} OPTIONAL
+            PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
+        )
 
         if(NOT FUNC_NO_INSTALL_PDB AND ${_V}_INSTALL_PDB)
-            _repo_install_pdb(${_target} ${${_V}_INSTALL_RUNTIME_DIR})
+            _repo_install_pdb(${_target} ${_install_pdb_dir})
         endif()
     endif()
 
@@ -355,11 +354,15 @@ endfunction()
         [NO_INSTALL]
         [NO_INSTALL_ARCHIVE]
         [NO_INSTALL_PDB]
+        [RUNTIME_DIRECTORY <dir>]
+        [LIBRARY_DIRECTORY <dir>]
+        [ARCHIVE_DIRECTORY <dir>]
+        [PDB_DIRECTORY <dir>]
     )
 ]] #
 function(${_F}_add_plugin _target)
     set(options NO_EXPORT NO_INSTALL NO_INSTALL_ARCHIVE NO_INSTALL_PDB)
-    set(oneValueArgs CATEGORY)
+    set(oneValueArgs CATEGORY RUNTIME_DIRECTORY LIBRARY_DIRECTORY ARCHIVE_DIRECTORY PDB_DIRECTORY)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -379,11 +382,20 @@ function(${_F}_add_plugin _target)
     set(_build_output_dir ${${_V}_BUILD_PLUGINS_DIR}/${_category})
     set(_install_output_dir ${${_V}_INSTALL_PLUGINS_DIR}/${_category})
 
+    set(_build_runtime_dir ${_build_output_dir})
+    set(_build_library_dir ${_build_output_dir})
+    set(_build_archive_dir ${_build_output_dir})
+    set(_install_runtime_dir ${_install_output_dir})
+    set(_install_library_dir ${_install_output_dir})
+    set(_install_archive_dir ${_install_output_dir})
+    set(_install_pdb_dir ${_install_output_dir})
+    _repo_add_target_generate_output_dirs(SHARED_LIBRARY)
+
     # Set output directories
     set_target_properties(${_target} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${_build_output_dir}
-        LIBRARY_OUTPUT_DIRECTORY ${_build_output_dir}
-        ARCHIVE_OUTPUT_DIRECTORY ${_build_output_dir}
+        RUNTIME_OUTPUT_DIRECTORY ${_build_runtime_dir}
+        LIBRARY_OUTPUT_DIRECTORY ${_build_library_dir}
+        ARCHIVE_OUTPUT_DIRECTORY ${_build_archive_dir}
     )
 
     # Install target
@@ -397,24 +409,24 @@ function(${_F}_add_plugin _target)
         if(${_V}_DEVEL AND NOT FUNC_NO_INSTALL_ARCHIVE)
             install(TARGETS ${_target}
                 ${_export}
-                RUNTIME DESTINATION ${_install_output_dir}
+                RUNTIME DESTINATION ${_install_runtime_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                LIBRARY DESTINATION ${_install_output_dir}
+                LIBRARY DESTINATION ${_install_library_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                ARCHIVE DESTINATION ${_install_output_dir}
+                ARCHIVE DESTINATION ${_install_archive_dir}
             )
         else()
             install(TARGETS ${_target}
                 ${_export}
-                RUNTIME DESTINATION ${_install_output_dir}
+                RUNTIME DESTINATION ${_install_runtime_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                LIBRARY DESTINATION ${_install_output_dir}
+                LIBRARY DESTINATION ${_install_library_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
             )
         endif()
 
         if(NOT FUNC_NO_INSTALL_PDB AND ${_V}_INSTALL_PDB)
-            _repo_install_pdb(${_target} ${_install_output_dir})
+            _repo_install_pdb(${_target} ${_install_pdb_dir})
         endif()
     endif()
 
@@ -432,11 +444,15 @@ endfunction()
         [NO_EXPORT]
         [NO_INSTALL]
         [NO_INSTALL_PDB]
+        [RUNTIME_DIRECTORY <dir>]
+        [LIBRARY_DIRECTORY <dir>]
+        [ARCHIVE_DIRECTORY <dir>]
+        [PDB_DIRECTORY <dir>]
     )
 ]] #
 function(${_F}_add_library _target)
     set(options TEST NO_EXPORT NO_INSTALL NO_INSTALL_PDB)
-    set(oneValueArgs)
+    set(oneValueArgs RUNTIME_DIRECTORY LIBRARY_DIRECTORY ARCHIVE_DIRECTORY PDB_DIRECTORY)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -447,20 +463,36 @@ function(${_F}_add_library _target)
         cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} ${_extra_args})
     endif()
 
+    get_target_property(_type ${_target} TYPE)
+
     # Set output directories
     if(FUNC_TEST)
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_TEST_RUNTIME_DIR}
-            LIBRARY_OUTPUT_DIRECTORY ${${_V}_BUILD_TEST_LIBRARY_DIR}
-            ARCHIVE_OUTPUT_DIRECTORY ${${_V}_BUILD_TEST_LIBRARY_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_TEST_RUNTIME_DIR})
+        set(_build_library_dir ${${_V}_BUILD_TEST_LIBRARY_DIR})
+        set(_build_archive_dir ${${_V}_BUILD_TEST_LIBRARY_DIR})
     else()
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_RUNTIME_DIR}
-            LIBRARY_OUTPUT_DIRECTORY ${${_V}_BUILD_LIBRARY_DIR}
-            ARCHIVE_OUTPUT_DIRECTORY ${${_V}_BUILD_LIBRARY_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_RUNTIME_DIR})
+        set(_build_library_dir ${${_V}_BUILD_LIBRARY_DIR})
+        set(_build_archive_dir ${${_V}_BUILD_LIBRARY_DIR})
     endif()
+
+    set(_install_runtime_dir ${${_V}_INSTALL_RUNTIME_DIR})
+    set(_install_library_dir ${${_V}_INSTALL_LIBRARY_DIR})
+    set(_install_archive_dir ${${_V}_INSTALL_LIBRARY_DIR})
+
+    if(WIN32)
+        set(_install_pdb_dir ${${_V}_INSTALL_RUNTIME_DIR})
+    else()
+        set(_install_pdb_dir ${${_V}_INSTALL_LIBRARY_DIR})
+    endif()
+
+    _repo_add_target_generate_output_dirs(${_type})
+
+    set_target_properties(${_target} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${_build_runtime_dir}
+        LIBRARY_OUTPUT_DIRECTORY ${_build_library_dir}
+        ARCHIVE_OUTPUT_DIRECTORY ${_build_archive_dir}
+    )
 
     # Install target
     if(NOT FUNC_TEST AND NOT FUNC_NO_INSTALL AND ${_V}_INSTALL)
@@ -473,30 +505,22 @@ function(${_F}_add_library _target)
         if(${_V}_DEVEL)
             install(TARGETS ${_target}
                 ${_export}
-                RUNTIME DESTINATION ${${_V}_INSTALL_RUNTIME_DIR}
+                RUNTIME DESTINATION ${_install_runtime_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                LIBRARY DESTINATION ${${_V}_INSTALL_LIBRARY_DIR}
+                LIBRARY DESTINATION ${_install_library_dir}
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                ARCHIVE DESTINATION ${${_V}_INSTALL_LIBRARY_DIR}
+                ARCHIVE DESTINATION ${_install_archive_dir}
             )
         else()
-            get_target_property(_type ${_target} TYPE)
-
             if(_type STREQUAL "SHARED_LIBRARY")
                 install(TARGETS ${_target}
                     ${_export}
-                    RUNTIME DESTINATION ${${_V}_INSTALL_RUNTIME_DIR}
+                    RUNTIME DESTINATION ${_install_runtime_dir}
                     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
-                    LIBRARY DESTINATION ${${_V}_INSTALL_LIBRARY_DIR}
+                    LIBRARY DESTINATION ${_install_library_dir}
                     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
                 )
             endif()
-        endif()
-
-        if(WIN32)
-            set(_install_pdb_dir ${${_V}_INSTALL_RUNTIME_DIR})
-        else()
-            set(_install_pdb_dir ${${_V}_INSTALL_LIBRARY_DIR})
         endif()
 
         if(NOT FUNC_NO_INSTALL_PDB AND ${_V}_INSTALL_PDB)
@@ -517,11 +541,13 @@ endfunction()
         [NO_EXPORT]
         [NO_INSTALL]
         [NO_INSTALL_PDB]
+        [RUNTIME_DIRECTORY <dir>]
+        [PDB_DIRECTORY <dir>]
     )
 ]] #
 function(${_F}_add_executable _target)
     set(options TEST QT_AUTOGEN CONSOLE WINDOWS NO_EXPORT NO_INSTALL NO_INSTALL_PDB)
-    set(oneValueArgs)
+    set(oneValueArgs RUNTIME_DIRECTORY PDB_DIRECTORY)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -539,14 +565,18 @@ function(${_F}_add_executable _target)
     endif()
 
     if(FUNC_TEST)
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_TEST_RUNTIME_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_TEST_RUNTIME_DIR})
     else()
-        set_target_properties(${_target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${${_V}_BUILD_RUNTIME_DIR}
-        )
+        set(_build_runtime_dir ${${_V}_BUILD_RUNTIME_DIR})
     endif()
+
+    set(_install_runtime_dir ${${_V}_INSTALL_RUNTIME_DIR})
+    set(_install_pdb_dir ${${_V}_INSTALL_RUNTIME_DIR})
+    _repo_add_target_generate_output_dirs(EXECUTABLE)
+
+    set_target_properties(${_target} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${_build_runtime_dir}
+    )
 
     # Install target
     if(NOT FUNC_TEST AND NOT FUNC_NO_INSTALL AND ${_V}_INSTALL)
@@ -558,11 +588,11 @@ function(${_F}_add_executable _target)
 
         install(TARGETS ${_target}
             ${_export}
-            DESTINATION ${${_V}_INSTALL_RUNTIME_DIR} OPTIONAL
+            DESTINATION ${_install_runtime_dir} OPTIONAL
         )
 
         if(NOT FUNC_NO_INSTALL_PDB AND ${_V}_INSTALL_PDB)
-            _repo_install_pdb(${_target} ${${_V}_INSTALL_RUNTIME_DIR})
+            _repo_install_pdb(${_target} ${_install_pdb_dir})
         endif()
     endif()
 
@@ -790,6 +820,56 @@ macro(_repo_install_pdb _target _dest)
     endif()
 endmacro()
 
+macro(_repo_add_target_generate_output_dirs _type)
+    if(FUNC_RUNTIME_DIRECTORY)
+        string(GENEX_STRIP ${FUNC_RUNTIME_DIRECTORY} _stripped_dir)
+
+        if(NOT _stripped_dir STREQUAL FUNC_RUNTIME_DIRECTORY)
+            set(_build_runtime_dir ${FUNC_RUNTIME_DIRECTORY})
+            set(_install_runtime_dir ${FUNC_RUNTIME_DIRECTORY})
+        else()
+            set(_build_runtime_dir ${_build_runtime_dir}/${FUNC_RUNTIME_DIRECTORY})
+            set(_install_runtime_dir ${_install_runtime_dir}/${FUNC_RUNTIME_DIRECTORY})
+        endif()
+    endif()
+
+    if(NOT _type MATCHES "EXECUTABLE")
+        if(FUNC_LIBRARY_DIRECTORY)
+            string(GENEX_STRIP ${FUNC_LIBRARY_DIRECTORY} _stripped_dir)
+
+            if(NOT _stripped_dir STREQUAL FUNC_LIBRARY_DIRECTORY)
+                set(_build_library_dir ${FUNC_LIBRARY_DIRECTORY})
+                set(_install_library_dir ${FUNC_LIBRARY_DIRECTORY})
+            else()
+                set(_build_library_dir ${_build_library_dir}/${FUNC_LIBRARY_DIRECTORY})
+                set(_install_library_dir ${_install_library_dir}/${FUNC_LIBRARY_DIRECTORY})
+            endif()
+        endif()
+
+        if(FUNC_ARCHIVE_DIRECTORY)
+            string(GENEX_STRIP ${FUNC_ARCHIVE_DIRECTORY} _stripped_dir)
+
+            if(NOT _stripped_dir STREQUAL FUNC_ARCHIVE_DIRECTORY)
+                set(_build_archive_dir ${FUNC_ARCHIVE_DIRECTORY})
+                set(_install_archive_dir ${FUNC_ARCHIVE_DIRECTORY})
+            else()
+                set(_build_archive_dir ${_build_archive_dir}/${FUNC_ARCHIVE_DIRECTORY})
+                set(_install_archive_dir ${_install_archive_dir}/${FUNC_ARCHIVE_DIRECTORY})
+            endif()
+        endif()
+    endif()
+
+    if(FUNC_PDB_DIRECTORY)
+        string(GENEX_STRIP ${FUNC_PDB_DIRECTORY} _stripped_dir)
+
+        if(NOT _stripped_dir STREQUAL FUNC_PDB_DIRECTORY)
+            set(_install_pdb_dir ${FUNC_PDB_DIRECTORY})
+        else()
+            set(_install_pdb_dir ${_install_pdb_dir}/${FUNC_PDB_DIRECTORY})
+        endif()
+    endif()
+endmacro()
+
 #[[
     Pre-configure a target.
 
@@ -848,11 +928,12 @@ function(_repo_add_executable_internal _target _type _extra_args_ref)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
+    add_executable(${_target})
+
     if(FUNC_QT_AUTOGEN)
         _repo_set_cmake_qt_autogen(${_target})
     endif()
 
-    add_executable(${_target})
     set_target_properties(${_target} PROPERTIES
         ${_V}_TARGET_TYPE ${_type}
     )
@@ -878,10 +959,6 @@ function(_repo_add_library_internal _target _type _extra_args_ref)
     set(oneValueArgs MACRO_PREFIX LIBRARY_MACRO STATIC_MACRO)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(FUNC_QT_AUTOGEN)
-        _repo_set_cmake_qt_autogen(${_target})
-    endif()
 
     set(_options)
 
@@ -915,6 +992,10 @@ function(_repo_add_library_internal _target _type _extra_args_ref)
         else()
             add_library(${_target} STATIC)
         endif()
+    endif()
+
+    if(FUNC_QT_AUTOGEN)
+        _repo_set_cmake_qt_autogen(${_target})
     endif()
 
     set_target_properties(${_target} PROPERTIES

@@ -8,4 +8,4 @@ if(NOT WIN32)
     add_subdirectory(EmulatorIntegration)
 endif()
 
-add_subdirectory(Midwares)
+add_subdirectory(Midware)

@@ -168,22 +168,36 @@ function(lore_generate_thunk _name _input_file _out_file _config_file)
     endif()
 endfunction()
 
-function(lore_configure_guest_thunk _target)
+function(lore_add_guest_thunk _target)
+    set(_dir ${LORE_GUEST_ARCH}-linux-gnu)
+    lore_add_library(${_target} SHARED
+        LIBRARY_DIRECTORY ${_dir}
+        ${ARGN}
+    )
+    _lore_configure_thunk(${_target} ${_dir})
+
     if(_target MATCHES "(.+)_GTL")
         set_target_properties(${_target} PROPERTIES OUTPUT_NAME ${CMAKE_MATCH_1})
     endif()
-
-    _lore_configure_thunk(${_target} ${LORE_GUEST_ARCH}-loreg-linux-gnu)
 endfunction()
 
-function(lore_configure_host_thunk _target)
-    _lore_configure_thunk(${_target} ${LORE_HOST_ARCH}-loreh-linux-gnu)
+function(lore_add_host_thunk _target)
+    if(LORE_HOST_ARCH STREQUAL "x86_64")
+        set(_dir amd64-linux-gnu)
+    else()
+        set(_dir ${LORE_HOST_ARCH}-linux-gnu)
+    endif()
+
+    lore_add_library(${_target} SHARED
+        LIBRARY_DIRECTORY ${_dir}
+        ${ARGN}
+    )
+    _lore_configure_thunk(${_target} ${_dir})
 endfunction()
 
 function(_lore_configure_thunk _target _dir)
     get_target_property(_links ${_target} POST_LINK_ALIAS)
     set_target_properties(${_target} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${_dir}
         INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../lib"
     )
 
@@ -197,13 +211,6 @@ function(_lore_configure_thunk _target _dir)
     endif()
 
     if(LORE_INSTALL AND NOT LORE_SKIP_INSTALL)
-        install(TARGETS ${_target}
-            EXPORT ${LORE_EXPORT}
-            RUNTIME DESTINATION "${LORE_INSTALL_RUNTIME_DIR}" OPTIONAL
-            LIBRARY DESTINATION "${LORE_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
-            ARCHIVE DESTINATION "${LORE_INSTALL_LIBRARY_DIR}/${_dir}" OPTIONAL
-        )
-
         if(_links)
             foreach(_link IN LISTS _links)
                 install(CODE "
