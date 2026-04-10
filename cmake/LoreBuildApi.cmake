@@ -102,8 +102,12 @@ function(lore_generate_global_header _target _rel_path)
 
     set(_out_dir ${LORE_BUILD_INCLUDE_DIR}/${_rel_path})
     set(_out_file "${_out_dir}/Global.h")
-    file(MAKE_DIRECTORY ${_out_dir})
-    file(WRITE ${_out_file} ${_content})
+
+    if(NOT EXISTS ${_out_file})
+        file(MAKE_DIRECTORY ${_out_dir})
+        file(WRITE ${_out_file} ${_content})
+    endif()
+
     target_include_directories(${_target} PUBLIC $<BUILD_INTERFACE:${_out_dir}>)
 
     if(LORE_INSTALL)

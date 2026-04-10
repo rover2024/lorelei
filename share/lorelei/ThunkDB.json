@@ -1,0 +1,51 @@
+{
+    "forwardThunks": [
+        "libEGL",
+        "libGL",
+        "libGLX",
+        "libOpenGL",
+        {
+            "name": "libSDL-1.2",
+            "alias": [
+                "libSDL"
+            ]
+        },
+        {
+            "name": "libSDL2-2.0",
+            "alias": [
+                "libSDL2"
+            ],
+            "hostLibrary": "${REPOS}/SDL/build/install/lib/libSDL2.so"
+        },
+        "libvulkan",
+        "libz",
+        "libzstd",
+        {
+            "name": "libX11",
+            "hostLibrary": "${REPOS}/libX11/build/install/lib/libX11.so"
+        },
+        {
+            "name": "libX11-xcb",
+            "hostLibrary": "${REPOS}/libX11/build/install/lib/libX11-xcb.so"
+        },
+        "libxcb"
+    ],
+    "reversedThunks": [
+        {
+            "name": "libGLdispatch",
+            "fileName": "libGLdispatch.so",
+            "thunks": [
+                "libOpenGL",
+                "libGL"
+            ]
+        },
+        {
+            "name": "libGLX_mesa",
+            "fileName": "libGLX_mesa.so.0",
+            "thunks": [
+                "libGLX",
+                "libGL"
+            ]
+        }
+    ]
+}

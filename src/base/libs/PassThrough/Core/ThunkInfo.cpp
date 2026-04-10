@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 
 #include <json11/json11.hpp>
 
@@ -121,7 +122,7 @@ namespace lore {
         bool allHasDefault = !defaultGuestThunkPath.empty() && !defaultHostThunkPath.empty() &&
                              !defaultSysLibPath.empty();
 
-        // read thunk data
+        // read forward thunks
         const auto &docObj = json.object_items();
         if (auto it0 = docObj.find("forwardThunks");
             it0 != docObj.end() && it0->second.is_array()) {
@@ -139,6 +140,16 @@ namespace lore {
                         result.guestThunk = defaultGuestThunkPath + "/" + name + ".so";
                         result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
                         result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
+
+                        if (!std::filesystem::exists(result.guestThunk)) {
+                            continue;
+                        }
+                        if (!std::filesystem::exists(result.hostThunk)) {
+                            continue;
+                        }
+                        if (!std::filesystem::exists(result.hostLibrary)) {
+                            continue;
+                        }
                         m_forwardThunks.emplace_back(std::move(result));
                     }
                 }
@@ -224,7 +235,52 @@ namespace lore {
             }
         }
 
-        // read host data
+        // Auto-discover forward thunks from default directories.
+        // Scan GTL_DIR for *.so, then require matching HTL_DIR/<name>_HTL.so and
+        // SYSLIB/<name>.so before adding.
+        if (allHasDefault && std::filesystem::is_directory(defaultGuestThunkPath)) {
+            std::unordered_set<std::string> existingNames;
+            existingNames.reserve(m_forwardThunks.size());
+            for (const auto &item : m_forwardThunks) {
+                existingNames.insert(item.name);
+                for (const auto &alias : item.alias) {
+                    existingNames.insert(alias);
+                }
+            }
+
+            for (const auto &entry : std::filesystem::directory_iterator(defaultGuestThunkPath)) {
+                if (!entry.is_regular_file() && !entry.is_symlink()) {
+                    continue;
+                }
+                const auto fileName = entry.path().filename().string();
+                if (!str::ends_with(fileName, ".so")) {
+                    continue;
+                }
+
+                const auto name = fileName.substr(0, fileName.size() - 3);
+                if (name.empty() || existingNames.contains(name)) {
+                    continue;
+                }
+
+                ForwardThunkInfo result;
+                result.name = name;
+                result.guestThunk = entry.path().string();
+                result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
+                result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
+
+                if (!std::filesystem::exists(result.hostThunk)) {
+                    continue;
+                }
+                if (!std::filesystem::exists(result.hostLibrary)) {
+                    continue;
+                }
+
+                m_forwardThunks.emplace_back(std::move(result));
+                existingNames.insert(name);
+            }
+        }
+
+        // read reversed thunks
         if (auto it0 = docObj.find("reversedThunks");
             it0 != docObj.end() && it0->second.is_array()) {
             const auto &reversedItems = it0->second.array_items();

@@ -80,7 +80,7 @@ namespace lore {
                 vars[std::string(item.substr(0, eq))] = std::string(item.substr(eq + 1));
             }
         }
-
+        
         return vars;
     }
 

@@ -113,6 +113,11 @@ namespace lore::tool::command::preprocess {
     public:
         void ExecuteAction() override {
             CompilerInstance &CI = getCompilerInstance();
+            if (CI.getLangOpts().CPlusPlus) {
+                llvm::errs() << "error: HLR preprocess only supports C input. "
+                                "Use C language flags (e.g. -xc -std=c11).\n";
+                std::exit(1);
+            }
             SourceManager &SM = CI.getSourceManager();
             PreprocessorOutputOptions &PPOpts = CI.getPreprocessorOutputOpts();
 

@@ -1,7 +1,6 @@
 #define TOOL_MAIN_COMMAND_FOREACH(F)                                                               \
-    F(batch)                                                                                       \
-    F(generate)                                                                                    \
     F(stat)                                                                                        \
+    F(generate)                                                                                    \
     F(help)
 
 #define TOOL_MAIN_VERSION     TOOL_VERSION

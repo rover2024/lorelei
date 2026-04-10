@@ -8,3 +8,5 @@ lore_add_executable(${PROJECT_NAME}
     INCLUDE_PRIVATE .
 )
 lore_link_clang(${PROJECT_NAME} PRIVATE)
+
+lore_add_resource(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Warning.txt.in")

@@ -10,7 +10,7 @@ namespace lore::tool::HLR {
     /// SourceStatistics - Statistics of callback check guards and function decay guards from
     /// a set of source files.
     ///
-    /// \example Sample \c SourceStatistics.json
+    /// \example Sample `stat.json`
     /// \code
     /// {
     ///   "callbackCheckGuardSignatures": [
@@ -39,6 +39,11 @@ namespace lore::tool::HLR {
         SourceStatistics() = default;
 
     public:
+        inline void clear() {
+            callbackCheckGuardSignatures.clear();
+            functionDecayGuardStats.clear();
+        }
+
         bool loadFromJson(const std::string &filePath, std::string &errorMessage);
         bool saveAsJson(const std::string &filePath, std::string &errorMessage);
 

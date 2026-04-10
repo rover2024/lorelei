@@ -19,4 +19,9 @@ endif()
 
 lore_install()
 
+if(LORE_INSTALL)
+    # Install shared files
+    include("${LORE_SOURCE_DIR}/share/install.cmake")
+endif()
+
 lore_finish_buildsystem()

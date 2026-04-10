@@ -51,6 +51,12 @@ namespace lore::tool::command::mark_macros {
         }
 
         void EndSourceFileAction() override {
+            if (getCompilerInstance().getLangOpts().CPlusPlus) {
+                llvm::errs() << "error: HLR mark-macros only supports C input. "
+                                "Use C language flags (e.g. -xc -std=c11).\n";
+                std::exit(1);
+            }
+
             SourceManager &SM = m_rewriter.getSourceMgr();
             LangOptions LO = m_rewriter.getLangOpts();
             ASTContext &AST = getCompilerInstance().getASTContext();

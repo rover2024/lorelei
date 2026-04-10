@@ -3,7 +3,7 @@ project(LoreHLR)
 file(GLOB_RECURSE _src *.h *.cpp)
 lore_add_executable(${PROJECT_NAME}
     SOURCES ${_src}
-    LINKS_PRIVATE LoreToolUtils LoreToolMain
+    LINKS_PRIVATE LoreToolUtils LoreTLCApi LoreToolMain
     DEFINES TOOL_VERSION="${LORE_VERSION}"
     INCLUDE_PRIVATE .
 )

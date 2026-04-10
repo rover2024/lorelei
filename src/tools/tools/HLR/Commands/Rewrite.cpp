@@ -1,4 +1,5 @@
 #include <string>
+#include <cstdlib>
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
@@ -52,6 +53,12 @@ namespace lore::tool::command::rewrite {
         }
 
         void EndSourceFileAction() override {
+            if (getCompilerInstance().getLangOpts().CPlusPlus) {
+                llvm::errs() << "error: HLR rewrite only supports C input. "
+                                "Use C language flags (e.g. -xc -std=c11).\n";
+                std::exit(1);
+            }
+
             SourceManager &SM = m_rewriter.getSourceMgr();
             LangOptions LO = m_rewriter.getLangOpts();
             ASTContext &AST = getCompilerInstance().getASTContext();
