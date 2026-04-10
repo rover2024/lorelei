@@ -5,10 +5,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
-#include <map>
-#include <mutex>
-#include <vector>
 #include <cassert>
 
 #include <alloca.h>
@@ -40,10 +36,7 @@ namespace lore::mod {
         constexpr const char *kHostArch = "unknown";
 #endif
 
-        constexpr const char *kDefaultSysLibFmt = "/usr/lib/%s-linux-gnu";
-
         static void *g_specialEntries[64] = {};
-        static ThunkInfoConfig g_thunkConfig;
 
         static const char *pathGetName(const char *path) {
             const char *slashPos = std::strrchr(path, '/');
@@ -72,70 +65,6 @@ namespace lore::mod {
             buffer[end - start] = '\0';
         }
 
-        static std::map<std::string, std::string> buildConfigVars() {
-            std::string root;
-            if (const char *rootEnv = std::getenv("LORELEI_ROOT")) {
-                root = rootEnv;
-            }
-
-            std::string guestRoot = root;
-            if (const char *guestRootEnv = std::getenv("LORELEI_GUEST_ROOT")) {
-                guestRoot = guestRootEnv;
-            }
-
-            char sysLibBuf[PATH_MAX];
-            if (const char *sysLibEnv = std::getenv("LORELEI_SYSLIB_DIR")) {
-                std::snprintf(sysLibBuf, sizeof(sysLibBuf), "%s", sysLibEnv);
-            } else {
-                std::snprintf(sysLibBuf, sizeof(sysLibBuf), kDefaultSysLibFmt, kHostArch);
-            }
-
-            std::map<std::string, std::string> vars = {
-                {"ROOT",       root                                                        },
-                {"GUEST_ROOT", guestRoot                                                   },
-                {"HOME",       std::getenv("HOME") ? std::getenv("HOME") : ""              },
-                {"GTL_DIR",    guestRoot + "/lib/x86_64-loreg-linux-gnu"                   },
-                {"HTL_DIR",    root + "/lib/" + std::string(kHostArch) + "-loreh-linux-gnu"},
-                {"ARCH",       kHostArch                                                   },
-                {"SYSLIB",     sysLibBuf                                                   },
-            };
-
-            if (const char *extraVars = std::getenv("LORELEI_THUNKS_CONFIG_VARIABLES");
-                extraVars && *extraVars) {
-                for (const auto item : split(std::string_view(extraVars), ";")) {
-                    const auto eq = item.find('=');
-                    if (eq == std::string_view::npos) {
-                        continue;
-                    }
-                    vars[std::string(item.substr(0, eq))] = std::string(item.substr(eq + 1));
-                }
-            }
-
-            return vars;
-        }
-
-        static void ensureThunkConfigLoaded() {
-            static std::once_flag configInitFlag;
-            static bool loaded = false;
-            std::call_once(configInitFlag, [] {
-                std::string root;
-                if (const char *rootEnv = std::getenv("LORELEI_ROOT")) {
-                    root = rootEnv;
-                }
-
-                std::filesystem::path configPath;
-                if (const char *configEnv = std::getenv("LORELEI_THUNKS_CONFIG")) {
-                    configPath = configEnv;
-                } else if (!root.empty()) {
-                    configPath = std::filesystem::path(root) / "etc" / "lorelei" / "thunks.json";
-                } else {
-                    configPath = std::filesystem::path("etc") / "lorelei" / "thunks.json";
-                }
-
-                loaded = g_thunkConfig.load(configPath, buildConfigVars());
-            });
-        }
-
         static CString queryHostAttribute(const char *key) {
             static const std::string hostArch = kHostArch;
 
@@ -156,6 +85,23 @@ namespace lore::mod {
             return {};
         }
 
+    }
+
+    void *HostSyscallServer::emuAddr = nullptr;
+
+    HostSyscallServer *HostSyscallServer::self = nullptr;
+
+    HostSyscallServer::HostSyscallServer() {
+        self = this;
+    }
+
+    HostSyscallServer::~HostSyscallServer() {
+        self = nullptr;
+    }
+
+    void HostSyscallServer::setThunkConfig(std::unique_ptr<ThunkInfoConfig> config) {
+        assert(config != nullptr);
+        m_thunkConfig = std::move(config);
     }
 
     uint64_t HostSyscallServer::dispatchSyscall(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
@@ -278,8 +224,9 @@ namespace lore::mod {
                 auto ret = reinterpret_cast<CThunkInfo *>(a3);
                 assert(a);
                 assert(ret);
-
-                ensureThunkConfigLoaded();
+                assert(self != nullptr);
+                const auto *config = self->thunkConfig();
+                assert(config != nullptr);
 
                 auto path = reinterpret_cast<const char *>(a[0]);
                 bool isReverse = static_cast<bool>(reinterpret_cast<uintptr_t>(a[1]));
@@ -293,11 +240,11 @@ namespace lore::mod {
                 }
 
                 if (isReverse) {
-                    auto *info = g_thunkConfig.reversedThunk(name);
+                    auto *info = config->reversedThunk(name);
                     ret->reversed =
                         info ? const_cast<CReversedThunkInfo *>(&info->c_data()) : nullptr;
                 } else {
-                    auto *info = g_thunkConfig.forwardThunk(name);
+                    auto *info = config->forwardThunk(name);
                     ret->forward =
                         info ? const_cast<CForwardThunkInfo *>(&info->c_data()) : nullptr;
                 }

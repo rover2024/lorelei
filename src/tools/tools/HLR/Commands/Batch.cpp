@@ -289,7 +289,7 @@ namespace lore::tool::command::batch {
             }
 
             i = 0;
-            out << "static struct LoreThunkProcInfo LoreFileContext_CCGs[] = {\n";
+            out << "static struct LoreStaticCallCheckGuardInfo LoreFileContext_CCGs[] = {\n";
             for (const auto &guard : stat.callbackCheckGuardSignatures) {
                 out << "    {\"" << guard << "\", &LoreFileContext_CCG_Tramp_" << i + 1 << "},\n";
                 ++i;
@@ -298,7 +298,7 @@ namespace lore::tool::command::batch {
 
             i = 0;
             for (const auto &guard : stat.functionDecayGuardStats) {
-                out << "static struct LoreFunctionDecayGuard *LoreFileContext_FDG_Proc_" << i + 1
+                out << "static struct LoreStaticFunctionDecayGuardPair *LoreFileContext_FDG_Proc_" << i + 1
                     << "_instances[] = {\n";
                 size_t j = 0;
                 for (const auto &_ : guard.second.locations) {
@@ -310,7 +310,7 @@ namespace lore::tool::command::batch {
             }
 
             i = 0;
-            out << "static struct LoreFunctionDecayGuardInfo LoreFileContext_FDGs[] = {\n";
+            out << "static struct LoreStaticFunctionDecayGuardInfo LoreFileContext_FDGs[] = {\n";
             for (const auto &guard : stat.functionDecayGuardStats) {
                 out << "    {\"" << guard.first << "\", " << guard.second.locations.size()
                     << ", LoreFileContext_FDG_Proc_" << i + 1 << "_instances},\n";
@@ -322,11 +322,13 @@ namespace lore::tool::command::batch {
             out << "    .runtimeContext = 0,\n";
             out << "    .emuAddr = 0,\n";
             out << "    .setThreadCallback = 0,\n";
+            out << "    .numCCGs = " << stat.callbackCheckGuardSignatures.size() << ",\n";
             out << "    .CCGs = LoreFileContext_CCGs,\n";
+            out << "    .numFDGs = " << stat.functionDecayGuardStats.size() << ",\n";
             out << "    .FDGs = LoreFileContext_FDGs,\n";
             out << "};\n\n";
 
-            out << "__LORE_EXPORT__ struct LoreFileContext *__getLoreFileContext() {\n";
+            out << "__LORE_EXPORT__ struct LoreFileContext *__Lore_GetFileContext() {\n";
             out << "    return &LoreFileContext_instance;\n";
             out << "}\n\n";
         }

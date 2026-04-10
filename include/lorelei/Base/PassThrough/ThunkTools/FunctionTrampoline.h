@@ -27,24 +27,6 @@ namespace lore {
         static void destroy(FunctionTrampolineTable *table);
     };
 
-    struct FunctionTrampolineTableGuard {
-        FunctionTrampolineTable *table;
-
-        inline FunctionTrampolineTableGuard() : table(nullptr) {
-        }
-
-        inline ~FunctionTrampolineTableGuard() {
-            if (table) {
-                FunctionTrampolineTable::destroy(table);
-            }
-        }
-
-        void create(size_t count, void *target, uintptr_t magic_sign) {
-            assert(table == nullptr);
-            table = FunctionTrampolineTable::create(count, target, magic_sign);
-        }
-    };
-
 }
 
 #endif // LORE_BASE_PASSTHROUGH_FUNCTIONTRAMPOLINE_H

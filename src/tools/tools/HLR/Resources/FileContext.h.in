@@ -26,26 +26,30 @@ typedef unsigned long __LORE_SIZE_T__;
 
 #define __LORE_MAGIC_SIGN__ 0x1234567890ABCDEFULL
 
-struct LoreThunkProcInfo {
-    const char *signature;
-    void **pTramp;
-};
-
+/// \sa \c lore::FunctionTrampoline
 struct LoreFunctionTrampoline {
     void *saved_function;
     char thunk_instr[16];
     __LORE_SIZE_T__ magic_sign;
 };
 
-struct LoreFunctionDecayGuard {
+/// \sa \c CStaticCallCheckGuardInfo
+struct LoreStaticCallCheckGuardInfo {
+    const char *signature;
+    void **pTramp; // pointer to LoreFileContext_CCG_Tramp_*
+};
+
+/// \sa \c CStaticFunctionDecayGuardPair
+struct LoreStaticFunctionDecayGuardPair {
     void *hostAddr;
     void *guestTramp;
 };
 
-struct LoreFunctionDecayGuardInfo {
+/// \sa \c CStaticFunctionDecayGuardInfo
+struct LoreStaticFunctionDecayGuardInfo {
     const char *signature;
     int count;
-    struct LoreFunctionDecayGuard **pProcs;
+    struct LoreStaticFunctionDecayGuardPair **pProcs;
 };
 
 struct LoreRuntimeContext {
@@ -60,10 +64,12 @@ struct LoreFileContext {
     void (*setThreadCallback)(void *);
 
     // Callback check guards
-    struct LoreThunkProcInfo *CCGs;
+    __LORE_SIZE_T__ numCCGs;
+    struct LoreStaticCallCheckGuardInfo *CCGs;
 
     // Function decay guards
-    struct LoreFunctionDecayGuardInfo *FDGs;
+    __LORE_SIZE_T__ numFDGs;
+    struct LoreStaticFunctionDecayGuardInfo *FDGs;
 };
 
 #define __LORE_THUNK_INSTR_OFFSET__ __LORE_OFFSET_OF__(struct LoreFunctionTrampoline, thunk_instr)
@@ -87,12 +93,14 @@ static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
 
 #define LORE_CCG_DECL(NUM) extern __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM;
 #define LORE_FDG_DECL(NUM1, NUM2)                                                                  \
-    extern __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_##NUM1##_##NUM2;
+    extern __LORE_PRIV__ struct LoreStaticFunctionDecayGuardPair                                   \
+        LoreFileContext_FDG_Proc_##NUM1##_##NUM2;
 #define LORE_CCG_IMPL(NUM) __LORE_PRIV__ void *LoreFileContext_CCG_Tramp_##NUM = 0;
 #define LORE_FDG_IMPL(NUM1, NUM2, FUNC)                                                            \
-    __LORE_PRIV__ struct LoreFunctionDecayGuard LoreFileContext_FDG_Proc_##NUM1##_##NUM2 = {       \
-        .hostAddr = (void *) &FUNC,                                                                \
-        .guestTramp = 0,                                                                           \
+    __LORE_PRIV__ struct LoreStaticFunctionDecayGuardPair                                          \
+        LoreFileContext_FDG_Proc_##NUM1##_##NUM2 = {                                               \
+            .hostAddr = (void *) &FUNC,                                                            \
+            .guestTramp = 0,                                                                       \
     };
 
 #define LORE_CCG_GET(NUM, EXPR)                                                                    \

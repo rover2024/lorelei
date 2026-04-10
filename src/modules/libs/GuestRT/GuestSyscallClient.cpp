@@ -102,6 +102,16 @@ namespace lore::mod {
         return func;
     }
 
+    GuestSyscallClient *GuestSyscallClient::self = nullptr;
+
+    GuestSyscallClient::GuestSyscallClient() {
+        self = this;
+    }
+
+    GuestSyscallClient::~GuestSyscallClient() {
+        self = nullptr;
+    }
+
     void *GuestSyscallClient::convertHostProcAddress(const char *name, void *addr) {
         auto hostLibPath = getModulePath(addr, false);
         if (!hostLibPath) {

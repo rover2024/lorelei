@@ -169,7 +169,7 @@ function(lore_generate_thunk _name _input_file _out_file _config_file)
 endfunction()
 
 function(lore_add_guest_thunk _target)
-    set(_dir ${LORE_GUEST_ARCH}-linux-gnu)
+    set(_dir ${LORE_GUEST_ARCH}-LoreGTL)
     lore_add_library(${_target} SHARED
         LIBRARY_DIRECTORY ${_dir}
         ${ARGN}
@@ -182,12 +182,7 @@ function(lore_add_guest_thunk _target)
 endfunction()
 
 function(lore_add_host_thunk _target)
-    if(LORE_HOST_ARCH STREQUAL "x86_64")
-        set(_dir amd64-linux-gnu)
-    else()
-        set(_dir ${LORE_HOST_ARCH}-linux-gnu)
-    endif()
-
+    set(_dir ${LORE_HOST_ARCH}-LoreHTL)
     lore_add_library(${_target} SHARED
         LIBRARY_DIRECTORY ${_dir}
         ${ARGN}

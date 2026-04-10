@@ -26,24 +26,6 @@ namespace lore {
         static void destroy(CallbackTrampolineTable *table);
     };
 
-    struct CallbackTrampolineTableGuard {
-        CallbackTrampolineTable *table;
-
-        inline CallbackTrampolineTableGuard() : table(nullptr) {
-        }
-
-        inline ~CallbackTrampolineTableGuard() {
-            if (table) {
-                CallbackTrampolineTable::destroy(table);
-            }
-        }
-
-        void create(size_t count, void *target) {
-            assert(table == nullptr);
-            table = CallbackTrampolineTable::create(count, target);
-        }
-    };
-
 }
 
 #endif // LORE_BASE_PASSTHROUGH_CALLBACKTRAMPOLINE_H

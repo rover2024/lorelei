@@ -3,27 +3,27 @@
 
 #include <tuple>
 
-#include <lorelei/Tools/ThunkInterface/c/CTProc.h>
+#include <lorelei/Base/PassThrough/c/CProc.h>
 
 namespace lore::thunk {
 
     enum ProcKind {
-        Function = CTProcKind_Function,
-        Callback = CTProcKind_Callback,
-        NumProcKind = CTProcKind_NumProcKind,
+        Function = CProcKind_Function,
+        Callback = CProcKind_Callback,
+        NumProcKind = CProcKind_NumProcKind,
     };
 
     enum ProcDirection {
-        GuestToHost = CTProcDirection_GuestToHost,
-        HostToGuest = CTProcDirection_HostToGuest,
-        NumProcDirection = CTProcDirection_NumProcDirection,
+        GuestToHost = CProcDirection_GuestToHost,
+        HostToGuest = CProcDirection_HostToGuest,
+        NumProcDirection = CProcDirection_NumProcDirection,
     };
 
     enum ProcPhase {
-        Entry = CTProcPhase_Entry,
-        Caller = CTProcPhase_Caller,
-        Exec = CTProcPhase_Exec,
-        NumPhases = CTProcPhase_NumPhases,
+        Entry = CProcPhase_Entry,
+        Caller = CProcPhase_Caller,
+        Exec = CProcPhase_Exec,
+        NumPhases = CProcPhase_NumPhases,
     };
 
     /// ProcFnDesc - Thunk proc description block for functions.
@@ -46,18 +46,18 @@ namespace lore::thunk {
     };
 
     /// ProcFn - Thunk proc for functions.
-    template <auto F, ProcKind Kind, ProcPhase Phase>
+    template <auto F, ProcDirection Direction, ProcPhase Phase>
     struct ProcFn;
 
     /// ProcCb - Thunk proc for callbacks.
-    template <class F, ProcKind Kind, ProcPhase Phase>
+    template <class F, ProcDirection Direction, ProcPhase Phase>
     struct ProcCb;
 
     /// ProcArgContext - The thunk proc argument context, for \c TypeConverter passes.
     template <class... Args>
     struct ProcArgContext {
     private:
-        std::tuple<Args &...> _args_tuple;
+        std::tuple<Args &...> args_tuple;
 
         template <class T, size_t N, size_t Index = 0, size_t Count = 0>
         static constexpr size_t find_type_index() {
@@ -76,7 +76,7 @@ namespace lore::thunk {
         }
 
     public:
-        constexpr ProcArgContext(Args &...args) : _args_tuple(args...) {
+        constexpr ProcArgContext(Args &...args) : args_tuple(args...) {
         }
 
         static constexpr size_t Size = sizeof...(Args);
@@ -85,7 +85,7 @@ namespace lore::thunk {
         constexpr T &type() {
             static_assert(N < Size, "N must be less than number of arguments");
             constexpr size_t index = find_type_index<T, N, From>();
-            return std::get<index>(_args_tuple);
+            return std::get<index>(args_tuple);
         }
 
         template <class T, size_t N = 0, size_t From = 0>
@@ -98,7 +98,7 @@ namespace lore::thunk {
         template <size_t N>
         constexpr auto &at() {
             static_assert(N < Size, "Index out of range");
-            return std::get<N>(_args_tuple);
+            return std::get<N>(args_tuple);
         }
     };
 

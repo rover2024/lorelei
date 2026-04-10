@@ -42,6 +42,9 @@ namespace plugin {
 }
 
 int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info, int argc, char **argv) {
+    /// @brief Set the emu address to one of QEMU functions
+    lore::mod::HostSyscallServer::emuAddr = (void *) qemu_plugin_register_vcpu_syscall_filter_cb;
+
     qemu_plugin_register_vcpu_syscall_filter_cb(id, plugin::vcpu_syscall_filter);
     return 0;
 }

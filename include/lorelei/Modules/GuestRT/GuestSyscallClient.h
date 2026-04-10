@@ -8,8 +8,12 @@ namespace lore::mod {
 
     class LOREGUESTRT_EXPORT GuestSyscallClient : public IClient<GuestSyscallClient> {
     public:
-        GuestSyscallClient() = delete;
-        ~GuestSyscallClient() = delete;
+        GuestSyscallClient();
+        ~GuestSyscallClient();
+
+        static inline GuestSyscallClient *instance() {
+            return self;
+        }
 
     public:
         static void *convertHostProcAddress(const char *name, void *addr);
@@ -27,6 +31,8 @@ namespace lore::mod {
         static void *heapAlloc_impl(size_t size);
         static void heapFree_impl(void *ptr);
         static void setSpecialEntry_impl(int id, void *addr);
+
+        static GuestSyscallClient *self;
 
         friend class IClient<GuestSyscallClient>;
     };
