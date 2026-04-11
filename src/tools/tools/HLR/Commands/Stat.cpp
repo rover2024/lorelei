@@ -7,11 +7,12 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 
-#include <lorelei/Tools/TLCApi/Utils/ManifestStatistics.h>
 #include <lorelei/Tools/ToolUtils/TypeUtils.h>
+#include <lorelei/Tools/TLCApi/Utils/ManifestStatistics.h>
 
 #include "Utils/ASTConsumers.h"
 #include "Utils/SourceStatistics.h"
+
 
 using namespace clang;
 using namespace clang::tooling;

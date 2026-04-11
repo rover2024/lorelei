@@ -74,6 +74,7 @@ namespace lore::tool::TLC {
         };
 
         inline void clear() {
+            fileName.clear();
             for (auto &map : functions) {
                 map.clear();
             }
@@ -88,6 +89,7 @@ namespace lore::tool::TLC {
         bool loadFromJson(const std::string &filePath, std::string &errorMessage);
         bool saveAsJson(const std::string &filePath, std::string &errorMessage) const;
 
+        std::string fileName;
         std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> functions;
         std::map<std::string, CallbackInfo> callbacks;
     };

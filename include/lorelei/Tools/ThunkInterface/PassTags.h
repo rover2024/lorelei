@@ -25,7 +25,7 @@ namespace lore::thunk::pass {
     };
 
     template <class... Args>
-    struct PassTags {};
+    struct PassTagList {};
 
     // Builder
     template <int FormatIndex = -1, int VariadicIndex = -1>

@@ -15,8 +15,8 @@ namespace lore::tool::TLC {
     }
 
     void ManifestStatistics::addCallbackSignature(const std::string &signature,
-                                               const std::string &origin,
-                                               const std::string &preferredAlias) {
+                                                  const std::string &origin,
+                                                  const std::string &preferredAlias) {
         auto &info = callbacks[signature];
         info.signature = signature;
         if (!preferredAlias.empty() && info.alias.empty()) {
@@ -46,8 +46,13 @@ namespace lore::tool::TLC {
             return false;
         }
 
+        std::string loadedFileName;
         std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> loadedFunctions;
         std::map<std::string, CallbackInfo> loadedCallbacks;
+
+        if (auto value = obj->getString("fileName")) {
+            loadedFileName = value->str();
+        }
 
         if (auto functionsObj = obj->getObject("functions")) {
             const auto parseFunctionArray = [&](FunctionDirection dir, const char *key) {
@@ -99,6 +104,7 @@ namespace lore::tool::TLC {
             }
         }
 
+        fileName = std::move(loadedFileName);
         functions = std::move(loadedFunctions);
         callbacks = std::move(loadedCallbacks);
         return true;
@@ -107,6 +113,7 @@ namespace lore::tool::TLC {
     bool ManifestStatistics::saveAsJson(const std::string &filePath, std::string &errorMessage) const {
         llvm::json::Object root;
         root["version"] = 1;
+        root["fileName"] = fileName;
 
         const auto serializeFunctionMap = [](const auto &map) {
             llvm::json::Array array;

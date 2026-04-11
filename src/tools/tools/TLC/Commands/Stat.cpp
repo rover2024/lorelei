@@ -75,8 +75,8 @@ namespace lore::tool::command::stat {
         return loc.printToString(sm);
     }
 
-    static std::optional<QualType>
-    extractOverlayType(const ClassTemplateSpecializationDecl &decl, ASTContext &ast) {
+    static std::optional<QualType> extractOverlayType(const ClassTemplateSpecializationDecl &decl,
+                                                      ASTContext &ast) {
         for (const auto *subDecl : decl.decls()) {
             const TypedefNameDecl *td = dyn_cast<TypedefNameDecl>(subDecl);
             if (!td || td->getName() != "overlay_type") {
@@ -284,7 +284,8 @@ namespace lore::tool::command::stat {
                 return;
             }
 
-            collectCallbackSignatures(type, "ProcCbDesc<" + getTypeString(type) + ">", alias);
+            auto signature = getTypeString(type);
+            collectCallbackSignatures(type, "ProcCbDesc<" + signature + ">", alias);
 
             if (auto overlayType = extractOverlayType(decl, *m_ast)) {
                 collectCallbackSignatures(*overlayType,
@@ -304,7 +305,8 @@ namespace lore::tool::command::stat {
                     auto pointee = type->getPointeeType().getCanonicalType();
                     if (const auto *fpt = pointee->getAs<FunctionProtoType>()) {
                         if (!fpt->getReturnType()->isVoidType()) {
-                            stack.push_back(std::make_pair(fpt->getReturnType(), seedOrigin + "@ret"));
+                            stack.push_back(
+                                std::make_pair(fpt->getReturnType(), seedOrigin + "@ret"));
                         }
                         for (size_t i = 0; i < fpt->getNumParams(); ++i) {
                             stack.push_back(std::make_pair(
@@ -312,7 +314,8 @@ namespace lore::tool::command::stat {
                         }
                     } else if (const auto *fnt = pointee->getAs<FunctionNoProtoType>()) {
                         if (!fnt->getReturnType()->isVoidType()) {
-                            stack.push_back(std::make_pair(fnt->getReturnType(), seedOrigin + "@ret"));
+                            stack.push_back(
+                                std::make_pair(fnt->getReturnType(), seedOrigin + "@ret"));
                         }
                     }
                 } else {
@@ -380,8 +383,8 @@ namespace lore::tool::command::stat {
             }
         }
 
-        void collectConfigFunctionSection(
-            StringRef sectionName, TLC::ManifestStatistics::FunctionDirection direction) {
+        void collectConfigFunctionSection(StringRef sectionName,
+                                          TLC::ManifestStatistics::FunctionDirection direction) {
             auto sectionOpt = g_ctx().config.get(sectionName.str());
             if (!sectionOpt) {
                 return;
@@ -396,13 +399,14 @@ namespace lore::tool::command::stat {
                 }
                 const FunctionDecl *fd = it->second;
                 auto funcPtrType = m_ast->getPointerType(fd->getType().getCanonicalType());
-                g_ctx().stat.addFunction(
-                    direction, fd->getNameAsString(), getTypeString(funcPtrType),
-                    sourceLocationText(sm, fd->getBeginLoc()));
+                g_ctx().stat.addFunction(direction, fd->getNameAsString(),
+                                         getTypeString(funcPtrType),
+                                         sourceLocationText(sm, fd->getBeginLoc()));
                 collectCallbackSignatures(funcPtrType, "Config[" + sectionName.str() + "]:" + name,
                                           {}, false);
 
-                if (auto dataIt = m_procFnDescDataMap.find(name); dataIt != m_procFnDescDataMap.end()) {
+                if (auto dataIt = m_procFnDescDataMap.find(name);
+                    dataIt != m_procFnDescDataMap.end()) {
                     if (dataIt->second.overlayType) {
                         collectCallbackSignatures(
                             *dataIt->second.overlayType,
@@ -451,10 +455,8 @@ namespace lore::tool::command::stat {
         }
 
         void collectConfigSeeds() {
-            collectConfigFunctionSection("Function",
-                                         TLC::ManifestStatistics::GuestToHost);
-            collectConfigFunctionSection("Guest Function",
-                                         TLC::ManifestStatistics::HostToGuest);
+            collectConfigFunctionSection("Function", TLC::ManifestStatistics::GuestToHost);
+            collectConfigFunctionSection("Guest Function", TLC::ManifestStatistics::HostToGuest);
             collectConfigCallbackSection();
         }
 
@@ -487,16 +489,20 @@ namespace lore::tool::command::stat {
                                                  cl::cat(myOptionCat));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
-        auto expectedParser =
-            CommonOptionsParser::create(argc, const_cast<const char **>(argv), myOptionCat);
+        auto expectedParser = CommonOptionsParser::create(argc, const_cast<const char **>(argv),
+                                                          myOptionCat, cl::Required);
         if (!expectedParser) {
             llvm::errs() << expectedParser.takeError();
             return 0;
         }
         auto &parser = expectedParser.get();
 
+        g_ctx().stat.clear();
         g_ctx().configPath = configOption.getValue();
         g_ctx().outputPath = outputOption.getValue();
+        if (!parser.getSourcePathList().empty()) {
+            g_ctx().stat.fileName = parser.getSourcePathList().front();
+        }
 
         if (!g_ctx().configPath.empty()) {
             auto result = g_ctx().config.load(g_ctx().configPath);
