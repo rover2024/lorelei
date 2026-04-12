@@ -109,18 +109,13 @@ namespace lore {
 
         std::string defaultGuestThunkPath;
         std::string defaultHostThunkPath;
-        std::string defaultSysLibPath;
         if (auto it = vars.find("GTL_DIR"); it != vars.end()) {
             defaultGuestThunkPath = it->second;
         }
         if (auto it = vars.find("HTL_DIR"); it != vars.end()) {
             defaultHostThunkPath = it->second;
         }
-        if (auto it = vars.find("SYSLIB"); it != vars.end()) {
-            defaultSysLibPath = it->second;
-        }
-        bool allHasDefault = !defaultGuestThunkPath.empty() && !defaultHostThunkPath.empty() &&
-                             !defaultSysLibPath.empty();
+        bool allHasDefault = !defaultGuestThunkPath.empty() && !defaultHostThunkPath.empty();
 
         // read forward thunks
         const auto &docObj = json.object_items();
@@ -139,17 +134,7 @@ namespace lore {
                         result.name = name;
                         result.guestThunk = defaultGuestThunkPath + "/" + name + ".so";
                         result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
-                        result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
-
-                        if (!std::filesystem::exists(result.guestThunk)) {
-                            continue;
-                        }
-                        if (!std::filesystem::exists(result.hostThunk)) {
-                            continue;
-                        }
-                        if (!std::filesystem::exists(result.hostLibrary)) {
-                            continue;
-                        }
+                        result.hostLibrary = name + ".so";
                         m_forwardThunks.emplace_back(std::move(result));
                     }
                 }
@@ -189,8 +174,12 @@ namespace lore {
 
                 // guestThunk
                 it = forwardObj.find("guestThunk");
-                if (it == forwardObj.end() && !defaultGuestThunkPath.empty()) {
-                    result.guestThunk = defaultGuestThunkPath + "/" + result.name + ".so";
+                if (it == forwardObj.end()) {
+                    if (!defaultGuestThunkPath.empty()) {
+                        result.guestThunk = defaultGuestThunkPath + "/" + result.name + ".so";
+                    } else {
+                        continue;
+                    }
                 } else {
                     if (!it->second.is_string()) {
                         continue;
@@ -204,8 +193,12 @@ namespace lore {
 
                 // hostThunk
                 it = forwardObj.find("hostThunk");
-                if (it == forwardObj.end() && !defaultHostThunkPath.empty()) {
-                    result.hostThunk = defaultHostThunkPath + "/" + result.name + "_HTL.so";
+                if (it == forwardObj.end()) {
+                    if (!defaultHostThunkPath.empty()) {
+                        result.hostThunk = defaultHostThunkPath + "/" + result.name + "_HTL.so";
+                    } else {
+                        continue;
+                    }
                 } else {
                     if (!it->second.is_string()) {
                         continue;
@@ -219,8 +212,8 @@ namespace lore {
 
                 // hostLibrary
                 it = forwardObj.find("hostLibrary");
-                if (it == forwardObj.end() && !defaultSysLibPath.empty()) {
-                    result.hostLibrary = defaultSysLibPath + "/" + result.name + ".so";
+                if (it == forwardObj.end()) {
+                    result.hostLibrary = result.name + ".so";
                 } else {
                     if (!it->second.is_string()) {
                         continue;
@@ -236,8 +229,7 @@ namespace lore {
         }
 
         // Auto-discover forward thunks from default directories.
-        // Scan GTL_DIR for *.so, then require matching HTL_DIR/<name>_HTL.so and
-        // SYSLIB/<name>.so before adding.
+        // Scan GTL_DIR for *.so, then require matching HTL_DIR/<name>_HTL.so before adding.
         if (allHasDefault && std::filesystem::is_directory(defaultGuestThunkPath)) {
             std::unordered_set<std::string> existingNames;
             existingNames.reserve(m_forwardThunks.size());
@@ -266,15 +258,10 @@ namespace lore {
                 result.name = name;
                 result.guestThunk = entry.path().string();
                 result.hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
-                result.hostLibrary = defaultSysLibPath + "/" + name + ".so";
-
+                result.hostLibrary = name + ".so";
                 if (!std::filesystem::exists(result.hostThunk)) {
                     continue;
                 }
-                if (!std::filesystem::exists(result.hostLibrary)) {
-                    continue;
-                }
-
                 m_forwardThunks.emplace_back(std::move(result));
                 existingNames.insert(name);
             }

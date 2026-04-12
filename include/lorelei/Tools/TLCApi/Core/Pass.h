@@ -14,6 +14,12 @@
 namespace lore::tool::TLC {
 
     class DocumentContext;
+    
+    /// PassMessage - Per-pass temporary data exchanged by pass hooks.
+    class LORETLCAPI_EXPORT PassMessage {
+    public:
+        virtual ~PassMessage() = default;
+    };
 
     /// Pass - Base class of TLC passes.
     ///
@@ -61,7 +67,7 @@ namespace lore::tool::TLC {
         }
 
         /// Determines whether this pass should run on `proc`.
-        virtual bool testProc(ProcSnippet &proc, std::unique_ptr<ProcMessage> &msg) {
+        virtual bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
             (void) proc;
             (void) msg;
             return false;
@@ -69,10 +75,10 @@ namespace lore::tool::TLC {
 
         /// Pre-body pass hook for one proc.
         virtual llvm::Error beginHandleProc(ProcSnippet &proc,
-                                            std::unique_ptr<ProcMessage> &msg) = 0;
+                                            std::unique_ptr<PassMessage> &msg) = 0;
 
         /// Post-body pass hook for one proc.
-        virtual llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<ProcMessage> &msg) = 0;
+        virtual llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) = 0;
 
     protected:
         Pass(Phase phase, int id) : m_phase(phase), m_id(id) {
@@ -82,20 +88,6 @@ namespace lore::tool::TLC {
         int m_id;
     };
 
-    using PassRegistry = llvm::Registry<Pass>;
-
 }
-
-#define LORE_TLC_DETAIL_CONCAT_INNER(a, b) a##b
-#define LORE_TLC_DETAIL_CONCAT(a, b)       LORE_TLC_DETAIL_CONCAT_INNER(a, b)
-
-/// Registers a TLC pass class into the global LLVM registry.
-///
-/// Requirements:
-/// 1. `PASS_TYPE` derives from `lore::tool::TLC::Pass`.
-/// 2. `PASS_TYPE` has a default constructor.
-#define LORE_TLC_REGISTER_PASS(PASS_TYPE, NAME, DESC)                                              \
-    static ::llvm::Registry<::lore::tool::TLC::Pass>::Add<PASS_TYPE> LORE_TLC_DETAIL_CONCAT(       \
-        g_loreTlcPassReg_, __COUNTER__)(NAME, DESC)
 
 #endif // LORE_TOOLS_TLCAPI_PASS_H

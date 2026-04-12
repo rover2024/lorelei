@@ -24,7 +24,6 @@ namespace lore::tool::TLC {
     ///     "GuestToHost": [
     ///       {
     ///         "name": "SDL_SetWindowHitTest",
-    ///         "signature": "int (*)(struct SDL_Window *, SDL_HitTest, void *)",
     ///         "location": "/path/to/SDL_video.h:123:1"
     ///       }
     ///     ],
@@ -54,9 +53,6 @@ namespace lore::tool::TLC {
         /// 1. `[Function]`        -> `GuestToHost`
         /// 2. `[Guest Function]`  -> `HostToGuest`
         struct FunctionInfo {
-            /// Canonical function pointer type string.
-            /// \example "int (*)(void *, size_t)"
-            std::string signature;
             /// Source location of the matched function declaration.
             /// \example "/path/to/header.h:42:1"
             std::string location;
@@ -81,8 +77,7 @@ namespace lore::tool::TLC {
             callbacks.clear();
         }
 
-        void addFunction(FunctionDirection direction, std::string name, std::string signature,
-                         std::string location);
+        void addFunction(FunctionDirection direction, std::string name, std::string location);
         void addCallbackSignature(const std::string &signature, const std::string &origin,
                                   const std::string &preferredAlias = {});
 

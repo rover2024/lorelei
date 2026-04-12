@@ -2,23 +2,19 @@
 #define LORE_TOOLS_TLCAPI_PROC_SNIPPET_H
 
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include <clang/AST/DeclTemplate.h>
 
 #include <lorelei/Tools/ToolUtils/SourceLineList.h>
 #include <lorelei/Tools/ToolUtils/FunctionInfo.h>
 #include <lorelei/Tools/TLCApi/Global.h>
+#include <lorelei/Tools/TLCApi/Utils/ManifestStatistics.h>
 
 namespace lore::tool::TLC {
 
     class DocumentContext;
-
-    /// ProcMessage - Per-pass temporary message object exchanged between
-    /// `testProc`, `beginHandleProc`, and `endHandleProc`.
-    class LORETLCAPI_EXPORT ProcMessage {
-    public:
-        virtual ~ProcMessage() = default;
-    };
 
     /// ProcSnippet - Canonical per-proc model used by TLC generate passes.
     ///
@@ -49,6 +45,13 @@ namespace lore::tool::TLC {
         enum Kind {
             Function,
             Callback,
+            NumKinds,
+        };
+
+        enum Direction {
+            GuestToHost,
+            HostToGuest,
+            NumDirections,
         };
 
         enum Phase {
@@ -81,34 +84,39 @@ namespace lore::tool::TLC {
 
         /// Constructs from a function declaration
         ProcSnippet(
-            Kind kind, const clang::FunctionDecl *FD, std::string nameHint,
-            std::array<Desc, NumPhases> descs,
+            Kind kind, Direction direction, const clang::FunctionDecl *FD, std::string nameHint,
+            Desc desc,
             std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
             DocumentContext &documentContext)
-            : m_kind(kind), m_functionDecl(FD), m_descs(std::move(descs)),
-              m_definitions(std::move(definitions)), m_doc(documentContext) {
+            : m_kind(kind), m_direction(direction), m_functionDecl(FD), m_desc(std::move(desc)),
+              m_definitions(std::move(definitions)), m_doc(&documentContext) {
             assert(isFunction());
             initialize(nameHint);
         }
 
         /// Constructs from a function pointer type
         ProcSnippet(
-            Kind kind, clang::QualType functionPointerType, std::array<Desc, NumPhases> descs,
+            Kind kind, Direction direction, clang::QualType functionPointerType, Desc desc,
             std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
             DocumentContext &documentContext)
-            : m_kind(kind), m_functionPointerType(std::move(functionPointerType)),
-              m_descs(std::move(descs)), m_definitions(std::move(definitions)),
-              m_doc(documentContext) {
+            : m_kind(kind), m_direction(direction),
+              m_functionPointerType(std::move(functionPointerType)), m_desc(std::move(desc)),
+              m_definitions(std::move(definitions)), m_doc(&documentContext) {
             assert(isCallback());
             initialize({});
         }
 
         ProcSnippet(const ProcSnippet &) = delete;
         ProcSnippet &operator=(const ProcSnippet &) = delete;
+        ProcSnippet(ProcSnippet &&) = default;
+        ProcSnippet &operator=(ProcSnippet &&) = default;
 
     public:
         inline Kind kind() const {
             return m_kind;
+        }
+        inline Direction direction() const {
+            return m_direction;
         }
         inline bool isFunction() const {
             return m_kind == Function;
@@ -117,14 +125,24 @@ namespace lore::tool::TLC {
             return m_kind == Callback;
         }
         inline DocumentContext &document() const {
-            return m_doc;
+            assert(m_doc);
+            return *m_doc;
         }
+
+        // FunctionDecl or FunctionPointerType that initializes this instance
         inline const clang::FunctionDecl *functionDecl() const {
             return m_functionDecl;
         }
-        inline clang::QualType functionPointerType() const {
+        inline const std::optional<clang::QualType> functionPointerType() const {
             return m_functionPointerType;
         }
+
+        /// Optional user-provided \c ProcFnDesc<> or \c ProcCbDesc<>
+        inline const std::optional<Desc> &desc() const {
+            return m_desc;
+        }
+
+        /// Optional user-provided \c ProcFn<> or \c ProcCb<>
         bool hasDefinition(Phase phase) const {
             return m_definitions[phase] != nullptr;
         }
@@ -132,24 +150,49 @@ namespace lore::tool::TLC {
             return m_definitions[phase];
         }
 
+        const std::string &name() const {
+            return m_name;
+        }
+
+        /// Real normalized type information
+        clang::QualType realFunctionPointerType() const {
+            return m_realFunctionPointerType;
+        }
+        FunctionTypeView realFunctionTypeView() const {
+            return m_realFunctionTypeView;
+        }
+
+        /// Sources to generate.
+        const ProcSource &source(Phase phase) const {
+            return m_sources[phase];
+        }
+        ProcSource &source(Phase phase) {
+            return m_sources[phase];
+        }
+
+        /// Merged source text.
+        std::string text(Phase phase, bool hasDecl) const;
+
     protected:
         void initialize(const std::string &nameHint);
 
-        Kind m_kind;
+        Kind m_kind = Function;
+        Direction m_direction = GuestToHost;
         const clang::FunctionDecl *m_functionDecl = nullptr;
-        clang::QualType m_functionPointerType;
-        DocumentContext &m_doc;
+        std::optional<clang::QualType> m_functionPointerType;
+        std::optional<Desc> m_desc;
+        std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> m_definitions;
+        DocumentContext *m_doc = nullptr;
 
-        /// Initialized in \c initialize()
+        // Initialized in initialize()
         std::string m_name;
-        std::array<Desc, NumPhases> m_descs; // Entry/Caller
-        std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases>
-            m_definitions; // Entry/Caller
         clang::QualType m_realFunctionPointerType;
         FunctionTypeView m_realFunctionTypeView;
+        int m_builderPassID = -1;
+        std::vector<int> m_passIDs;
 
-        /// Generated by passes
-        std::array<ProcSource, NumPhases> m_sources; // Entry/Caller
+        // Generated by passes
+        std::array<ProcSource, NumPhases> m_sources;
     };
 
 }

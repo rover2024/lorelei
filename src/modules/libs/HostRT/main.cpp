@@ -26,8 +26,6 @@ namespace lore {
     static constexpr const char *kHostArch = "unknown";
 #endif
 
-    static constexpr const char *kDefaultSysLibFmt = "/usr/lib/%s-linux-gnu";
-
     static std::filesystem::path inferRootDirFromRuntime() {
         Dl_info info = {};
         if (!dladdr(reinterpret_cast<const void *>(&inferRootDirFromRuntime), &info) ||
@@ -53,13 +51,6 @@ namespace lore {
     static std::map<std::string, std::string>
         buildConfigVars(const std::filesystem::path &rootDir,
                         const std::filesystem::path &guestRootDir) {
-        char sysLibBuf[PATH_MAX];
-        if (const char *sysLibEnv = std::getenv("LORELEI_SYSLIB_DIR")) {
-            std::snprintf(sysLibBuf, sizeof(sysLibBuf), "%s", sysLibEnv);
-        } else {
-            std::snprintf(sysLibBuf, sizeof(sysLibBuf), kDefaultSysLibFmt, kHostArch);
-        }
-
         std::map<std::string, std::string> vars = {
             {"ROOT",       rootDir.string()                                                  },
             {"GUEST_ROOT", guestRootDir.string()                                             },
@@ -67,7 +58,6 @@ namespace lore {
             {"GTL_DIR",    (guestRootDir / "lib" / "x86_64-LoreGTL").string()                },
             {"HTL_DIR",    (rootDir / "lib" / (std::string(kHostArch) + "-LoreHTL")).string()},
             {"ARCH",       kHostArch                                                         },
-            {"SYSLIB",     sysLibBuf                                                         },
         };
 
         if (const char *extraVars = std::getenv("LORELEI_THUNKS_CONFIG_VARIABLES");

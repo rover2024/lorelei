@@ -7,10 +7,9 @@
 namespace lore::tool::TLC {
 
     void ManifestStatistics::addFunction(FunctionDirection direction, std::string name,
-                                         std::string signature, std::string location) {
+                                         std::string location) {
         auto &bucket = functions[direction];
         auto &info = bucket[name];
-        info.signature = std::move(signature);
         info.location = std::move(location);
     }
 
@@ -66,14 +65,12 @@ namespace lore::tool::TLC {
                         continue;
                     }
                     auto name = itemObj->getString("name");
-                    auto signature = itemObj->getString("signature");
                     auto location = itemObj->getString("location");
-                    if (!name || !signature) {
+                    if (!name) {
                         continue;
                     }
 
                     auto &info = loadedFunctions[dir][name->str()];
-                    info.signature = signature->str();
                     info.location = location ? location->str() : "";
                 }
             };
@@ -122,7 +119,6 @@ namespace lore::tool::TLC {
                 const auto &info = pair.second;
                 llvm::json::Object obj;
                 obj["name"] = name;
-                obj["signature"] = info.signature;
                 obj["location"] = info.location;
                 array.push_back(std::move(obj));
             }

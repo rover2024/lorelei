@@ -400,7 +400,6 @@ namespace lore::tool::command::stat {
                 const FunctionDecl *fd = it->second;
                 auto funcPtrType = m_ast->getPointerType(fd->getType().getCanonicalType());
                 g_ctx().stat.addFunction(direction, fd->getNameAsString(),
-                                         getTypeString(funcPtrType),
                                          sourceLocationText(sm, fd->getBeginLoc()));
                 collectCallbackSignatures(funcPtrType, "Config[" + sectionName.str() + "]:" + name,
                                           {}, false);

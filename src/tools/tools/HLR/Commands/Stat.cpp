@@ -13,6 +13,8 @@
 #include "Utils/ASTConsumers.h"
 #include "Utils/SourceStatistics.h"
 
+// TODO: Rename to Probe
+
 
 using namespace clang;
 using namespace clang::tooling;
@@ -28,7 +30,7 @@ namespace lore::tool::command::stat {
         std::string outputPath;
 
         /// Runtime
-        std::set<std::string> interestedSignatures;
+        std::set<std::string> requestedSignatures;
         HLR::SourceStatistics sourceStat;
     };
 
@@ -55,7 +57,7 @@ namespace lore::tool::command::stat {
             for (const auto &E : fileData.callbackInvokeExprList) {
                 auto T = realCalleeType(E, AST);
                 auto typeStr = getTypeString(T);
-                if (!g_ctx().interestedSignatures.count(typeStr)) {
+                if (!g_ctx().requestedSignatures.count(typeStr)) {
                     continue;
                 }
                 g_ctx().sourceStat.callbackCheckGuardSignatures.insert(typeStr);
@@ -65,7 +67,7 @@ namespace lore::tool::command::stat {
                 auto FD = E->getDecl()->getAsFunction();
                 auto T = AST.getPointerType(FD->getType());
                 auto typeStr = getTypeString(T);
-                if (!g_ctx().interestedSignatures.count(typeStr)) {
+                if (!g_ctx().requestedSignatures.count(typeStr)) {
                     continue;
                 }
                 assert(FD);
@@ -127,7 +129,7 @@ namespace lore::tool::command::stat {
                 return 1;
             }
             for (const auto &pair : manifestStat.callbacks) {
-                g_ctx().interestedSignatures.insert(pair.first);
+                g_ctx().requestedSignatures.insert(pair.first);
             }
         }
 
