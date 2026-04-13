@@ -19,6 +19,12 @@ option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
 
+# Other options
+#   LORE_THUNK_DATA_DIR
+#   LORE_THUNK_SOURCE_DIR
+#   LORE_TLC_NO_RUN
+#   LORE_TLC_EXTRA_ARGS
+
 # ----------------------------------
 # CMake Settings
 # ----------------------------------

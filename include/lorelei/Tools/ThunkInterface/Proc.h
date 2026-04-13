@@ -3,7 +3,10 @@
 
 #include <tuple>
 
+#include <lorelei/Base/Support/Global.h>
 #include <lorelei/Base/PassThrough/c/CProc.h>
+
+#define _PROC LORE_USED static
 
 namespace lore::thunk {
 

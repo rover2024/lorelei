@@ -233,12 +233,6 @@ namespace lore::tool::TLC {
                            proc.name(), procDirectionStr, isVoid ? "nullptr" : "&ret");
         };
 
-        if (auto &src = doc.source(); !src.properties.count("libc_format")) {
-            src.properties["libc_format"] = "1";
-            src.head.push_back(
-                key, "#include <lorelei/Base/PassThrough/ThunkTools/VariadicAdaptor.h>\n");
-        }
-
         const auto &addVAStartEnd = [](const std::string &fixedArgToken, const std::string &content,
                                        int indent = 4) {
             std::string result;
@@ -301,7 +295,7 @@ namespace lore::tool::TLC {
             ///     // printf
             ///     int invoke(const char *fmt, ...) {
             ///         int ret;
-            ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
+            ///         CVargEntry vargs[LORE_THUNK_VARG_MAX];
             ///         {
             ///             va_list ap;
             ///             va_start(ap, fmt);
@@ -317,7 +311,7 @@ namespace lore::tool::TLC {
             ///     // vprintf
             ///     int invoke(const char *fmt, va_list ap) {
             ///         int ret;
-            ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
+            ///         CVargEntry vargs[LORE_THUNK_VARG_MAX];
             ///         lore::VariadicAdaptor::extract(
             ///             lore::VariadicAdaptor::PrintF, fmt, ap, vargs
             ///         );
@@ -327,7 +321,7 @@ namespace lore::tool::TLC {
             /// \endcode
             XENT.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
             XENT.body.prolog.push_back(key,
-                                       SRC_asIs("CVargEntry vargs[LORE_THUNK_CONFIG_VARG_MAX];"));
+                                       SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
             if (m_hasVAList) {
                 XENT.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
             } else {
@@ -402,7 +396,7 @@ namespace lore::tool::TLC {
             ///     int invoke(const char *fmt, ...) {
             ///         int ret;
             ///         // get callback
-            ///         CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];
+            ///         CVargEntry vargs[LORE_THUNK_VARG_MAX];
             ///         {
             ///             va_list ap;
             ///             va_start(ap, fmt);
@@ -420,7 +414,7 @@ namespace lore::tool::TLC {
             XENT.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
             XENT.body.prolog.push_back(key, SRC_getCallback(!isG2H));
             XENT.body.prolog.push_back(key,
-                                       SRC_asIs("CVargEntry vargs[LORETHUNK_CONFIG_VARG_MAX];"));
+                                       SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
             if (m_hasVAList) {
                 XENT.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
             } else {

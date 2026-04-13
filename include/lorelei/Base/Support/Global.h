@@ -4,9 +4,11 @@
 #ifdef _WIN32
 #  define LORE_DECL_IMPORT __declspec(dllimport)
 #  define LORE_DECL_EXPORT __declspec(dllexport)
+#  define LORE_USED
 #else
 #  define LORE_DECL_IMPORT
 #  define LORE_DECL_EXPORT __attribute__((visibility("default")))
+#  define LORE_USED        __attribute((used))
 #endif
 
 #ifndef LORESUPPORT_EXPORT

@@ -9,7 +9,7 @@ set(_desc_file Desc.h)
 set(_manifest_guest_file Manifest_guest.cpp)
 set(_manifest_host_file Manifest_host.cpp)
 set(_symbols_config Symbols.conf)
-set(_stat_file ${_thunk_data_dir}/Stat.json)
+set(_stat_file ${_thunk_data_dir}/ThunkStat.json)
 
 # Fixed variables
 set(GTL_src ${_thunk_src_dir}/Thunk_guest.cpp)
@@ -36,7 +36,7 @@ set(PLUGIN_target)
 
 macro(add_thunk)
     # Add TLC stat target
-    if(TRUE)
+    if(NOT DEFINED LORE_TLC_NO_RUN)
         set(_extra_args)
         set(_options)
 
@@ -75,7 +75,7 @@ macro(add_thunk)
 
     # Add TLC generate target (Guest)
     if(LORE_BUILD_GUEST_TARGETS)
-        if(TRUE)
+        if(NOT DEFINED LORE_TLC_NO_RUN)
             set(_extra_args)
             set(_options)
 
@@ -152,7 +152,7 @@ macro(add_thunk)
 
     # Add TLC generate target (Host)
     if(TRUE)
-        if(TRUE)
+        if(NOT DEFINED LORE_TLC_NO_RUN)
             set(_extra_args)
             set(_options)
 
@@ -189,7 +189,7 @@ macro(add_thunk)
             # Add target
             _tlc_generate(${HTL} ${_manifest_host_file} ${HTL_src} ${_stat_file} HOST
                 EXTRA_ARGS ${_extra_args}
-                DEPENDS ${_manifest_host_file} ${_stat_file}
+                DEPENDS ${_manifest_host_file} ${_stat_file} ${_too}
                 ${_options}
             )
         endif()

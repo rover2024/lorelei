@@ -15,20 +15,44 @@ namespace lore::tool::TLC {
         }
 
         auto &ast = document().ast();
+        const auto &procTemplateName = isFunction() ? "ProcFn" : "ProcCb";
+        const auto &procName = isFunction() ? ("::" + m_name) : m_name;
+        const auto &directionName = (m_direction == GuestToHost) ? "GuestToHost" : "HostToGuest";
+        const auto &phaseName = (phase == Entry) ? "Entry" : "Caller";
+
         std::string out;
         if (hasDecl) {
-            out += src.functionInfo.declText(m_name, ast);
+            out += "template <>\n";
+            out += "struct ";
+            out += procTemplateName;
+            out += "<";
+            out += procName;
+            out += ", ";
+            out += directionName;
+            out += ", ";
+            out += phaseName;
+            out += "> {\n";
+            out += "    _PROC ";
+            out += src.functionInfo.declText("invoke", ast);
             out += ";\n";
+            out += "};\n";
             return out;
         }
 
         out += src.head.toRawText();
-        out += src.functionInfo.declText(m_name, ast);
+        out += src.functionInfo.declText(procTemplateName + ("<" + procName + ", " + directionName +
+                                                             ", " + phaseName + ">::\ninvoke"),
+                                         ast);
         out += " {\n";
+        out += "    // prolog\n";
         out += src.body.prolog.toRawText();
+        out += "    // forward\n";
         out += src.body.forward.toRawText();
+        out += "    // center\n";
         out += src.body.center.toRawText();
+        out += "    // backward\n";
         out += src.body.backward.toRawText();
+        out += "    // epilog\n";
         out += src.body.epilog.toRawText();
         out += "}\n";
         out += src.tail.toRawText();

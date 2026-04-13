@@ -55,10 +55,10 @@ namespace lore::tool::TLC {
     // [indent]
     static inline std::string SRC_getCallback(bool guest, int indent = 4) {
         std::string ret;
-        ret += std::string(indent - 4, ' ') + "#ifdef LORETHUNK_CALLBACK_REPLACE\n";
-        ret += std::string(indent, ' ') + "LORETHUNK_GET_LAST_GCB(callback);\n";
+        ret += std::string(indent - 4, ' ') + "#ifdef LORE_THUNK_CALLBACK_REPLACE\n";
+        ret += std::string(indent, ' ') + "LORE_THUNK_GET_LAST_GCB(callback);\n";
         ret += std::string(indent - 4, ' ') + "#else\n";
-        ret += std::string(indent, ' ') + "void *callback = LORETHUNK_LAST_" +
+        ret += std::string(indent, ' ') + "void *callback = LORE_THUNK_LAST_" +
                (guest ? "GCB" : "HCB") + ";\n";
         ret += std::string(indent - 4, ' ') + "#endif\n";
         return ret;

@@ -121,7 +121,7 @@ namespace lore::mod {
         }
 
         /// STEP: resolve host library symbols
-#ifndef LORETHUNK_CONFIG_HOST_FUNCTION_STATIC_LINK
+#ifndef LORE_THUNK_CONFIG_HOST_FUNCTION_STATIC_LINK
         // Resolve host-side real functions used by ProcFn<GuestToHost, Exec>.
         for (size_t i = 0; i < m_staticContext->thisProcs.size; ++i) {
             auto &entry = m_staticContext->thisProcs.arr[i];

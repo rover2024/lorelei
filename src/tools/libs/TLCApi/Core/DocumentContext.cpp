@@ -662,9 +662,13 @@ namespace lore::tool::TLC {
         /// STEP: Add macro
         os << "#define LORE_THUNK_BUILD\n\n";
 
-        /// STEP: Include pre-include file
+        /// STEP: Add manifest declarations
+        os << "#include <lorelei/Tools/ThunkInterface/Callback.h>" << "\n";
+        os << "#include <lorelei/Tools/ThunkInterface/Variadic.h>" << "\n";
+        os << "\n";
         os << "#include \"" << std::filesystem::path(m_preIncludeFileName).filename().string()
-           << "\"\n\n";
+           << "\"\n";
+        os << "\n";
 
         /// STEP: Generate symbol declarations
         os << "extern \"C\" {\n";
@@ -682,7 +686,7 @@ namespace lore::tool::TLC {
             }
         } else {
             for (auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::GuestToHost]) {
-                os << "LORETHUNK_EXPORT "
+                os << "LORE_DECL_EXPORT "
                    << FunctionInfo(proc.functionDecl()).declText(proc.name(), *m_ast)
                    << "\n    __attribute__((alias(\""
                    << m_procAliasMaker.getInvokeAlias(
