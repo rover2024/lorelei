@@ -193,9 +193,8 @@ namespace lore::tool::command::generate {
                 requestedData.callbacks[signature] = info.alias;
             }
 
-            g_ctx().doc.initialize(
-                mode, g_ctx().stat.fileName.empty() ? manifestPath : g_ctx().stat.fileName,
-                std::move(requestedData));
+            g_ctx().doc.initialize(mode, g_ctx().stat.fileName, manifestPath,
+                                   std::move(requestedData));
         }
 
         const std::string bridgePath =

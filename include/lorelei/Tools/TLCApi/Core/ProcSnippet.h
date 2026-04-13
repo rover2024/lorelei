@@ -85,7 +85,7 @@ namespace lore::tool::TLC {
         /// Constructs from a function declaration
         ProcSnippet(
             Kind kind, Direction direction, const clang::FunctionDecl *FD, std::string nameHint,
-            Desc desc,
+            std::optional<Desc> desc,
             std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction), m_functionDecl(FD), m_desc(std::move(desc)),
@@ -96,7 +96,7 @@ namespace lore::tool::TLC {
 
         /// Constructs from a function pointer type
         ProcSnippet(
-            Kind kind, Direction direction, clang::QualType functionPointerType, Desc desc,
+            Kind kind, Direction direction, clang::QualType functionPointerType, std::optional<Desc> desc,
             std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction),

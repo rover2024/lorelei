@@ -1,11 +1,11 @@
 #include <lorelei/Base/PassThrough/c/CProc.h>
 
-#ifndef LORE_THUNK_HOST_FUNCTION_FOREACH
-#  define LORE_THUNK_HOST_FUNCTION_FOREACH(F)
+#ifndef LORE_THUNK_FUNCTION_G2H_FOREACH
+#  define LORE_THUNK_FUNCTION_G2H_FOREACH(F)
 #endif
 
-#ifndef LORE_THUNK_GUEST_FUNCTION_FOREACH
-#  define LORE_THUNK_GUEST_FUNCTION_FOREACH(F)
+#ifndef LORE_THUNK_FUNCTION_H2G_FOREACH
+#  define LORE_THUNK_FUNCTION_H2G_FOREACH(F)
 #endif
 
 #ifndef LORE_THUNK_CALLBACK_FOREACH
@@ -16,7 +16,7 @@ namespace lore::thunk::detail {
 
     enum HostFunction {
 #define _F(NAME) HostFunction_##NAME,
-        LORE_THUNK_HOST_FUNCTION_FOREACH(_F)
+        LORE_THUNK_FUNCTION_G2H_FOREACH(_F)
 #undef _F
 
             NumHostFunction,
@@ -24,7 +24,7 @@ namespace lore::thunk::detail {
 
     enum GuestFunction {
 #define _F(NAME) GuestFunction_##NAME,
-        LORE_THUNK_GUEST_FUNCTION_FOREACH(_F)
+        LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
 #undef _F
 
             NumGuestFunction,
@@ -46,7 +46,7 @@ namespace lore::thunk::detail {
     constexpr int getHostFunctionIndex<NAME>() {                                                   \
         return HostFunction_##NAME;                                                                \
     }
-    LORE_THUNK_HOST_FUNCTION_FOREACH(_F)
+    LORE_THUNK_FUNCTION_G2H_FOREACH(_F)
 #undef _F
 
     template <auto T>
@@ -57,7 +57,7 @@ namespace lore::thunk::detail {
     constexpr int getGuestFunctionIndex<NAME>() {                                                  \
         return GuestFunction_##NAME;                                                               \
     }
-    LORE_THUNK_GUEST_FUNCTION_FOREACH(_F)
+    LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
 #undef _F
 
     template <class T>

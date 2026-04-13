@@ -14,7 +14,7 @@
 namespace lore::tool::TLC {
 
     class DocumentContext;
-    
+
     /// PassMessage - Per-pass temporary data exchanged by pass hooks.
     class LORETLCAPI_EXPORT PassMessage {
     public:
@@ -34,18 +34,16 @@ namespace lore::tool::TLC {
             Builder,
             Guard,
             Misc,
+            NumPhases,
         };
 
         virtual ~Pass() = default;
 
-        /// Returns all registered pass instances for a given phase, indexed by pass ID.
-        static std::map<int, Pass *> &passMap(Phase phase);
-
-        Phase phase() const {
+        inline Phase phase() const {
             return m_phase;
         }
 
-        int id() const {
+        inline int id() const {
             return m_id;
         }
 
@@ -81,7 +79,7 @@ namespace lore::tool::TLC {
         virtual llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) = 0;
 
     protected:
-        Pass(Phase phase, int id) : m_phase(phase), m_id(id) {
+        inline Pass(Phase phase, int id) : m_phase(phase), m_id(id) {
         }
 
         Phase m_phase;
