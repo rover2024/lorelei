@@ -5,6 +5,10 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
+#ifdef Success
+#  undef Success
+#endif
+
 #include <lorelei/Tools/ThunkInterface/Proc.h>
 #include <lorelei/Tools/ThunkInterface/PassTags.h>
 

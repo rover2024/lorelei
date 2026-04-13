@@ -5,6 +5,10 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
+#ifdef Success
+#  undef Success
+#endif
+
 #include "GLX_private.h"
 
 #include <lorelei/Tools/ThunkInterface/Proc.h>

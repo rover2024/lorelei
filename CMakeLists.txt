@@ -26,8 +26,11 @@ option(LORE_INSTALL "Install library" ON)
 # LORE_TLC_NO_RUN:              Do not generate TLC stat files and thunk files.
 # LORE_TLC_EXTRA_ARGS:          Extra arguments for TLC.
 #
-# LORE_BUILD_VULKAN_THUNK:      Specify it with LORE_VULKAN_HEADERS_DIR
-# LORE_VULKAN_HEADERS_DIR:      Pull from https://github.com/KhronosGroup/Vulkan-Headers
+# LORE_BUILD_VULKAN_THUNK:      Specify it with LORE_VULKAN_INCLUDE_DIR
+# LORE_VULKAN_INCLUDE_DIR:      Pull from https://github.com/KhronosGroup/Vulkan-Headers, and specify "include".
+#
+# LORE_BUILD_ZSTD_THUNK:        Specify it with LORE_ZSTD_INCLUDE_DIR
+# LORE_ZSTD_INCLUDE_DIR:        Specify the ZSTD include directory.
 
 # ----------------------------------
 # CMake Settings

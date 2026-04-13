@@ -3,6 +3,10 @@
 #define VK_USE_PLATFORM_WAYLAND_KHR
 #include <vulkan/vulkan.h>
 
+#ifdef Success
+#  undef Success
+#endif
+
 #include <lorelei/Tools/ThunkInterface/Proc.h>
 #include <lorelei/Tools/ThunkInterface/PassTags.h>
 

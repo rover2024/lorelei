@@ -11,7 +11,7 @@ execute_process(
 
 include("../AddThunk.cmake")
 
-set(ALL_extra_includes ${LORE_VULKAN_HEADERS_DIR}/include ${_vulkan_api_header_dir})
+set(ALL_extra_includes ${LORE_VULKAN_INCLUDE_DIR} ${_vulkan_api_header_dir})
 set(GTL_alias libvulkan.so.1)
 set(HTL_extra_links X11_HMW xcb_HMW)
 
