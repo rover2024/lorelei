@@ -131,7 +131,7 @@ function(lore_add_guest_thunk _target)
         LIBRARY_DIRECTORY ${_dir}
         ${ARGN}
     )
-    _lore_configure_thunk(${_target} ${_dir})
+    _lore_configure_thunk(${_target} ${_dir} ${ARGN})
 
     if(_target MATCHES "(.+)_GTL")
         set_target_properties(${_target} PROPERTIES OUTPUT_NAME ${CMAKE_MATCH_1})
@@ -144,7 +144,7 @@ function(lore_add_host_thunk _target)
         LIBRARY_DIRECTORY ${_dir}
         ${ARGN}
     )
-    _lore_configure_thunk(${_target} ${_dir})
+    _lore_configure_thunk(${_target} ${_dir} ${ARGN})
 endfunction()
 
 macro(lore_add_resource _target _in_file)
@@ -166,13 +166,13 @@ endfunction()
 # Internal Functions
 # ----------------------------------
 function(_lore_configure_thunk _target _dir)
-    get_target_property(_links ${_target} POST_LINK_ALIAS)
-    set_target_properties(${_target} PROPERTIES
-        INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../lib"
-    )
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs POST_LINK_ALIAS)
+    cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    if(_links)
-        foreach(_link IN LISTS _links)
+    if(FUNC_POST_LINK_ALIAS)
+        foreach(_link IN LISTS FUNC_POST_LINK_ALIAS)
             add_custom_command(TARGET ${_target} POST_BUILD
                 COMMAND ln -sf $<TARGET_FILE_NAME:${_target}> ${_link}
                 WORKING_DIRECTORY $<TARGET_FILE_DIR:${_target}>
@@ -181,8 +181,8 @@ function(_lore_configure_thunk _target _dir)
     endif()
 
     if(LORE_INSTALL AND NOT LORE_SKIP_INSTALL)
-        if(_links)
-            foreach(_link IN LISTS _links)
+        if(FUNC_POST_LINK_ALIAS)
+            foreach(_link IN LISTS FUNC_POST_LINK_ALIAS)
                 install(CODE "
                     execute_process(
                         COMMAND ln -sf $<TARGET_FILE_NAME:${_target}> ${_link}

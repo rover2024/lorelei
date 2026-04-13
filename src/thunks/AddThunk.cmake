@@ -117,7 +117,13 @@ macro(add_thunk)
             )
         endif()
 
-        lore_add_guest_thunk(${GTL})
+        set(_alias_options)
+
+        if(GTL_alias)
+            list(APPEND _alias_options POST_LINK_ALIAS ${GTL_alias})
+        endif()
+
+        lore_add_guest_thunk(${GTL} ${_alias_options})
         target_sources(${GTL} PRIVATE ${GTL_src})
 
         if(GTL_alias)
@@ -194,12 +200,14 @@ macro(add_thunk)
             )
         endif()
 
-        lore_add_host_thunk(${HTL})
-        target_sources(${HTL} PRIVATE ${HTL_src})
+        set(_alias_options)
 
         if(HTL_alias)
-            set_target_properties(${HTL} PROPERTIES POST_LINK_ALIAS "${HTL_alias}")
+            list(APPEND _alias_options POST_LINK_ALIAS ${HTL_alias})
         endif()
+
+        lore_add_host_thunk(${HTL} ${_alias_options})
+        target_sources(${HTL} PRIVATE ${HTL_src})
 
         lore_host_thunk_disable_register(${HTL})
         target_link_libraries(${HTL} PUBLIC LoreHostRT)
