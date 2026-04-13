@@ -17,6 +17,7 @@
 #include <lorelei/Tools/TLCApi/Core/Pass.h>
 #include <lorelei/Tools/ToolUtils/CommonMatchFinder.h>
 #include <lorelei/Tools/ToolUtils/TypeUtils.h>
+#include <lorelei/Tools/ThunkInterface/PassTags.h>
 
 using namespace clang;
 using namespace clang::ast_matchers;
@@ -142,7 +143,7 @@ namespace lore::tool::TLC {
     }
 
     static void appendPassTypesFromPassListType(QualType listType, ASTContext &ast,
-                                                llvm::SmallVectorImpl<QualType> &out) {
+                                                llvm::SmallVectorImpl<ProcSnippet::PassInfo> &out) {
         (void) ast;
         listType = listType.getCanonicalType();
         const auto *decl = listType->getAsCXXRecordDecl();
@@ -160,15 +161,8 @@ namespace lore::tool::TLC {
                 continue;
             }
             auto passType = arg.getAsType().getCanonicalType();
-            bool exists = false;
-            for (auto existing : out) {
-                if (existing.getCanonicalType() == passType) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                out.push_back(passType);
+            if (auto passID = extractPassIDFromType(passType, ast)) {
+                out.push_back({*passID, passType});
             }
         }
     }
@@ -207,9 +201,8 @@ namespace lore::tool::TLC {
             auto memberName = vd->getName();
             if (memberName == "builder_pass" || memberName == "BUILDER_PASS") {
                 auto builderType = vd->getType().getCanonicalType();
-                desc.builderPass = builderType;
                 if (auto passID = extractPassIDFromType(builderType, ast)) {
-                    desc.builderID = *passID;
+                    desc.builderPass = {*passID, builderType};
                 }
                 continue;
             }
@@ -571,23 +564,55 @@ namespace lore::tool::TLC {
         };
         llvm::SmallVector<RunPassTask, 256> runPassTasks;
 
-        const auto appendPassTasks = [&](Pass::Phase phase) {
+        const auto appendMultiMatchPassTasks = [&](Pass::Phase phase) {
             auto &passMap = m_passMaps[phase];
-            for (auto &[_, pass] : passMap) {
-                if (!pass) {
-                    continue;
-                }
-
-                for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKinds; ++kind) {
-                    for (int direction = ProcSnippet::GuestToHost;
-                         direction < ProcSnippet::NumDirections; ++direction) {
-                        for (auto &[name, proc] : m_procs[kind][direction]) {
-                            (void) name;
+            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKinds; ++kind) {
+                for (int direction = ProcSnippet::GuestToHost;
+                     direction < ProcSnippet::NumDirections; ++direction) {
+                    for (auto &[name, proc] : m_procs[kind][direction]) {
+                        (void) name;
+                        for (auto &[_, pass] : passMap) {
+                            if (!pass) {
+                                continue;
+                            }
                             std::unique_ptr<PassMessage> msg;
                             if (pass->testProc(proc, msg)) {
-                                runPassTasks.push_back(
-                                    RunPassTask{&proc, pass, std::move(msg)});
+                                runPassTasks.push_back(RunPassTask{&proc, pass, std::move(msg)});
                             }
+                        }
+                    }
+                }
+            }
+        };
+
+        const auto appendBuilderPassTasks = [&]() {
+            auto &builderPassMap = m_passMaps[Pass::Builder];
+            auto defaultBuilderIt = builderPassMap.find(lore::thunk::pass::ID_DefaultBuilder);
+            if (defaultBuilderIt == builderPassMap.end() || !defaultBuilderIt->second) {
+                llvm::errs() << "error: no default builder pass found\n";
+                std::exit(1);
+            }
+            Pass *defaultBuilder = defaultBuilderIt->second;
+
+            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKinds; ++kind) {
+                for (int direction = ProcSnippet::GuestToHost;
+                     direction < ProcSnippet::NumDirections; ++direction) {
+                    for (auto &[name, proc] : m_procs[kind][direction]) {
+                        (void) name;
+                        bool hasBuilder = false;
+                        for (auto &[passID, pass] : builderPassMap) {
+                            if (!pass || passID == lore::thunk::pass::ID_DefaultBuilder) {
+                                continue;
+                            }
+                            std::unique_ptr<PassMessage> msg;
+                            if (pass->testProc(proc, msg)) {
+                                runPassTasks.push_back(RunPassTask{&proc, pass, std::move(msg)});
+                                hasBuilder = true;
+                                break;
+                            }
+                        }
+                        if (!hasBuilder) {
+                            runPassTasks.push_back(RunPassTask{&proc, defaultBuilder, nullptr});
                         }
                     }
                 }
@@ -605,10 +630,9 @@ namespace lore::tool::TLC {
         }
 
         // Select per-proc pass tasks.
-        for (int i = Pass::Builder; i < Pass::NumPhases; ++i) {
-            auto phase = static_cast<Pass::Phase>(i);
-            appendPassTasks(phase);
-        }
+        appendBuilderPassTasks();
+        appendMultiMatchPassTasks(Pass::Guard);
+        appendMultiMatchPassTasks(Pass::Misc);
 
         // Run begin hooks in order.
         for (auto &task : runPassTasks) {

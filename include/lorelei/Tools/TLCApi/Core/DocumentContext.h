@@ -129,7 +129,7 @@ namespace lore::tool::TLC {
         // Helpers
         ProcAliasMaker m_procAliasMaker;
 
-        // Cached pass instances for current source file action.
+        // Cached pass instances
         std::array<std::map<int, Pass *>, 3> m_passMaps;
         std::vector<std::unique_ptr<Pass>> m_passInstances;
     };

@@ -58,12 +58,6 @@ namespace lore::tool::TLC {
             }
         }
 
-        if (m_desc.has_value()) {
-            if (m_desc->builderID.has_value()) {
-                m_builderPassID = *m_desc->builderID;
-            }
-        }
-
         if (m_desc.has_value() && m_desc->overlayType.has_value()) {
             m_realFunctionPointerType = *m_desc->overlayType;
         } else if (m_functionPointerType.has_value()) {

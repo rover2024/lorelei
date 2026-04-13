@@ -16,7 +16,7 @@ namespace lore::tool::TLC {
     class DocumentContext;
 
     /// PassMessage - Per-pass temporary data exchanged by pass hooks.
-    class LORETLCAPI_EXPORT PassMessage {
+    class PassMessage {
     public:
         virtual ~PassMessage() = default;
     };
@@ -65,11 +65,7 @@ namespace lore::tool::TLC {
         }
 
         /// Determines whether this pass should run on `proc`.
-        virtual bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
-            (void) proc;
-            (void) msg;
-            return false;
-        }
+        virtual bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg);
 
         /// Pre-body pass hook for one proc.
         virtual llvm::Error beginHandleProc(ProcSnippet &proc,
