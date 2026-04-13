@@ -2,8 +2,13 @@ include("conf.cmake")
 
 lore_init_buildsystem()
 
+# Project variables
+set(LORE_THUNK_DATA_DIR ${LORE_BUILD_SHARE_DIR}/lorelei/thunks)
+set(LORE_THUNK_SOURCE_DIR ${LORE_BUILD_BASE_DIR}/src/thunks)
+
 # Target for generating all thunks
-add_custom_target(thunk_gen_all)
+add_custom_target(TLC_stat_all)
+add_custom_target(TLC_generate_all)
 
 add_subdirectory(3rdparty)
 add_subdirectory(base)

@@ -144,12 +144,6 @@ namespace lore::tool::command::stat {
     class MyASTConsumer : public ASTConsumer {
     public:
         void HandleTranslationUnit(ASTContext &ast) override {
-            if (ast.getLangOpts().CPlusPlus) {
-                llvm::errs() << "error: TLC stat only supports C input. "
-                                "Use C language flags (e.g. -xc -std=c11).\n";
-                std::exit(1);
-            }
-
             m_ast = &ast;
             auto &sm = ast.getSourceManager();
 
@@ -395,6 +389,7 @@ namespace lore::tool::command::stat {
                 (void) _;
                 auto it = m_functionMap.find(name);
                 if (it == m_functionMap.end()) {
+                    g_ctx().stat.missingFunctions[direction].insert(name);
                     continue;
                 }
                 const FunctionDecl *fd = it->second;

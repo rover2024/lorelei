@@ -66,6 +66,9 @@ namespace lore::tool::TLC {
             std::exit(1);
         }
 
+        m_procDirectionEnumDecl = procDirectionEnumDecl;
+        m_procPhaseEnumDecl = procPhaseEnumDecl;
+
         /// STEP: Create mangle context.
         m_mangleContext.reset(clang::ItaniumMangleContext::create(ast, ast.getDiagnostics()));
     }

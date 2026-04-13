@@ -49,35 +49,12 @@ namespace lore::tool::TLC {
     }
 
     static bool isBridgeNamespaceDecl(const Decl *decl) {
-        if (!decl) {
+        const auto *namedDecl = dyn_cast_or_null<NamedDecl>(decl);
+        if (!namedDecl) {
             return false;
         }
-
-        const DeclContext *dc = decl->getDeclContext();
-        if (!dc) {
-            return false;
-        }
-
-        // Require exact namespace suffix: lore::thunk::__bridge__
-        std::array<llvm::StringRef, 3> expected = {"__bridge__", "thunk", "lore"};
-        size_t matched = 0;
-        while (dc && matched < expected.size()) {
-            const auto *ns = dyn_cast<NamespaceDecl>(dc);
-            if (!ns) {
-                dc = dc->getParent();
-                continue;
-            }
-            if (ns->isAnonymousNamespace()) {
-                return false;
-            }
-            if (ns->getName() == expected[matched]) {
-                matched++;
-            } else {
-                return false;
-            }
-            dc = dc->getParent();
-        }
-        return matched == expected.size();
+        const auto qualifiedName = namedDecl->getQualifiedNameAsString();
+        return qualifiedName.find("lore::thunk::__bridge__::") != std::string::npos;
     }
 
     static const FunctionDecl *extractFunctionDeclFromTemplateArg(const TemplateArgument &arg) {
@@ -484,7 +461,18 @@ namespace lore::tool::TLC {
         for (const auto &[signature, info] : std::as_const(namedCallbackBySignature)) {
             auto it = m_requestedProcData.callbacks.find(signature);
             if (it == m_requestedProcData.callbacks.end()) {
-                continue;
+                bool matchedByAlias = false;
+                for (const auto &[requestedSignature, requestedAlias] :
+                     std::as_const(m_requestedProcData.callbacks)) {
+                    (void) requestedSignature;
+                    if (!requestedAlias.empty() && requestedAlias == info.second) {
+                        matchedByAlias = true;
+                        break;
+                    }
+                }
+                if (!matchedByAlias) {
+                    continue;
+                }
             }
             m_callbackTypes[signature] = {info.first, info.second};
         }
@@ -541,8 +529,8 @@ namespace lore::tool::TLC {
                     };
 
                 m_procs[ProcSnippet::Callback][direction].emplace(
-                    key, ProcSnippet(ProcSnippet::Callback, direction, callbackInfo.type, desc,
-                                     definitions, *this));
+                    key, ProcSnippet(ProcSnippet::Callback, direction, callbackInfo.type,
+                                     callbackInfo.name, desc, definitions, *this));
             }
         }
 

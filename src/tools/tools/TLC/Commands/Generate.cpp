@@ -4,6 +4,7 @@
 #include <map>
 #include <filesystem>
 #include <string>
+#include <system_error>
 
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
@@ -163,6 +164,13 @@ namespace lore::tool::command::generate {
 
         const auto &sourcePathList = parser.getSourcePathList();
         const auto manifestPath = sourcePathList.front();
+        std::filesystem::path manifestIncludePathFs(manifestPath);
+        if (manifestIncludePathFs.is_relative()) {
+            manifestIncludePathFs = std::filesystem::path(std::string(g_ctx().initialCwd.str())) /
+                                    manifestIncludePathFs;
+        }
+        manifestIncludePathFs = manifestIncludePathFs.lexically_normal();
+        const auto manifestIncludePath = manifestIncludePathFs.string();
 
         TLC::ManifestStatistics stat;
         if (std::string err; !stat.loadFromJson(statOption.getValue(), err)) {
@@ -197,22 +205,39 @@ namespace lore::tool::command::generate {
                                    std::move(requestedData));
         }
 
+        const auto manifestFsPath = std::filesystem::path(manifestPath);
         const std::string bridgePath =
-            std::filesystem::path(manifestPath).stem().string() + "_TLCBridge.cpp";
-        const std::string bridgeText = buildBridgeTranslationUnitText(manifestPath, stat);
+            (manifestFsPath.parent_path() /
+             (manifestFsPath.stem().string() + "_TLCBridge.cpp"))
+                .lexically_normal()
+                .string();
+        const std::string bridgeText =
+            buildBridgeTranslationUnitText(manifestIncludePath, g_ctx().stat);
 
         ClangTool tool(parser.getCompilations(), {manifestPath});
         tool.mapVirtualFile(bridgePath, bridgeText);
-        tool.appendArgumentsAdjuster([manifestPath = manifestPath, bridgePath = bridgePath](
-                                         const CommandLineArguments &args, llvm::StringRef) {
-            CommandLineArguments adjusted = args;
-            for (auto &arg : adjusted) {
-                if (arg == manifestPath) {
-                    arg = bridgePath;
+        tool.appendArgumentsAdjuster(
+            [manifestPath = manifestPath, bridgePath = bridgePath,
+             initialCwd = std::string(g_ctx().initialCwd.str())](const CommandLineArguments &args,
+                                                                  llvm::StringRef) {
+                const auto normalizePath = [&](llvm::StringRef pathStr) {
+                    std::filesystem::path p(pathStr.str());
+                    if (p.is_relative()) {
+                        p = std::filesystem::path(initialCwd) / p;
+                    }
+                    p = p.lexically_normal();
+                    return p.string();
+                };
+
+                const auto manifestNorm = normalizePath(manifestPath);
+                CommandLineArguments adjusted = args;
+                for (auto &arg : adjusted) {
+                    if (arg == manifestPath || normalizePath(arg) == manifestNorm) {
+                        arg = bridgePath;
+                    }
                 }
-            }
-            return adjusted;
-        });
+                return adjusted;
+            });
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {
             return ret;
         }

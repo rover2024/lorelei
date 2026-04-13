@@ -340,16 +340,9 @@ namespace lore::tool::TLC {
             auto callbackFnPtrType = doc.ast().getPointerType(callbackFnType.getCanonicalType());
             const auto targetTypeStr = getTypeString(callbackFnPtrType.getCanonicalType());
 
-            for (int direction = ProcSnippet::GuestToHost; direction < ProcSnippet::NumDirections;
-                 ++direction) {
-                const auto &callbacks = doc.procs(ProcSnippet::Callback,
-                                                  static_cast<ProcSnippet::Direction>(direction));
-                for (const auto &[_, callbackProc] : callbacks) {
-                    if (getTypeString(callbackProc.realFunctionPointerType().getCanonicalType()) ==
-                        targetTypeStr) {
-                        return callbackProc.name();
-                    }
-                }
+            auto it = doc.callbackTypes().find(targetTypeStr);
+            if (it != doc.callbackTypes().end()) {
+                return it->second.name;
             }
             return std::nullopt;
         };

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <set>
 
 #include <lorelei/Tools/TLCApi/Global.h>
 
@@ -74,6 +75,9 @@ namespace lore::tool::TLC {
             for (auto &map : functions) {
                 map.clear();
             }
+            for (auto &set : missingFunctions) {
+                set.clear();
+            }
             callbacks.clear();
         }
 
@@ -86,6 +90,7 @@ namespace lore::tool::TLC {
 
         std::string fileName;
         std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> functions;
+        std::array<std::set<std::string>, NumFunctionDirection> missingFunctions;
         std::map<std::string, CallbackInfo> callbacks;
     };
 

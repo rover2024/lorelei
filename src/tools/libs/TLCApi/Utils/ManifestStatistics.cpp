@@ -47,6 +47,7 @@ namespace lore::tool::TLC {
 
         std::string loadedFileName;
         std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> loadedFunctions;
+        std::array<std::set<std::string>, NumFunctionDirection> loadedMissingFunctions;
         std::map<std::string, CallbackInfo> loadedCallbacks;
 
         if (auto value = obj->getString("fileName")) {
@@ -79,6 +80,25 @@ namespace lore::tool::TLC {
             parseFunctionArray(HostToGuest, "HostToGuest");
         }
 
+        if (auto missingFunctionsObj = obj->getObject("missingFunctions")) {
+            const auto parseMissingFunctionArray = [&](FunctionDirection dir, const char *key) {
+                auto arr = missingFunctionsObj->getArray(key);
+                if (!arr) {
+                    return;
+                }
+                for (const auto &item : *arr) {
+                    auto name = item.getAsString();
+                    if (!name) {
+                        continue;
+                    }
+                    loadedMissingFunctions[dir].insert(name->str());
+                }
+            };
+
+            parseMissingFunctionArray(GuestToHost, "GuestToHost");
+            parseMissingFunctionArray(HostToGuest, "HostToGuest");
+        }
+
         if (auto callbackArray = obj->getArray("callbacks")) {
             for (const auto &item : *callbackArray) {
                 auto itemObj = item.getAsObject();
@@ -103,6 +123,7 @@ namespace lore::tool::TLC {
 
         fileName = std::move(loadedFileName);
         functions = std::move(loadedFunctions);
+        missingFunctions = std::move(loadedMissingFunctions);
         callbacks = std::move(loadedCallbacks);
         return true;
     }
@@ -129,6 +150,21 @@ namespace lore::tool::TLC {
         functionsObj["GuestToHost"] = serializeFunctionMap(functions[GuestToHost]);
         functionsObj["HostToGuest"] = serializeFunctionMap(functions[HostToGuest]);
         root["functions"] = std::move(functionsObj);
+
+        const auto serializeMissingFunctionSet = [](const auto &set) {
+            llvm::json::Array array;
+            for (const auto &name : set) {
+                array.push_back(name);
+            }
+            return array;
+        };
+
+        llvm::json::Object missingFunctionsObj;
+        missingFunctionsObj["GuestToHost"] =
+            serializeMissingFunctionSet(missingFunctions[GuestToHost]);
+        missingFunctionsObj["HostToGuest"] =
+            serializeMissingFunctionSet(missingFunctions[HostToGuest]);
+        root["missingFunctions"] = std::move(missingFunctionsObj);
 
         llvm::json::Array callbackArray;
         for (const auto &pair : callbacks) {

@@ -9,28 +9,28 @@ namespace lore {
     template <class F>
     class ScopeGuard {
     public:
-        explicit ScopeGuard(F &&f) noexcept : _func(std::move(f)) {
+        explicit ScopeGuard(F &&f) noexcept : m_func(std::move(f)) {
         }
 
-        explicit ScopeGuard(const F &f) noexcept : _func(f) {
+        explicit ScopeGuard(const F &f) noexcept : m_func(f) {
         }
 
         ScopeGuard(ScopeGuard &&RHS) noexcept
-            : _func(std::move(RHS._func)), _active(std::exchange(RHS._active, false)) {
+            : m_func(std::move(RHS.m_func)), m_active(std::exchange(RHS.m_active, false)) {
         }
 
         ~ScopeGuard() noexcept {
-            if (_active)
-                _func();
+            if (m_active)
+                m_func();
         }
 
         void dismiss() noexcept {
-            _active = false;
+            m_active = false;
         }
 
     protected:
-        F _func;
-        bool _active = true;
+        F m_func;
+        bool m_active = true;
     };
 
     template <class F>

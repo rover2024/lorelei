@@ -31,11 +31,11 @@ namespace lore {
             Fatal,
         };
 
-        inline Logger(LogContext context) : _context(std::move(context)) {
+        inline Logger(LogContext context) : m_ctx(std::move(context)) {
         }
 
         inline Logger(const char *file, int line, const char *function, const char *category)
-            : _context(file, line, function, category) {
+            : m_ctx(file, line, function, category) {
         }
 
         template <class... Args>
@@ -92,7 +92,7 @@ namespace lore {
         static void setLogCallback(LogCallback callback);
 
     protected:
-        LogContext _context;
+        LogContext m_ctx;
     };
 
     /// Yet another logging category implementation of Qt QLoggingCategory.
@@ -102,7 +102,7 @@ namespace lore {
         ~LogCategory();
 
         inline const char *name() const {
-            return _name;
+            return m_name;
         }
         inline bool isLevelEnabled(int level) const {
             return levelEnabled[level];
@@ -127,7 +127,7 @@ namespace lore {
             if (!isLevelEnabled(Level)) {
                 return;
             }
-            Logger(fileName, lineNumber, functionName, _name)
+            Logger(fileName, lineNumber, functionName, m_name)
                 .log(Level, format, std::forward<Args>(args)...);
             if constexpr (Level == Logger::Fatal) {
                 Logger::abort();
@@ -140,7 +140,7 @@ namespace lore {
             if (!isLevelEnabled(Level)) {
                 return;
             }
-            Logger(fileName, lineNumber, functionName, _name)
+            Logger(fileName, lineNumber, functionName, m_name)
                 .printf(Level, fmt, std::forward<Args>(args)...);
             if constexpr (Level == Logger::Fatal) {
                 Logger::abort();
@@ -152,7 +152,7 @@ namespace lore {
         }
 
     protected:
-        const char *_name;
+        const char *m_name;
 
         union {
             bool levelEnabled[8];

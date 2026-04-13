@@ -53,6 +53,11 @@ namespace lore::tool::TLC {
             SourceLineList<> tail;
         };
 
+        struct FunctionPointerTypeInfo {
+            clang::QualType type;
+            std::string name;
+        };
+
         DocumentContext() = default;
         ~DocumentContext();
 
@@ -85,6 +90,18 @@ namespace lore::tool::TLC {
             return *m_ast;
         }
 
+        /// Collected AST metadata.
+        inline const std::map<std::string, const clang::FunctionDecl *> &
+            functionDecls(ProcSnippet::Direction direction) const {
+            return m_functionDecls[direction];
+        }
+        inline const std::map<std::string, FunctionPointerTypeInfo> &callbackTypes() const {
+            return m_callbackTypes;
+        }
+        inline const std::map<std::string, const clang::VarDecl *> &varDecls() const {
+            return m_varDecls;
+        }
+
         /// Sources to generate.
         inline DocumentSource &source() {
             return m_source;
@@ -113,10 +130,6 @@ namespace lore::tool::TLC {
         clang::ASTContext *m_ast = nullptr;
         std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumDirections>
             m_functionDecls;
-        struct FunctionPointerTypeInfo {
-            clang::QualType type;
-            std::string name;
-        };
         std::map<std::string, FunctionPointerTypeInfo> m_callbackTypes;
         std::map<std::string, const clang::VarDecl *> m_varDecls;
 

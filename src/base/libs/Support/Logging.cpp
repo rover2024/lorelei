@@ -68,7 +68,7 @@ namespace lore {
     }
 
     void Logger::print(int level, const std::string_view &message) {
-        LogRegistry::callback(level, _context, message);
+        LogRegistry::callback(level, m_ctx, message);
     }
 
     void Logger::printf(int level, const char *fmt, ...) {
@@ -76,7 +76,7 @@ namespace lore {
         va_start(args, fmt);
         std::string message = lore::vasprintf(fmt, args);
         va_end(args);
-        LogRegistry::callback(level, _context, message);
+        LogRegistry::callback(level, m_ctx, message);
     }
 
     void Logger::abort() {
@@ -91,7 +91,7 @@ namespace lore {
         LogRegistry::callback = callback;
     }
 
-    LogCategory::LogCategory(const char *name) : _name(name) {
+    LogCategory::LogCategory(const char *name) : m_name(name) {
         enabled = 0x0101010101010101ULL;
 
         auto &reg = *LogRegistry::instance();

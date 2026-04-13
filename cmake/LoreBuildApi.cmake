@@ -125,53 +125,6 @@ function(lore_host_thunk_disable_register _target)
     target_compile_options(${_target} PRIVATE "-ffixed-${LORE_HOST_FIXED_REGISTER}")
 endfunction()
 
-function(lore_generate_thunk _name _input_file _out_file _config_file)
-    set(options)
-    set(oneValueArgs OUT_CALLBACKS_FILE)
-    set(multiValueArgs PRE_INCLUDE_FILES PLUGINS EXTRA_ARGS DEPENDS)
-    cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    set(_tool $<TARGET_FILE:LoreTLC>)
-    set(_args)
-
-    list(APPEND _args -o ${_out_file} -s ${_config_file})
-
-    if(FUNC_OUT_CALLBACKS_FILE)
-        list(APPEND _args --out-callbacks=${FUNC_OUT_CALLBACKS_FILE})
-    endif()
-
-    foreach(_file IN LISTS FUNC_PRE_INCLUDE_FILES)
-        list(APPEND _args --preinc=${_file})
-    endforeach()
-
-    foreach(_plugin IN LISTS FUNC_PLUGINS)
-        list(APPEND _args --plugin=${_plugin})
-    endforeach()
-
-    list(APPEND _args ${_input_file})
-
-    list(APPEND _args "--" "-xc++" "-I${LORE_SOURCE_DIR}/include" "-I${QMSETUP_BUILD_DIR}/include" -I/usr/lib/llvm-18/lib/clang/18/include)
-
-    if(FUNC_EXTRA_ARGS)
-        list(APPEND _args ${FUNC_EXTRA_ARGS})
-    endif()
-
-    get_filename_component(_dir ${_out_file} DIRECTORY)
-    file(MAKE_DIRECTORY ${_dir})
-
-    add_custom_command(OUTPUT ${_out_file}
-        COMMAND ${_tool} ${_args}
-        DEPENDS ${_tool} ${_input_file} ${_config_file} ${FUNC_DEPENDS}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-    add_custom_target(thunk_gen_${_name} DEPENDS ${_out_file})
-
-    if(TARGET thunk_gen_all)
-        add_dependencies(thunk_gen_all thunk_gen_${_name})
-    endif()
-endfunction()
-
 function(lore_add_guest_thunk _target)
     set(_dir ${LORE_GUEST_ARCH}-LoreGTL)
     lore_add_library(${_target} SHARED
@@ -194,6 +147,24 @@ function(lore_add_host_thunk _target)
     _lore_configure_thunk(${_target} ${_dir})
 endfunction()
 
+macro(lore_add_resource _target _in_file)
+    qm_import(private/Generate)
+    set(_res_out_file)
+    qm_make_output_file(${_in_file} "res_" "c" _res_out_file)
+    qm_add_binary_resource(${_in_file} ${_res_out_file} USE_SCRIPT)
+    target_sources(${_target} PRIVATE ${_res_out_file})
+endmacro()
+
+function(lore_add_auto_test _src)
+    get_filename_component(_name ${_src} NAME_WE)
+    add_executable(${_name} ${_src})
+    target_link_libraries(${_name} PRIVATE Boost::unit_test_framework)
+    add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
+endfunction()
+
+# ----------------------------------
+# Internal Functions
+# ----------------------------------
 function(_lore_configure_thunk _target _dir)
     get_target_property(_links ${_target} POST_LINK_ALIAS)
     set_target_properties(${_target} PROPERTIES
@@ -221,19 +192,4 @@ function(_lore_configure_thunk _target _dir)
             endforeach()
         endif()
     endif()
-endfunction()
-
-macro(lore_add_resource _target _in_file)
-    qm_import(private/Generate)
-    set(_res_out_file)
-    qm_make_output_file(${_in_file} "res_" "c" _res_out_file)
-    qm_add_binary_resource(${_in_file} ${_res_out_file} USE_SCRIPT)
-    target_sources(${_target} PRIVATE ${_res_out_file})
-endmacro()
-
-function(lore_add_auto_test _src)
-    get_filename_component(_name ${_src} NAME_WE)
-    add_executable(${_name} ${_src})
-    target_link_libraries(${_name} PRIVATE Boost::unit_test_framework)
-    add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
 endfunction()

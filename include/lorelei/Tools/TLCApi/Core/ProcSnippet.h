@@ -100,7 +100,7 @@ namespace lore::tool::TLC {
 
         /// Constructs from a function pointer type
         ProcSnippet(
-            Kind kind, Direction direction, clang::QualType functionPointerType,
+            Kind kind, Direction direction, clang::QualType functionPointerType, std::string nameHint,
             std::optional<Desc> desc,
             std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
             DocumentContext &documentContext)
@@ -108,7 +108,7 @@ namespace lore::tool::TLC {
               m_functionPointerType(std::move(functionPointerType)), m_desc(std::move(desc)),
               m_definitions(std::move(definitions)), m_doc(&documentContext) {
             assert(isCallback());
-            initialize({});
+            initialize(nameHint);
         }
 
         ProcSnippet(const ProcSnippet &) = delete;
