@@ -3,9 +3,6 @@
 #include <mutex>
 #include <unordered_map>
 
-#ifdef Success
-#  undef Success
-#endif
 #include <lorelei/Base/Support/Logging.h>
 #define Success 0
 

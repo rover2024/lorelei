@@ -6,6 +6,10 @@ extern "C" {
 #include <X11/Xutil.h>
 }
 
+#ifdef Success
+#  undef Success
+#endif
+
 #include <lorelei/Modules/Midware/Host/X11/Global.h>
 
 namespace lore::midware::host {

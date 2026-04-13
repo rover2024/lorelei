@@ -87,7 +87,7 @@ namespace lore::tool::TLC {
         auto &GENT = proc.source(ProcSnippet::Entry);
         GENT.body.backward.push_back(
             key,
-            SRC_asIs("ret = (decltype(ret)) proc::client->convertHostProcAddress((const char *) " +
+            SRC_asIs("ret = (decltype(ret)) mod::GuestSyscallClient::convertHostProcAddress((const char *) " +
                      GENT.functionInfo.argumentName(nameIndex - 1) + ", (void *) ret);"));
         return llvm::Error::success();
     }

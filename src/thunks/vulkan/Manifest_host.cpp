@@ -1,9 +1,4 @@
 #include "Desc.h"
-
-#ifdef Success
-#  undef Success
-#endif
-
 #include <lorelei/Tools/ThunkInterface/Host/ManifestDef.cpp.inc>
 
 #define LORE_THUNK_CALLBACK_REPLACE
