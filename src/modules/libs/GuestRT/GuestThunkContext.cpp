@@ -64,7 +64,7 @@ namespace lore::mod {
                 std::abort();
             }
             void *args[] = {
-                m_staticContext,
+                &m_staticContext,
             };
             GuestSyscallClient::invokeFormat(exchangeFunc, "v_p", args, nullptr);
         }
