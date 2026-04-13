@@ -144,16 +144,19 @@ namespace lore::tool::TLC {
             return formatN("ProcFnDesc<%1>", proc.name());
         };
         const auto &getProcKind = [&]() { return proc.isCallback() ? "Callback" : "Function"; };
+        const auto &getProcDirection = [&]() {
+            return proc.direction() == ProcSnippet::GuestToHost ? "GuestToHost" : "HostToGuest";
+        };
         const auto &getArgFilterStatement = [&](size_t idx) {
-            return formatN("ProcArgFilter<%1>::filter<%2, %3, %4>(%5, ProcArgContext(%6));",
+            return formatN("ProcArgFilter<%1>::filter<%2, %3, %4, %5>(%6, ProcArgContext(%7));",
                            getTypeString(real.argTypes()[idx].getCanonicalType()),
-                           getProcDescType(), idx, getProcKind(), FI.argumentName(idx),
-                           SRC_callList(FI));
+                           getProcDescType(), idx, getProcKind(), getProcDirection(),
+                           FI.argumentName(idx), SRC_callList(FI));
         };
         const auto &getRetFilterStatement = [&]() {
-            return formatN("ProcReturnFilter<%1>::filter<%2, %3>(ret, ProcArgContext(%4));",
+            return formatN("ProcReturnFilter<%1>::filter<%2, %3, %4>(ret, ProcArgContext(%5));",
                            getTypeString(real.returnType().getCanonicalType()), getProcDescType(),
-                           getProcKind(), SRC_callList(FI));
+                           getProcKind(), getProcDirection(), SRC_callList(FI));
         };
 
         for (const auto &idx : message.filteredArgIndexes) {

@@ -110,7 +110,7 @@ namespace lore::thunk {
     struct ProcArgFilter {
         using type = T;
 
-        template <class Desc, size_t Index, ProcKind Kind, class... Args>
+        template <class Desc, size_t Index, ProcKind Kind, ProcDirection Direction, class... Args>
         static constexpr void filter(T &arg, ProcArgContext<Args...> ctx) {
             static_assert(Index < sizeof...(Args), "Index out of range");
         }
@@ -121,7 +121,7 @@ namespace lore::thunk {
     struct ProcReturnFilter {
         using type = T;
 
-        template <class Desc, ProcKind Kind, class... Args>
+        template <class Desc, ProcKind Kind, ProcDirection Direction, class... Args>
         static constexpr void filter(T &ret, ProcArgContext<Args...> ctx) {
         }
     };

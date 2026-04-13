@@ -20,10 +20,14 @@ option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
 
 # Other options
-#   LORE_THUNK_DATA_DIR
-#   LORE_THUNK_SOURCE_DIR
-#   LORE_TLC_NO_RUN
-#   LORE_TLC_EXTRA_ARGS
+#
+# LORE_THUNK_DATA_DIR:          Specify the thunk data directory that is generated before.
+# LORE_THUNK_SOURCE_DIR:        Specify the thunk source directory that is generated before.
+# LORE_TLC_NO_RUN:              Do not generate TLC stat files and thunk files.
+# LORE_TLC_EXTRA_ARGS:          Extra arguments for TLC.
+#
+# LORE_BUILD_VULKAN_THUNK:      Specify it with LORE_VULKAN_HEADERS_DIR
+# LORE_VULKAN_HEADERS_DIR:      Pull from https://github.com/KhronosGroup/Vulkan-Headers
 
 # ----------------------------------
 # CMake Settings
@@ -35,9 +39,9 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
 
-    # if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-    #     set(CMAKE_DEBUG_POSTFIX "d")
-    # endif()
+# if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+# set(CMAKE_DEBUG_POSTFIX "d")
+# endif()
 elseif(MINGW)
     set(CMAKE_STATIC_LIBRARY_PREFIX "")
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
