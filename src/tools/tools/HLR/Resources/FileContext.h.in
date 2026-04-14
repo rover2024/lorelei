@@ -1,6 +1,9 @@
 //===----------------------------------------------------------------------===//
 // File Context Declarations
 
+// Uncomment to disable function decay guards
+// #define LORE_DISABLE_FDG
+
 #define __LORE_PRIV__   __attribute__((visibility("hidden")))
 #define __LORE_EXPORT__ __attribute__((visibility("default")))
 
@@ -103,6 +106,11 @@ static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
 #define LORE_CCG_GET(NUM, EXPR)                                                                    \
     ((__LORE_FUNC_TYPE__(EXPR)) __LoreFileContext_CCG((void *) (EXPR),                             \
                                                       LoreFileContext_CCG_Tramp_##NUM))
-#define LORE_FDG_GET(NUM1, NUM2, EXPR)                                                             \
-    ((__LORE_FUNC_TYPE__(EXPR)) LoreFileContext_FDG_Proc_##NUM1##_##NUM2.guestTramp)
+
+#ifdef LORE_DISABLE_FDG
+#  define LORE_FDG_GET(NUM1, NUM2, EXPR) (EXPR)
+#else
+#  define LORE_FDG_GET(NUM1, NUM2, EXPR)                                                           \
+      ((__LORE_FUNC_TYPE__(EXPR)) LoreFileContext_FDG_Proc_##NUM1##_##NUM2.guestTramp)
+#endif
 //===----------------------------------------------------------------------===//

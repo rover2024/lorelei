@@ -286,7 +286,7 @@ namespace lore::tool::command::batch {
                              << ec.message() << "\n";
                 return 1;
             }
-            out << "#pragma once\n";
+            out << "#pragma once\n\n";
             out << StringRef((const char *) res_FileContext_h_c);
             out << "\n\n";
 
@@ -379,8 +379,13 @@ namespace lore::tool::command::batch {
             out << "    .setThreadCallback = 0,\n";
             out << "    .numCCGs = " << stat.callbackCheckGuardSignatures.size() << ",\n";
             out << "    .CCGs = LoreFileContext_CCGs,\n";
+            out << "#ifdef LORE_DISABLE_FDG\n";
+            out << "    .numFDGs = 0,\n";
+            out << "    .FDGs = 0,\n";
+            out << "#else\n";
             out << "    .numFDGs = " << stat.functionDecayGuardStats.size() << ",\n";
             out << "    .FDGs = LoreFileContext_FDGs,\n";
+            out << "#endif\n";
             out << "};\n\n";
 
             out << "__LORE_EXPORT__ struct LoreFileContext *__Lore_GetFileContext() {\n";
