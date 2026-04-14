@@ -16,15 +16,8 @@ namespace {
     using PFN_pthread_create = decltype(&pthread_create);
     using PFN_pthread_exit = decltype(&pthread_exit);
 
-    enum CallerKind : uint8_t {
-        CK_Unknown = 0,
-        CK_QEMU = 1,
-        CK_NonQEMU = 2,
-    };
-
     struct ThreadContext {
         bool in_hook = false;
-        CallerKind caller_kind = CK_Unknown;
         bool pending_host_thread_create = false;
         bool pending_host_attr_valid = false;
         bool pending_host_attr_detached = false;
@@ -54,34 +47,14 @@ namespace {
         return fn;
     }
 
-    static bool is_qemu_caller(void *ret_addr) {
-        Dl_info info = {};
-        if (!ret_addr || dladdr(ret_addr, &info) == 0 || !info.dli_fname) {
-            return false;
-        }
-
-        const char *path = info.dli_fname;
-        if (!path) {
-            return false;
-        }
-        const char *base = std::strrchr(path, '/');
-        base = base ? base + 1 : path;
-        if (!base || !*base) {
-            return false;
-        }
-        return lore::starts_with(base, "qemu-") || lore::starts_with(base, "libqemu");
+    static inline bool is_qemu_thread_create() {
+        // QEMU uses pthread_create when handling clone syscalls
+        return lore::mod::HostSyscallServer::curSyscallNum == 56;
     }
 
-    static bool hook_cache_disabled() {
-        return false;
-
-        // not used now
-        static int disabled = -1;
-        if (disabled < 0) {
-            const char *v = std::getenv("LORELEI_QEMU_THREAD_HOOK_NO_CACHE");
-            disabled = (v && v[0] != '\0' && v[0] != '0') ? 1 : 0;
-        }
-        return disabled != 0;
+    static inline bool is_qemu_thread_exit() {
+        // QEMU uses pthread_exit when handling exit syscalls (not main thread)
+        return lore::mod::HostSyscallServer::curSyscallNum == 60;
     }
 
 }
@@ -94,18 +67,7 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
         return real_pthread_create(thread, attr, start_routine, arg);
     }
 
-    bool qemu_caller = false;
-    if (!hook_cache_disabled() && thread_ctx.caller_kind != CK_Unknown) {
-        qemu_caller = (thread_ctx.caller_kind == CK_QEMU);
-    } else {
-        void *ret_addr = __builtin_return_address(0);
-        qemu_caller = is_qemu_caller(ret_addr);
-        if (!hook_cache_disabled()) {
-            thread_ctx.caller_kind = qemu_caller ? CK_QEMU : CK_NonQEMU;
-        }
-    }
-
-    if (qemu_caller) {
+    if (is_qemu_thread_create()) {
         /*
          * - default guest-origin create: keep QEMU's detached attr.
          * - host-origin reentered create: obey host detach intent.
@@ -144,6 +106,11 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
         return real_pthread_create(thread, attr, start_routine, arg);
     }
 
+    if (!lore::mod::HostSyscallServer::emuAddr) {
+        // not initialized yet
+        return real_pthread_create(thread, attr, start_routine, arg);
+    }
+
     /*
      * Route non-QEMU thread creation back through HostRT reentry, so
      * thread creation can happen on the guest/QEMU-managed path.
@@ -159,6 +126,7 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
             thread_ctx.pending_host_attr_detached = (detach_state == PTHREAD_CREATE_DETACHED);
         }
     }
+
     int ret = lore::mod::HostSyscallServer::reenterThreadCreate(
         thread, const_cast<pthread_attr_t *>(attr), reinterpret_cast<void *>(start_routine), arg);
     thread_ctx.pending_host_thread_create = false;
@@ -176,20 +144,14 @@ extern "C" LORE_DECL_EXPORT void pthread_exit(void *ret) {
         __builtin_unreachable();
     }
 
-    bool qemu_caller = false;
-    if (!hook_cache_disabled() && thread_ctx.caller_kind != CK_Unknown) {
-        qemu_caller = (thread_ctx.caller_kind == CK_QEMU);
-    } else {
-        void *ret_addr = __builtin_return_address(0);
-        qemu_caller = is_qemu_caller(ret_addr);
-        if (!hook_cache_disabled()) {
-            thread_ctx.caller_kind = qemu_caller ? CK_QEMU : CK_NonQEMU;
-        }
-    }
-
-    if (qemu_caller) {
+    if (is_qemu_thread_exit()) {
         real_pthread_exit(ret);
         __builtin_unreachable();
+    }
+
+    if (!lore::mod::HostSyscallServer::emuAddr) {
+        // not initialized yet
+        real_pthread_exit(ret);
     }
 
     thread_ctx.in_hook = true;

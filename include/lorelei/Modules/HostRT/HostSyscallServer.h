@@ -28,8 +28,11 @@ namespace lore::mod {
             return m_thunkConfig.get();
         }
 
-        /// Assigned in the emulator entry
+        /// Set in the emulator entry
         static void *emuAddr;
+
+        /// Set the syscall number at current syscall entry and -1 at exit
+        static thread_local uint64_t curSyscallNum;
 
     protected:
         static inline void reenter_impl(ReentryArguments *ra) {

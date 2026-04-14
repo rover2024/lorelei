@@ -5,15 +5,15 @@
         "libGLX",
         "libOpenGL",
         {
-            "name": "libSDL-1.2",
+            "name": "libSDL",
             "alias": [
-                "libSDL"
+                "libSDL-1.2"
             ]
         },
         {
-            "name": "libSDL2-2.0",
+            "name": "libSDL2",
             "alias": [
-                "libSDL2"
+                "libSDL2-2.0"
             ],
             "hostLibrary": "${REPOS}/SDL/build/install/lib/libSDL2.so"
         },

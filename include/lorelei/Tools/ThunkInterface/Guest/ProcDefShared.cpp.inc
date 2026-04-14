@@ -63,9 +63,9 @@ namespace lore::thunk::detail {
     template <class T>
     constexpr int getCallbackIndex();
 
-#define _F(NAME, TYPE)                                                                             \
+#define _F(NAME, SIGNATURE)                                                                        \
     template <>                                                                                    \
-    constexpr int getCallbackIndex<TYPE>() {                                                       \
+    constexpr int getCallbackIndex<NAME>() {                                                       \
         return Callback_##NAME;                                                                    \
     }
     LORE_THUNK_CALLBACK_FOREACH(_F)
@@ -97,11 +97,13 @@ namespace lore::thunk::detail {
 
     static CStaticThunkContext staticThunkContext = {
         {
-         {{hostFunctions_guestEntries, NumHostFunction}, {guestFunctions_guestEntries, NumGuestFunction}},
+         {{hostFunctions_guestEntries, NumHostFunction},
+             {guestFunctions_guestEntries, NumGuestFunction}},
          {{hostCallbacks_guestEntries, NumCallback}, {guestCallbacks_guestEntries, NumCallback}},
          },
         {
-         {{hostFunctions_hostEntries, NumHostFunction}, {guestFunctions_hostEntries, NumGuestFunction}},
+         {{hostFunctions_hostEntries, NumHostFunction},
+             {guestFunctions_hostEntries, NumGuestFunction}},
          {{hostCallbacks_hostEntries, NumCallback}, {guestCallbacks_hostEntries, NumCallback}},
          },
         {libraryFunctions, NumLibraryFunction},

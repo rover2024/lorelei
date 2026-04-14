@@ -71,7 +71,7 @@ namespace lore::mod {
 
         /// STEP: fill FDG list with FunctionTrampoline
         if (m_staticContext->FDGs) {
-            std::map<std::string, void *> guestToHostCallbackThunkByName;
+            std::map<std::string, void *> guestToHostCallbackThunkBySignature;
             {
                 auto callbackEntries =
                     m_staticContext->guestProcs[CProcKind_Callback][CProcDirection_GuestToHost];
@@ -79,7 +79,7 @@ namespace lore::mod {
                     const auto &entry = callbackEntries.arr[i];
                     assert(entry.name != nullptr);
                     assert(entry.addr != nullptr);
-                    guestToHostCallbackThunkByName[entry.name] = entry.addr;
+                    guestToHostCallbackThunkBySignature[entry.name] = entry.addr;
                 }
             }
 
@@ -92,8 +92,8 @@ namespace lore::mod {
                 assert(fdgInfo.pProcs != nullptr);
 
                 void *target = nullptr;
-                if (auto it = guestToHostCallbackThunkByName.find(fdgInfo.signature);
-                    it != guestToHostCallbackThunkByName.end()) {
+                if (auto it = guestToHostCallbackThunkBySignature.find(fdgInfo.signature);
+                    it != guestToHostCallbackThunkBySignature.end()) {
                     target = it->second;
                 }
                 if (!target) {
@@ -104,8 +104,7 @@ namespace lore::mod {
                 }
 
                 auto *table = FunctionTrampolineTable::create(static_cast<size_t>(fdgInfo.count),
-                                                              target,
-                                                              kFunctionTrampolineMagicSign);
+                                                              target, kFunctionTrampolineMagicSign);
                 assert(table != nullptr);
                 m_fdgTrampolineTables.push_back(table);
                 for (int j = 0; j < fdgInfo.count; ++j) {

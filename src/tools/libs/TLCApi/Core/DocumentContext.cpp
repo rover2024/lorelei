@@ -723,7 +723,8 @@ namespace lore::tool::TLC {
 
         os << "#define LORE_THUNK_CALLBACK_FOREACH(F)";
         for (const auto &[_, proc] : m_procs[ProcSnippet::Callback][ProcSnippet::GuestToHost]) {
-            os << " \\\n    F(" << proc.name() << ", lore::thunk::" << proc.name() << ")";
+            os << " \\\n    F(" << proc.name() << ", \""
+               << getTypeString(proc.functionPointerType().value()) << "\")";
         }
         os << "\n\n";
 

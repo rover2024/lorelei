@@ -144,9 +144,9 @@ namespace lore::tool::command::batch {
         };
 
         SmallString<128> outputCommonHeader = outputDir;
-        outputCommonHeader += "/FileContext.h";
+        outputCommonHeader += "/LoreFileContext.h";
         SmallString<128> outputSingleSource = outputDir;
-        outputSingleSource += "/FileContext.c";
+        outputSingleSource += "/LoreFileContext.c";
 
         /// STEP: Make stat result file
         SmallString<128> statResultFile;
@@ -265,7 +265,7 @@ namespace lore::tool::command::batch {
             hasAnySourceChange = true;
 
             // Add common header inclusion
-            std::string fileToInclude = getRelativeToOutputDir(file) + "/FileContext.h";
+            std::string fileToInclude = getRelativeToOutputDir(file) + "/LoreFileContext.h";
             if (auto err = adjustContent(file, "#include \"" + fileToInclude + "\"\n"); err) {
                 llvm::errs() << "Failed to adjust content: " << err << "\n";
                 return 1;
@@ -404,7 +404,7 @@ namespace lore::tool::command::batch {
             }
 
             std::string fileToInclude =
-                getRelativeToOutputDir(fileContextEntrySource) + "/FileContext.c";
+                getRelativeToOutputDir(fileContextEntrySource) + "/LoreFileContext.c";
             out << "\n";
             out << "#include \"" << fileToInclude << "\"\n";
         }

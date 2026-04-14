@@ -89,6 +89,8 @@ namespace lore::mod {
 
     void *HostSyscallServer::emuAddr = nullptr;
 
+    thread_local uint64_t HostSyscallServer::curSyscallNum = static_cast<uint64_t>(-1);
+
     HostSyscallServer *HostSyscallServer::self = nullptr;
 
     HostSyscallServer::HostSyscallServer() {

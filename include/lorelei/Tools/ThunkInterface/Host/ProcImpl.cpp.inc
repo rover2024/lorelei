@@ -2,7 +2,7 @@ namespace lore::thunk::detail {
 
     void LocalThunkContext::preInitialize() {
 #define _F(NAME)                                                                                   \
-    hostFunctions_hostEntries[HostFunction_##NAME] = {                                                    \
+    hostFunctions_hostEntries[HostFunction_##NAME] = {                                             \
         #NAME,                                                                                     \
         reinterpret_cast<void *>(ProcFn<NAME, GuestToHost, Entry>::invoke),                        \
     };
@@ -10,25 +10,25 @@ namespace lore::thunk::detail {
 #undef _F
 
 #define _F(NAME)                                                                                   \
-    guestFunctions_hostEntries[GuestFunction_##NAME] = {                                                  \
+    guestFunctions_hostEntries[GuestFunction_##NAME] = {                                           \
         #NAME,                                                                                     \
         reinterpret_cast<void *>(ProcFn<NAME, HostToGuest, Entry>::invoke),                        \
     };
         LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
 #undef _F
 
-#define _F(NAME, TYPE)                                                                             \
-    hostCallbacks_hostEntries[Callback_##NAME] = {                                                        \
-        #NAME,                                                                                     \
-        reinterpret_cast<void *>(ProcCb<TYPE, GuestToHost, Entry>::invoke),                        \
+#define _F(NAME, SIGNATURE)                                                                        \
+    hostCallbacks_hostEntries[Callback_##NAME] = {                                                 \
+        SIGNATURE,                                                                                 \
+        reinterpret_cast<void *>(ProcCb<NAME, GuestToHost, Entry>::invoke),                        \
     };
         LORE_THUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-#define _F(NAME, TYPE)                                                                             \
-    guestCallbacks_hostEntries[Callback_##NAME] = {                                                       \
-        #NAME,                                                                                     \
-        reinterpret_cast<void *>(ProcCb<TYPE, HostToGuest, Entry>::invoke),                        \
+#define _F(NAME, SIGNATURE)                                                                        \
+    guestCallbacks_hostEntries[Callback_##NAME] = {                                                \
+        SIGNATURE,                                                                                 \
+        reinterpret_cast<void *>(ProcCb<NAME, HostToGuest, Entry>::invoke),                        \
     };
         LORE_THUNK_CALLBACK_FOREACH(_F)
 #undef _F
@@ -41,11 +41,11 @@ namespace lore::thunk::detail {
         LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
 #undef _F
 
-#define _F(NAME, TYPE) hostCallbacks_guestEntries[Callback_##NAME].name = #NAME;
+#define _F(NAME, SIGNATURE) hostCallbacks_guestEntries[Callback_##NAME].name = SIGNATURE;
         LORE_THUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-#define _F(NAME, TYPE) guestCallbacks_guestEntries[Callback_##NAME].name = #NAME;
+#define _F(NAME, SIGNATURE) guestCallbacks_guestEntries[Callback_##NAME].name = SIGNATURE;
         LORE_THUNK_CALLBACK_FOREACH(_F)
 #undef _F
 

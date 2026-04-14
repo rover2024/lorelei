@@ -159,7 +159,7 @@ namespace lore::mod {
             fileCtx->runtimeContext->pthread_exit = nullptr;
         }
 
-        std::map<std::string, void *> hostToGuestCallbackThunkByName;
+        std::map<std::string, void *> hostToGuestCallbackThunkBySignature;
         {
             auto callbackEntries =
                 m_staticContext->hostProcs[CProcKind_Callback][CProcDirection_HostToGuest];
@@ -167,7 +167,7 @@ namespace lore::mod {
                 auto &entry = callbackEntries.arr[i];
                 assert(entry.name != nullptr);
                 assert(entry.addr != nullptr);
-                hostToGuestCallbackThunkByName[entry.name] = entry.addr;
+                hostToGuestCallbackThunkBySignature[entry.name] = entry.addr;
             }
         }
 
@@ -180,8 +180,8 @@ namespace lore::mod {
                 assert(ccgInfo.signature != nullptr);
                 assert(ccgInfo.pTramp != nullptr);
 
-                auto it = hostToGuestCallbackThunkByName.find(ccgInfo.signature);
-                if (it == hostToGuestCallbackThunkByName.end()) {
+                auto it = hostToGuestCallbackThunkBySignature.find(ccgInfo.signature);
+                if (it == hostToGuestCallbackThunkBySignature.end()) {
                     loreCritical("[HTL] %1: failed to find host-to-guest callback entry for CCG "
                                  "signature \"%2\"",
                                  modulePath, ccgInfo.signature);
