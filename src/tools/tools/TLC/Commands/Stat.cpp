@@ -11,6 +11,7 @@
 #include <clang/AST/Expr.h>
 #include <clang/AST/DeclTemplate.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <clang/Tooling/ArgumentsAdjusters.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <llvm/Support/Program.h>
@@ -512,6 +513,9 @@ namespace lore::tool::command::stat {
         }
 
         ClangTool tool(parser.getCompilations(), parser.getSourcePathList());
+        tool.appendArgumentsAdjuster(
+            getInsertArgumentAdjuster("-Wno-pragma-once-outside-header",
+                                      tooling::ArgumentInsertPosition::END));
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {
             return ret;
         }

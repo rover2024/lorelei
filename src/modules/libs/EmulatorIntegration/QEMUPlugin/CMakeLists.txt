@@ -1,4 +1,4 @@
-project(LoreQEMUIntegration)
+project(LoreQEMUPlugin)
 
 # The plugin needs deferred binding of QEMU plugin APIs
 string(REPLACE "-Wl,-z,defs" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")

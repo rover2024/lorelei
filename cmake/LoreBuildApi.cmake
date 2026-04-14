@@ -2,7 +2,7 @@
 set(LORE_GUEST_ARCH "x86_64")
 set(LORE_GUEST_FIXED_REGISTER "r11")
 
-if(NOT DEFINED LORE_HOST_ARCH)
+if(NOT LORE_HOST_ARCH)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
         set(LORE_HOST_ARCH "x86_64")
         set(LORE_HOST_FIXED_REGISTER "r11")
@@ -13,13 +13,6 @@ if(NOT DEFINED LORE_HOST_ARCH)
         set(LORE_HOST_ARCH "riscv64")
         set(LORE_HOST_FIXED_REGISTER "t1")
     endif()
-endif()
-
-if(NOT DEFINED LORE_THUNK_SOURCES_DIR)
-    set(LORE_THUNK_GENERATE on)
-    set(LORE_THUNK_SOURCES_DIR ${LORE_BUILD_BASE_DIR}/src/thunks)
-else()
-    set(LORE_THUNK_GENERATE off)
 endif()
 
 #[[

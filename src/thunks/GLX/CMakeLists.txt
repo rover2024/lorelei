@@ -1,5 +1,6 @@
 project(GLX)
 
+# Configure thunks
 include("../AddThunk.cmake")
 
 set(GTL_alias libGLX.so.0)

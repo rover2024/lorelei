@@ -36,7 +36,7 @@ set(PLUGIN_target)
 
 macro(add_thunk)
     # Add TLC stat target
-    if(NOT DEFINED LORE_TLC_NO_RUN)
+    if(NOT LORE_TLC_NO_RUN)
         set(_extra_args)
         set(_options)
 
@@ -61,7 +61,7 @@ macro(add_thunk)
             endforeach()
         endif()
 
-        if(DEFINED LORE_TLC_EXTRA_ARGS)
+        if(LORE_TLC_EXTRA_ARGS)
             list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
         endif()
 
@@ -75,7 +75,7 @@ macro(add_thunk)
 
     # Add TLC generate target (Guest)
     if(LORE_BUILD_GUEST_TARGETS)
-        if(NOT DEFINED LORE_TLC_NO_RUN)
+        if(NOT LORE_TLC_NO_RUN)
             set(_extra_args)
             set(_options)
 
@@ -100,7 +100,7 @@ macro(add_thunk)
                 endforeach()
             endif()
 
-            if(DEFINED LORE_TLC_EXTRA_ARGS)
+            if(LORE_TLC_EXTRA_ARGS)
                 list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
             endif()
 
@@ -158,7 +158,7 @@ macro(add_thunk)
 
     # Add TLC generate target (Host)
     if(TRUE)
-        if(NOT DEFINED LORE_TLC_NO_RUN)
+        if(NOT LORE_TLC_NO_RUN)
             set(_extra_args)
             set(_options)
 
@@ -183,7 +183,7 @@ macro(add_thunk)
                 endforeach()
             endif()
 
-            if(DEFINED LORE_TLC_EXTRA_ARGS)
+            if(LORE_TLC_EXTRA_ARGS)
                 list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
             endif()
 

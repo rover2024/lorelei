@@ -1,13 +1,13 @@
-add_subdirectory(zlib)
-add_subdirectory(EGL)
-add_subdirectory(OpenGL)
-add_subdirectory(GLX)
-add_subdirectory(GL)
+set(_thunks
+    zlib zstd # Compress
+    EGL OpenGL GLX GL vulkan # Graphics
+    SDL2 # Video
+)
 
-if(LORE_BUILD_VULKAN_THUNK)
-    add_subdirectory(vulkan)
-endif()
+foreach(_thunk IN LISTS _thunks)
+    if(LORE_DISABLE_THUNKS AND(${_thunk} IN_LIST LORE_DISABLE_THUNKS))
+        continue()
+    endif()
 
-if(LORE_BUILD_ZSTD_THUNK)
-    add_subdirectory(zstd)
-endif()
+    add_subdirectory(${_thunk})
+endforeach()

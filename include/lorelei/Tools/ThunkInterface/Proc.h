@@ -7,6 +7,7 @@
 #include <lorelei/Base/PassThrough/c/CProc.h>
 
 #define _PROC LORE_USED static
+#define _DESC static constexpr const
 
 namespace lore::thunk {
 

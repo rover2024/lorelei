@@ -1,3 +1,5 @@
+#pragma once
+
 #include <zlib.h>
 
 #include <lorelei/Tools/ThunkInterface/Proc.h>

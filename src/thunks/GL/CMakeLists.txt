@@ -1,5 +1,6 @@
 project(GL)
 
+# Configure thunks
 include("../AddThunk.cmake")
 
 set(GTL_alias libGL.so.1)

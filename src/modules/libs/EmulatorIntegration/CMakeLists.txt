@@ -1,1 +1,3 @@
-add_subdirectory(QEMU)
+add_subdirectory(QEMUPlugin)
+
+add_subdirectory(QEMUThreadHook)

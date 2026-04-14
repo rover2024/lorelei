@@ -11,13 +11,20 @@ sudo apt install libffcall-dev libllvm-dev libclang-dev
 
 # Build qmsetup
 git clone --recursive https://github.com/stdware/qmsetup.git
+cd qmsetup
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/qmsetup
 cmake --build build --target all
 cmake --build build --target install
 
+# Get Vulkan headers
+git clone https://github.com/KhronosGroup/Vulkan-Headers.git
+
 # Build this project
+git clone https://github.com/rover2024/lorelei.git
+cd lorelei
+git checkout refactor-v2
 cmake -B build -G ninja \
     -Dqmsetup_DIR=/qmsetup/lib/cmake/qmsetup \
     -DCMAKE_BUILD_TYPE=Release \

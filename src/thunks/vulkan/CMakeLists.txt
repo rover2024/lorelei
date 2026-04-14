@@ -1,5 +1,9 @@
 project(vulkan)
 
+if(NOT LORE_VULKAN_INCLUDE_DIR)
+    message(WARNING "Thunk: LORE_VULKAN_INCLUDE_DIR is not defined, skip vulkan thunk configuration.")
+endif()
+
 # Generate Vulkan API macro
 set(_vulkan_api_header_dir ${LORE_THUNK_SOURCE_DIR}/vulkan)
 set(_vulkan_api_header_file ${_vulkan_api_header_dir}/VulkanApis.h)
@@ -9,6 +13,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" "-DINPUT=${_input_file}" "-DOUTPUT=${_vulkan_api_header_file}" -P "${_script_file}"
 )
 
+# Configure thunks
 include("../AddThunk.cmake")
 
 set(ALL_extra_includes ${LORE_VULKAN_INCLUDE_DIR} ${_vulkan_api_header_dir})
