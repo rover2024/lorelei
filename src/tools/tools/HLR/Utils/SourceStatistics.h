@@ -13,6 +13,10 @@ namespace lore::tool::HLR {
     /// \example Sample `stat.json`
     /// \code
     /// {
+    ///   "filesNeedPatch": [
+    ///     "a.c",
+    ///     "b.c"
+    ///   ],
     ///   "callbackCheckGuardSignatures": [
     ///     "void (*)(void *)",
     ///     "void (*)(void *, void *)"
@@ -40,6 +44,7 @@ namespace lore::tool::HLR {
 
     public:
         inline void clear() {
+            filesNeedPatch.clear();
             callbackCheckGuardSignatures.clear();
             functionDecayGuardStats.clear();
         }
@@ -47,6 +52,7 @@ namespace lore::tool::HLR {
         bool loadFromJson(const std::string &filePath, std::string &errorMessage);
         bool saveAsJson(const std::string &filePath, std::string &errorMessage);
 
+        std::set<std::string> filesNeedPatch;
         std::set<std::string> callbackCheckGuardSignatures;
         std::map<std::string, FunctionDecayGuardData> functionDecayGuardStats;
     };

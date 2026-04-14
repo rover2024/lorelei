@@ -39,9 +39,10 @@ cmake --build build --target install
 Lorelei is able to integrate with QEMU 11.0 or later, by using `-plugin` option.
 
 ```bash
+LD_PRELOAD=/lorelei/lib/libLoreQEMUThreadHook.so \
 LD_LIBRARY_PATH=/lorelei/lib:/lorelei/lib/<arch>-LoreHTL \
-    qemu-x86_64 -E LD_LIBRARY_PATH=lorelei/lib/x86_64-LoreGTL \
-    -plugin /lorelei/lib/libLoreQEMUIntegration.so \
+    qemu-x86_64 -U LD_PRELOAD -E LD_LIBRARY_PATH=/lorelei/lib/x86_64-LoreGTL \
+    -plugin /lorelei/lib/libLoreQEMUPlugin.so \
     <program> <args...>
 ```
 

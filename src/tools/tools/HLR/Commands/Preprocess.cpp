@@ -6,7 +6,6 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <clang/Rewrite/Core/Rewriter.h>
-#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Regex.h>
 
 #include "MarkMacros.h"

@@ -255,15 +255,17 @@ namespace lore::tool::command::rewrite {
             return ret;
         }
 
-        if (!g_ctx().outBuffer.empty()) {
-            std::error_code ec;
-            llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
-            if (ec) {
-                llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
-                return 1;
-            }
-            out << g_ctx().outBuffer;
+        if (g_ctx().outBuffer.empty()) {
+            return 0;
         }
+
+        std::error_code ec;
+        llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
+        if (ec) {
+            llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
+            return 1;
+        }
+        out << g_ctx().outBuffer;
         return 0;
     }
 

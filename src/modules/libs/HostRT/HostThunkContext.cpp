@@ -23,6 +23,7 @@ namespace lore::mod {
 
     namespace {
 
+        // not used
         struct LoreRuntimeContext {
             void *pthread_create;
             void *pthread_exit;

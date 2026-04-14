@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <set>
+#include <string>
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
@@ -10,7 +11,6 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <clang/Rewrite/Core/Rewriter.h>
-#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/FileSystem.h>
 
 #include <lorelei/Tools/ToolUtils/RewriteInsertion.h>
@@ -299,15 +299,17 @@ namespace lore::tool::command::mark_macros {
             return ret;
         }
 
-        if (!g_ctx().outBuffer.empty()) {
-            std::error_code ec;
-            llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
-            if (ec) {
-                llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
-                return 1;
-            }
-            out << g_ctx().outBuffer;
+        if (g_ctx().outBuffer.empty()) {
+            return 0;
         }
+
+        std::error_code ec;
+        llvm::raw_fd_ostream out(g_ctx().outputPath.empty() ? "-" : g_ctx().outputPath, ec);
+        if (ec) {
+            llvm::errs() << "Error occurs opening output file: " << ec.message() << "\n";
+            return 1;
+        }
+        out << g_ctx().outBuffer;
         return 0;
     }
 

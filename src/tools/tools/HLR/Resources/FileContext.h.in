@@ -1,6 +1,3 @@
-#ifndef LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
-#define LORE_TOOLS_HLR_FILE_CONTEXT_H_IN
-
 //===----------------------------------------------------------------------===//
 // File Context Declarations
 
@@ -109,5 +106,3 @@ static inline void *__LoreFileContext_CCG(void *addr, void *tramp) {
 #define LORE_FDG_GET(NUM1, NUM2, EXPR)                                                             \
     ((__LORE_FUNC_TYPE__(EXPR)) LoreFileContext_FDG_Proc_##NUM1##_##NUM2.guestTramp)
 //===----------------------------------------------------------------------===//
-
-#endif // LORE_TOOLS_HLR_FILE_CONTEXT_H_IN

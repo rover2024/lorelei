@@ -7,6 +7,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 
 #include <lorelei/Base/Support/ScopeGuard.h>
@@ -59,8 +60,8 @@ namespace lore::tool::command::batch {
         args.insert(args.end(), extraArgs.begin(), extraArgs.end());
 
         std::string err;
-        if (int ret;
-            (ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err)) != 0) {
+        int ret = llvm::sys::ExecuteAndWait(thisExePath, args, {}, {}, 0, 0, &err);
+        if (ret != 0) {
             return llvm::make_error<llvm::StringError>(
                 "Failed to run " + subCommand + " command: " + err, llvm::inconvertibleErrorCode());
         }
@@ -73,7 +74,9 @@ namespace lore::tool::command::batch {
             return llvm::make_error<llvm::StringError>(ec.message(),
                                                        llvm::inconvertibleErrorCode());
         }
-        auto oldContent = buffer->get()->getBuffer();
+        // Copy the original content before reopening the same path for writing.
+        // Otherwise truncation can invalidate the mapped buffer and trigger SIGBUS.
+        std::string oldContent = buffer->get()->getBuffer().str();
 
         std::error_code ec;
         llvm::raw_fd_ostream out(filePath, ec);
@@ -90,18 +93,17 @@ namespace lore::tool::command::batch {
 
     int main(int argc, char *argv[]) {
         static cl::OptionCategory myOptionCat("Lorelei Host Library Rewriter - Batch");
-        static cl::opt<std::string> configOption(
-            "c", cl::desc("Function type configuration file"), cl::value_desc("config file"),
-            cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
-        static cl::opt<std::string> outputDirOption(
-            "o", cl::desc("Output directory of generated files"), cl::Required,
-            cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
+        static cl::opt<std::string> statOption("s", cl::desc("Specify TLC stat JSON file"),
+                                               cl::value_desc("stat json"), cl::cat(myOptionCat),
+                                               cl::Required);
+        static cl::opt<std::string> outputDirOption("o",
+                                                    cl::desc("Output directory of generated files"),
+                                                    cl::Required, cl::cat(myOptionCat));
         static cl::opt<std::string> buildPathOption("p", cl::desc("Build path"), cl::Required,
-                                                    cl::cat(myOptionCat),
-                                                    cl::sub(cl::SubCommand::getAll()));
-        static cl::list<std::string> sourcePathsOption(
-            cl::Positional, cl::desc("<source0> [... <sourceN>]"), cl::OneOrMore,
-            cl::cat(myOptionCat), cl::sub(cl::SubCommand::getAll()));
+                                                    cl::cat(myOptionCat));
+        static cl::list<std::string> sourcePathsOption(cl::Positional,
+                                                       cl::desc("<source0> [... <sourceN>]"),
+                                                       cl::OneOrMore, cl::cat(myOptionCat));
         static cl::extrahelp commonHelp(CommonOptionsParser::HelpMessage);
 
         /// STEP: Parse command line options
@@ -167,8 +169,8 @@ namespace lore::tool::command::batch {
         auto thisExePath = llvm::sys::fs::getMainExecutable(argv[0], (void *) main);
         if (auto err =
                 runSubCommand(thisExePath, "stat", sourcePathList, statResultFile, buildPathOption,
-                              configOption.empty() ? ArrayRef<StringRef>()
-                                                   : ArrayRef<StringRef>({"-c", configOption}));
+                              statOption.empty() ? ArrayRef<StringRef>()
+                                                 : ArrayRef<StringRef>({"-s", statOption}));
             err) {
             llvm::errs() << "Failed to run stat command: " << err << "\n";
             return 1;
@@ -178,6 +180,14 @@ namespace lore::tool::command::batch {
         if (std::string err; !stat.loadFromJson(statResultFile.str().str(), err)) {
             llvm::errs() << "Failed to parse stat result file: " << err << "\n";
             return 1;
+        }
+
+        std::set<std::string> filesNeedPatchNormalized;
+        for (const auto &file : stat.filesNeedPatch) {
+            SmallString<128> normalized = StringRef(file);
+            llvm::sys::fs::make_absolute(initialCwd, normalized);
+            normalized = std::filesystem::path(normalized.str().str()).lexically_normal().string();
+            filesNeedPatchNormalized.insert(normalized.str().str());
         }
 
         /// STEP: Make output directory
@@ -192,11 +202,33 @@ namespace lore::tool::command::batch {
         /// STEP: Call "mark-macros", "preprocess" and "rewrite" on each file
         llvm::errs() << "Running mark-macros/preprocess/rewrite on " << sourcePathList.size()
                      << " files...\n";
+        bool hasAnySourceChange = false;
+        std::string fileContextEntrySource;
         for (size_t i = 0; i < sourcePathList.size(); ++i) {
             const auto &file = sourcePathList[i];
             llvm::errs() << "[" + std::to_string(i + 1) + "/" +
                                 std::to_string(sourcePathList.size()) + "] Processing file " + file
                          << ".\n";
+            SmallString<128> normalizedFile = StringRef(file);
+            llvm::sys::fs::make_absolute(initialCwd, normalizedFile);
+            normalizedFile =
+                std::filesystem::path(normalizedFile.str().str()).lexically_normal().string();
+            if (!filesNeedPatchNormalized.count(normalizedFile.str().str())) {
+                continue;
+            }
+
+            std::string contentBefore;
+            if (auto buffer = llvm::MemoryBuffer::getFile(file)) {
+                contentBefore = buffer.get()->getBuffer().str();
+            } else if (auto ec = buffer.getError()) {
+                llvm::errs() << "Failed to read input file before mark-macros " << file << ": "
+                             << ec.message() << "\n";
+                return 1;
+            } else {
+                llvm::errs() << "Failed to read input file before mark-macros " << file << "\n";
+                return 1;
+            }
+
             if (auto err = runSubCommand(thisExePath, "mark-macros", file, file, buildPathOption,
                                          {"-s", statResultFile});
                 err) {
@@ -215,12 +247,34 @@ namespace lore::tool::command::batch {
                 return 1;
             }
 
+            auto bufferAfter = llvm::MemoryBuffer::getFile(file);
+            if (auto ec = bufferAfter.getError()) {
+                llvm::errs() << "Failed to read output file after rewrite " << file << ": "
+                             << ec.message() << "\n";
+                return 1;
+            }
+
+            if (bufferAfter.get()->getBuffer() == contentBefore) {
+                llvm::errs() << "No source changes were applied by HLR batch for this file.\n";
+                continue;
+            }
+
+            if (fileContextEntrySource.empty()) {
+                fileContextEntrySource = file;
+            }
+            hasAnySourceChange = true;
+
             // Add common header inclusion
             std::string fileToInclude = getRelativeToOutputDir(file) + "/FileContext.h";
             if (auto err = adjustContent(file, "#include \"" + fileToInclude + "\"\n"); err) {
                 llvm::errs() << "Failed to adjust content: " << err << "\n";
                 return 1;
             }
+        }
+
+        if (!hasAnySourceChange) {
+            llvm::errs() << "No source changes were applied by HLR batch.\n";
+            return 0;
         }
 
         /// STEP: Write common header
@@ -232,7 +286,8 @@ namespace lore::tool::command::batch {
                              << ec.message() << "\n";
                 return 1;
             }
-            out << res_FileContext_h_c;
+            out << "#pragma once\n";
+            out << StringRef((const char *) res_FileContext_h_c);
             out << "\n\n";
 
             size_t i = 0;
@@ -298,8 +353,8 @@ namespace lore::tool::command::batch {
 
             i = 0;
             for (const auto &guard : stat.functionDecayGuardStats) {
-                out << "static struct LoreStaticFunctionDecayGuardPair *LoreFileContext_FDG_Proc_" << i + 1
-                    << "_instances[] = {\n";
+                out << "static struct LoreStaticFunctionDecayGuardPair *LoreFileContext_FDG_Proc_"
+                    << i + 1 << "_instances[] = {\n";
                 size_t j = 0;
                 for (const auto &_ : guard.second.locations) {
                     out << "    &LoreFileContext_FDG_Proc_" << i + 1 << "_" << j + 1 << ",\n";
@@ -336,15 +391,15 @@ namespace lore::tool::command::batch {
         /// STEP: Append single source inclusion to the first source file
         {
             std::error_code ec;
-            llvm::raw_fd_ostream out(sourcePathList[0], ec, llvm::sys::fs::OF_Append);
+            llvm::raw_fd_ostream out(fileContextEntrySource, ec, llvm::sys::fs::OF_Append);
             if (ec) {
                 llvm::errs() << "Failed to append single source inclusion to the first source file "
-                             << sourcePathList[0] << ": " << ec.message() << "\n";
+                             << fileContextEntrySource << ": " << ec.message() << "\n";
                 return 1;
             }
 
             std::string fileToInclude =
-                getRelativeToOutputDir(sourcePathList[0]) + "/FileContext.c";
+                getRelativeToOutputDir(fileContextEntrySource) + "/FileContext.c";
             out << "\n";
             out << "#include \"" << fileToInclude << "\"\n";
         }

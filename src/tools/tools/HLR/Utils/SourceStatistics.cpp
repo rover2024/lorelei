@@ -27,6 +27,15 @@ namespace lore::tool::HLR {
 
         std::set<std::string> callbackCheckGuardSignatures;
         std::map<std::string, FunctionDecayGuardData> functionDecayGuardStats;
+        std::set<std::string> filesNeedPatch;
+
+        if (auto files = obj->getArray("filesNeedPatch")) {
+            for (auto &file : *files) {
+                if (auto str = file.getAsString()) {
+                    filesNeedPatch.insert(str->str());
+                }
+            }
+        }
 
         auto CCGs = obj->getArray("callbackCheckGuardSignatures");
         if (CCGs) {
@@ -67,11 +76,18 @@ namespace lore::tool::HLR {
 
         this->callbackCheckGuardSignatures = std::move(callbackCheckGuardSignatures);
         this->functionDecayGuardStats = std::move(functionDecayGuardStats);
+        this->filesNeedPatch = std::move(filesNeedPatch);
         return true;
     }
 
     bool SourceStatistics::saveAsJson(const std::string &filePath, std::string &errorMessage) {
         llvm::json::Object root;
+
+        llvm::json::Array filesNeedPatchArray;
+        for (const auto &file : filesNeedPatch) {
+            filesNeedPatchArray.push_back(file);
+        }
+        root["filesNeedPatch"] = std::move(filesNeedPatchArray);
 
         llvm::json::Array callbackGuardsArray;
         for (const auto &signature : callbackCheckGuardSignatures) {
