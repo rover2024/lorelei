@@ -74,49 +74,50 @@ macro(add_thunk)
     endif()
 
     # Add TLC generate target (Guest)
-    if(LORE_BUILD_GUEST_TARGETS)
-        if(NOT LORE_TLC_NO_RUN)
-            set(_extra_args)
-            set(_options)
+    if(NOT LORE_TLC_NO_RUN)
+        set(_extra_args)
+        set(_options)
 
-            # Add extra arguments
-            if(ALL_extra_args)
-                list(APPEND _extra_args ${ALL_extra_args})
-            endif()
-
-            if(ALL_extra_includes)
-                foreach(_item IN LISTS ALL_extra_includes)
-                    list(APPEND _extra_args -I${_item})
-                endforeach()
-            endif()
-
-            if(GTL_extra_args)
-                list(APPEND _extra_args ${GTL_extra_args})
-            endif()
-
-            if(GTL_extra_includes)
-                foreach(_item IN LISTS GTL_extra_includes)
-                    list(APPEND _extra_args -I${_item})
-                endforeach()
-            endif()
-
-            if(LORE_TLC_EXTRA_ARGS)
-                list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
-            endif()
-
-            # Add plugin
-            if(PLUGIN_target)
-                list(APPEND _options PLUGINS $<TARGET_FILE:${PLUGIN_target}>)
-            endif()
-
-            # Add target
-            _tlc_generate(${GTL} ${_manifest_guest_file} ${GTL_src} ${_stat_file} GUEST
-                EXTRA_ARGS ${_extra_args}
-                DEPENDS ${_manifest_guest_file} ${_stat_file}
-                ${_options}
-            )
+        # Add extra arguments
+        if(ALL_extra_args)
+            list(APPEND _extra_args ${ALL_extra_args})
         endif()
 
+        if(ALL_extra_includes)
+            foreach(_item IN LISTS ALL_extra_includes)
+                list(APPEND _extra_args -I${_item})
+            endforeach()
+        endif()
+
+        if(GTL_extra_args)
+            list(APPEND _extra_args ${GTL_extra_args})
+        endif()
+
+        if(GTL_extra_includes)
+            foreach(_item IN LISTS GTL_extra_includes)
+                list(APPEND _extra_args -I${_item})
+            endforeach()
+        endif()
+
+        if(LORE_TLC_EXTRA_ARGS)
+            list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
+        endif()
+
+        # Add plugin
+        if(PLUGIN_target)
+            list(APPEND _options PLUGINS $<TARGET_FILE:${PLUGIN_target}>)
+        endif()
+
+        # Add target
+        _tlc_generate(${GTL} ${_manifest_guest_file} ${GTL_src} ${_stat_file} GUEST
+            EXTRA_ARGS ${_extra_args}
+            DEPENDS ${_manifest_guest_file} ${_stat_file}
+            ${_options}
+        )
+    endif()
+
+    # Build guest thunk target (Guest)
+    if(LORE_BUILD_GUEST_TARGETS)
         set(_alias_options)
 
         if(GTL_alias)
@@ -157,49 +158,50 @@ macro(add_thunk)
     endif()
 
     # Add TLC generate target (Host)
-    if(TRUE)
-        if(NOT LORE_TLC_NO_RUN)
-            set(_extra_args)
-            set(_options)
+    if(NOT LORE_TLC_NO_RUN)
+        set(_extra_args)
+        set(_options)
 
-            # Add extra arguments
-            if(ALL_extra_args)
-                list(APPEND _extra_args ${ALL_extra_args})
-            endif()
-
-            if(ALL_extra_includes)
-                foreach(_item IN LISTS ALL_extra_includes)
-                    list(APPEND _extra_args -I${_item})
-                endforeach()
-            endif()
-
-            if(HTL_extra_args)
-                list(APPEND _extra_args ${HTL_extra_args})
-            endif()
-
-            if(HTL_extra_includes)
-                foreach(_item IN LISTS HTL_extra_includes)
-                    list(APPEND _extra_args -I${_item})
-                endforeach()
-            endif()
-
-            if(LORE_TLC_EXTRA_ARGS)
-                list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
-            endif()
-
-            # Add plugin
-            if(PLUGIN_target)
-                list(APPEND _options PLUGINS $<TARGET_FILE:${PLUGIN_target}>)
-            endif()
-
-            # Add target
-            _tlc_generate(${HTL} ${_manifest_host_file} ${HTL_src} ${_stat_file} HOST
-                EXTRA_ARGS ${_extra_args}
-                DEPENDS ${_manifest_host_file} ${_stat_file} ${_too}
-                ${_options}
-            )
+        # Add extra arguments
+        if(ALL_extra_args)
+            list(APPEND _extra_args ${ALL_extra_args})
         endif()
 
+        if(ALL_extra_includes)
+            foreach(_item IN LISTS ALL_extra_includes)
+                list(APPEND _extra_args -I${_item})
+            endforeach()
+        endif()
+
+        if(HTL_extra_args)
+            list(APPEND _extra_args ${HTL_extra_args})
+        endif()
+
+        if(HTL_extra_includes)
+            foreach(_item IN LISTS HTL_extra_includes)
+                list(APPEND _extra_args -I${_item})
+            endforeach()
+        endif()
+
+        if(LORE_TLC_EXTRA_ARGS)
+            list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
+        endif()
+
+        # Add plugin
+        if(PLUGIN_target)
+            list(APPEND _options PLUGINS $<TARGET_FILE:${PLUGIN_target}>)
+        endif()
+
+        # Add target
+        _tlc_generate(${HTL} ${_manifest_host_file} ${HTL_src} ${_stat_file} HOST
+            EXTRA_ARGS ${_extra_args}
+            DEPENDS ${_manifest_host_file} ${_stat_file} ${_too}
+            ${_options}
+        )
+    endif()
+
+    # Build host thunk target (Host)
+    if(TRUE)
         set(_alias_options)
 
         if(HTL_alias)

@@ -17,3 +17,7 @@ struct RegState {
     uintptr_t ra;
     uintptr_t pc; // not used
 };
+
+uintptr_t RegStateGetSP(const struct RegState *reg) {
+    return reg->sp;
+}

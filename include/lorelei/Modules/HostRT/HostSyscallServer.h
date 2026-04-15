@@ -41,8 +41,9 @@ namespace lore::mod {
             return Invocation::reenter(ra);
         }
 
-        static HostSyscallServer *self;
         std::unique_ptr<ThunkInfoConfig> m_thunkConfig;
+
+        static HostSyscallServer *self;
 
         friend class IServer<HostSyscallServer>;
     };

@@ -146,7 +146,7 @@ namespace lore::mod {
 #else
         auto stack = thread_ctx.invocationCount == 0
                          ? (uintptr_t) thread_ctx.stackTop
-                         : (thread_ctx.lastInvocation().hostState->rsp & ~0xFULL);
+                         : (RegStateGetSP(thread_ctx.lastInvocation().hostState) & ~0xFULL);
         return coroutine_start(const_cast<InvocationArguments *>(ia), ra_ptr,
                                HostExecContext::invocationEntry, (void *) stack,
                                &thread_ctx.mainHostState);
