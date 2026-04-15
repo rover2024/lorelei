@@ -25,15 +25,14 @@ extern void qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
 extern void qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
                                                      qemu_plugin_vcpu_syscall_ret_cb_t cb);
 
-/// @brief QEMU plugin version
+/// QEMU 11.0, plugin version 6
 LORE_DECL_EXPORT int qemu_plugin_version = 6;
 
-/// @brief QEMU plugin register entry
 LORE_DECL_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info, int argc,
                                          char **argv);
 }
 
-namespace plugin {
+namespace {
 
     static bool vcpu_syscall_filter(qemu_plugin_id_t id, unsigned int vcpu_index, int64_t num,
                                     uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5,
@@ -54,10 +53,10 @@ namespace plugin {
 }
 
 int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info, int argc, char **argv) {
-    /// @brief Set the emu address to one of QEMU functions
+    /// Set the emu address to one of QEMU functions
     lore::mod::HostSyscallServer::emuAddr = (void *) qemu_plugin_register_vcpu_syscall_filter_cb;
 
-    qemu_plugin_register_vcpu_syscall_filter_cb(id, plugin::vcpu_syscall_filter);
-    qemu_plugin_register_vcpu_syscall_ret_cb(id, plugin::vcpu_syscall_ret);
+    qemu_plugin_register_vcpu_syscall_filter_cb(id, vcpu_syscall_filter);
+    qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret);
     return 0;
 }

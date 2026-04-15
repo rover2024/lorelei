@@ -1,6 +1,7 @@
 #include "Invocation.h"
 
 #include <pthread.h>
+#include <dlfcn.h>
 
 #include <memory>
 #include <cstddef>
@@ -10,6 +11,8 @@
 #include <lorelei/Base/PassThrough/Core/IClient.h>
 #include <lorelei/Base/PassThrough/Core/SyscallPassThrough.h>
 #include <lorelei/Base/PassThrough/ThunkTools/VariadicAdaptor.h>
+
+// #define LORE_USE_EMU_TASK_ENTRY
 
 extern "C" {
 
@@ -138,12 +141,16 @@ namespace lore::mod {
     HostExecContext::~HostExecContext() = default;
 
     int64_t Invocation::invoke(const InvocationArguments *ia, ReentryArguments **ra_ptr) {
+#ifdef LORE_USE_EMU_TASK_ENTRY
+        return HostExecContext::invocationEntry(const_cast<InvocationArguments *>(ia), ra_ptr);
+#else
         auto stack = thread_ctx.invocationCount == 0
                          ? (uintptr_t) thread_ctx.stackTop
                          : (thread_ctx.lastInvocation().hostState->rsp & ~0xFULL);
         return coroutine_start(const_cast<InvocationArguments *>(ia), ra_ptr,
                                HostExecContext::invocationEntry, (void *) stack,
                                &thread_ctx.mainHostState);
+#endif
     }
 
     int64_t Invocation::resume() {
@@ -157,7 +164,19 @@ namespace lore::mod {
         assert(thread_ctx.invocationCount > 0);
         auto &last = thread_ctx.lastInvocation();
         *last.ra_ptr = ra;
+
+#ifdef LORE_USE_EMU_TASK_ENTRY
+        static auto entry = []() {
+            auto entry = dlsym(nullptr, "lorelei_run_task_entry");
+            if (!entry) {
+                abort();
+            }
+            return (void (*)(void)) entry;
+        }();
+        entry();
+#else
         std::ignore = coroutine_switch(last.hostState, &thread_ctx.mainHostState, 1);
+#endif
     }
 
     int64_t HostExecContext::invocationEntry(void *arg1, void *arg2) {

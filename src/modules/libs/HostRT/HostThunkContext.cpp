@@ -13,9 +13,44 @@
 
 #include "HostSyscallServer.h"
 
+// #define LORE_HOOK_PTHREAD
+
 namespace lore {
 
     extern thread_local void *thread_last_callback;
+
+#ifdef LORE_HOOK_PTHREAD
+    struct LORE_HOST_THREAD_CONTEXT {
+        const pthread_attr_t *last_attr;
+        pthread_t last_tid;
+    };
+
+    int hooked_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                              void *(*start_routine)(void *), void *arg) {
+        static auto entry = []() {
+            auto entry = dlsym(nullptr, "lorelei_get_thread_context");
+            if (!entry) {
+                abort();
+            }
+            return (LORE_HOST_THREAD_CONTEXT * (*) (void) ) entry;
+        }();
+
+        auto &thread_ctx = *entry();
+        thread_ctx.last_attr = attr;
+
+        int ret = mod::HostSyscallServer::reenterThreadCreate(
+            thread, const_cast<pthread_attr_t *>(attr), reinterpret_cast<void *>(start_routine),
+            arg);
+
+        *thread = thread_ctx.last_tid;
+        return ret;
+    }
+
+    void hooked_pthread_exit(void *ret) {
+        mod::HostSyscallServer::reenterThreadExit(ret);
+        __builtin_unreachable();
+    }
+#endif
 
 }
 
@@ -40,6 +75,13 @@ namespace lore::mod {
         };
 
         using PFN_GetFileContext = LoreFileContext *(*) ();
+
+#ifdef LORE_HOOK_PTHREAD
+        static LoreRuntimeContext g_runtimeContext = {
+            (void *) hooked_pthread_create,
+            (void *) hooked_pthread_exit,
+        };
+#endif
 
         static const char *pathGetName(const char *path) {
             const char *slashPos = std::strrchr(path, '/');
@@ -158,6 +200,10 @@ namespace lore::mod {
             fileCtx->runtimeContext->pthread_create = nullptr;
             fileCtx->runtimeContext->pthread_exit = nullptr;
         }
+
+#ifdef LORE_HOOK_PTHREAD
+        fileCtx->runtimeContext = &g_runtimeContext;
+#endif
 
         std::map<std::string, void *> hostToGuestCallbackThunkBySignature;
         {

@@ -36,6 +36,8 @@ namespace lore::mod {
 
     protected:
         static inline void reenter_impl(ReentryArguments *ra) {
+            // FIXME: Maybe host and guest have different pthread_attr_t layout, should we thunk the
+            // ThreadCreate attr and do some conversions?
             return Invocation::reenter(ra);
         }
 

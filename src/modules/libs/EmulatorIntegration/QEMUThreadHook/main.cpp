@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include <lorelei/Base/Support/StringExtras.h>
+#include <lorelei/Base/PassThrough/Core/SyscallPassThrough.h>
 #include <lorelei/Modules/HostRT/HostSyscallServer.h>
 
 // This module is loaded by setting LD_PRELOAD when QEMU starts.
@@ -19,8 +20,8 @@ namespace {
     struct ThreadContext {
         bool in_hook = false;
         bool pending_host_thread_create = false;
-        bool pending_host_attr_valid = false;
-        bool pending_host_attr_detached = false;
+        pthread_t *pending_host_thread = nullptr;
+        const pthread_attr_t *pending_host_attr = nullptr;
     };
 
     static thread_local ThreadContext thread_ctx = {};
@@ -47,6 +48,10 @@ namespace {
         return fn;
     }
 
+    static inline bool is_pass_through() {
+        return lore::mod::HostSyscallServer::curSyscallNum == lore::SyscallPathThroughNumber;
+    }
+
     static inline bool is_qemu_thread_create() {
         // QEMU uses pthread_create when handling clone syscalls
         return lore::mod::HostSyscallServer::curSyscallNum == 56;
@@ -57,57 +62,76 @@ namespace {
         return lore::mod::HostSyscallServer::curSyscallNum == 60;
     }
 
+#ifdef LORE_ENABLE_ASAN
+    static inline bool is_asan_wrapped_start_routine(void *(*start_routine)(void *) ) {
+        if (!start_routine) {
+            return false;
+        }
+        Dl_info info = {};
+        if (dladdr(reinterpret_cast<void *>(start_routine), &info) == 0) {
+            return false;
+        }
+        if (!info.dli_fname) {
+            return false;
+        }
+        return std::strstr(info.dli_fname, "libasan.so") != nullptr;
+    }
+#endif
+
 }
 
 extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                                                void *(*start_routine)(void *), void *arg) {
     auto real_pthread_create = resolve_real_pthread_create();
 
-    if (thread_ctx.in_hook) {
-        return real_pthread_create(thread, attr, start_routine, arg);
-    }
-
     if (is_qemu_thread_create()) {
+        /*
+         * QEMU uses pthread_create when handling clone syscalls, and attr is always not NULL.
+         */
+        if (!attr) {
+            abort();
+        }
+
         /*
          * - default guest-origin create: keep QEMU's detached attr.
          * - host-origin reentered create: obey host detach intent.
          */
         if (thread_ctx.pending_host_thread_create) {
-            const bool host_wants_detached =
-                thread_ctx.pending_host_attr_valid && thread_ctx.pending_host_attr_detached;
-            thread_ctx.pending_host_thread_create = false;
-            thread_ctx.pending_host_attr_valid = false;
-            thread_ctx.pending_host_attr_detached = false;
-
-            if (!host_wants_detached) {
-                if (attr) {
-                    pthread_attr_t *mutable_attr = const_cast<pthread_attr_t *>(attr);
-                    int old_state = PTHREAD_CREATE_JOINABLE;
-                    if (pthread_attr_getdetachstate(mutable_attr, &old_state) == 0 &&
-                        old_state == PTHREAD_CREATE_DETACHED &&
-                        pthread_attr_setdetachstate(mutable_attr, PTHREAD_CREATE_JOINABLE) == 0) {
-                        int ret = real_pthread_create(thread, mutable_attr, start_routine, arg);
-                        (void) pthread_attr_setdetachstate(mutable_attr, old_state);
-                        return ret;
-                    }
-                } else {
-                    pthread_attr_t tmp_attr;
-                    if (pthread_attr_init(&tmp_attr) == 0) {
-                        if (pthread_attr_setdetachstate(&tmp_attr, PTHREAD_CREATE_JOINABLE) == 0) {
-                            int ret = real_pthread_create(thread, &tmp_attr, start_routine, arg);
-                            pthread_attr_destroy(&tmp_attr);
-                            return ret;
-                        }
-                        pthread_attr_destroy(&tmp_attr);
-                    }
+            if (thread_ctx.pending_host_attr) {
+                // If host attr is not NULL, obey host detach intent.
+                int state;
+                pthread_attr_getdetachstate(thread_ctx.pending_host_attr, &state);
+                if (state == PTHREAD_CREATE_JOINABLE) {
+                    std::ignore = pthread_attr_setdetachstate(const_cast<pthread_attr_t *>(attr),
+                                                              PTHREAD_CREATE_JOINABLE);
                 }
+            } else {
+                // If attr is NULL, the default intent is joinable.
+                std::ignore = pthread_attr_setdetachstate(const_cast<pthread_attr_t *>(attr),
+                                                          PTHREAD_CREATE_JOINABLE);
             }
+
+            int ret = real_pthread_create(thread, attr, start_routine, arg);
+            *thread_ctx.pending_host_thread = *thread;
+            return ret;
         }
         return real_pthread_create(thread, attr, start_routine, arg);
     }
 
-    if (!lore::mod::HostSyscallServer::emuAddr) {
-        // not initialized yet
+    if (thread_ctx.in_hook) {
+        return real_pthread_create(thread, attr, start_routine, arg);
+    }
+
+#ifdef LORE_ENABLE_ASAN
+    if (is_asan_wrapped_start_routine(start_routine)) {
+        // ASAN's pthread interceptor passes an internal wrapper entrypoint.
+        // Reentering this path would forward that wrapper into HostRT
+        // CC_ThreadEntry and trigger ASAN thread-state assertions.
+        return real_pthread_create(thread, attr, start_routine, arg);
+    }
+#endif
+
+    if (!is_pass_through()) {
         return real_pthread_create(thread, attr, start_routine, arg);
     }
 
@@ -117,21 +141,15 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
      */
     thread_ctx.in_hook = true;
     thread_ctx.pending_host_thread_create = true;
-    thread_ctx.pending_host_attr_valid = false;
-    thread_ctx.pending_host_attr_detached = false;
-    if (attr) {
-        int detach_state = PTHREAD_CREATE_JOINABLE;
-        if (pthread_attr_getdetachstate(attr, &detach_state) == 0) {
-            thread_ctx.pending_host_attr_valid = true;
-            thread_ctx.pending_host_attr_detached = (detach_state == PTHREAD_CREATE_DETACHED);
-        }
-    }
+    thread_ctx.pending_host_thread = thread;
+    thread_ctx.pending_host_attr = attr;
 
     int ret = lore::mod::HostSyscallServer::reenterThreadCreate(
         thread, const_cast<pthread_attr_t *>(attr), reinterpret_cast<void *>(start_routine), arg);
+
     thread_ctx.pending_host_thread_create = false;
-    thread_ctx.pending_host_attr_valid = false;
-    thread_ctx.pending_host_attr_detached = false;
+    thread_ctx.pending_host_thread = nullptr;
+    thread_ctx.pending_host_attr = nullptr;
     thread_ctx.in_hook = false;
     return ret;
 }
@@ -139,19 +157,19 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
 extern "C" LORE_DECL_EXPORT void pthread_exit(void *ret) {
     auto real_pthread_exit = resolve_real_pthread_exit();
 
-    if (thread_ctx.in_hook) {
-        real_pthread_exit(ret);
-        __builtin_unreachable();
-    }
-
     if (is_qemu_thread_exit()) {
         real_pthread_exit(ret);
         __builtin_unreachable();
     }
 
-    if (!lore::mod::HostSyscallServer::emuAddr) {
-        // not initialized yet
+    if (thread_ctx.in_hook) {
         real_pthread_exit(ret);
+        __builtin_unreachable();
+    }
+
+    if (!is_pass_through()) {
+        real_pthread_exit(ret);
+        __builtin_unreachable();
     }
 
     thread_ctx.in_hook = true;
