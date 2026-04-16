@@ -159,11 +159,12 @@ The `QEMUThreadHook` library will intercept all thread creation requested by hos
 The `QEMUPlugin` library will filter Lorelei magic system calls and forward the host-calls from guest thunk libraries to the host libraries.
 
 ```bash
-LORELEI_GUEST_ROOT=$INSTALL_DIR/lorelei-x86_64 \
+export LORELEI_GUEST_ROOT=$INSTALL_DIR/lorelei-x86_64
+
 LD_PRELOAD=$INSTALL_DIR/lorelei/lib/libLoreQEMUThreadHook.so \
 LD_LIBRARY_PATH=$INSTALL_DIR/lorelei/lib:/lorelei/lib/aarch64-LoreHTL \
     qemu-x86_64 -U LD_PRELOAD \
-    -E LD_LIBRARY_PATH=$INSTALL_DIR/lorelei-x86_64/lib/x86_64-LoreGTL \
+    -E LD_LIBRARY_PATH=$LORELEI_GUEST_ROOT/lib:$LORELEI_GUEST_ROOT/lib/x86_64-LoreGTL \
     -plugin $INSTALL_DIR/lorelei/lib/libLoreQEMUPlugin.so \
     <program> <args...>
 ```
