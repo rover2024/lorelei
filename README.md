@@ -58,14 +58,14 @@ cd $REPOS_DIR
 git clone https://github.com/rover2024/lorelei.git
 cd lorelei
 
-cmake -B build -G ninja \
+cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/lorelei \
     -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
     -DLORE_BUILD_GUEST_TARGETS=TRUE \
     -DLORE_BUILD_THUNKS=TRUE \
     -DLORE_BUILD_TOOLS=TRUE \
-    -DLORE_VULKAN_INCLUDE_DIR=$REPOS_DIR/Vulkan-Headers/include
+    -DLORE_VULKAN_INCLUDE_DIR=$REPOS_DIR/Vulkan-Headers/include \
     "-DLORE_SDL2_INCLUDE_DIR=$INSTALL_DIR/SDL/include;$INSTALL_DIR/SDL/include/SDL2"
 cmake --build build --target all
 cmake --build build --target install
@@ -162,7 +162,7 @@ The `QEMUPlugin` library will filter Lorelei magic system calls and forward the 
 export LORELEI_GUEST_ROOT=$INSTALL_DIR/lorelei-x86_64
 
 LD_PRELOAD=$INSTALL_DIR/lorelei/lib/libLoreQEMUThreadHook.so \
-LD_LIBRARY_PATH=$INSTALL_DIR/lorelei/lib:/lorelei/lib/aarch64-LoreHTL \
+LD_LIBRARY_PATH=$INSTALL_DIR/lorelei/lib:$INSTALL_DIR/lorelei/lib/aarch64-LoreHTL \
     qemu-x86_64 -U LD_PRELOAD \
     -E LD_LIBRARY_PATH=$LORELEI_GUEST_ROOT/lib:$LORELEI_GUEST_ROOT/lib/x86_64-LoreGTL \
     -plugin $INSTALL_DIR/lorelei/lib/libLoreQEMUPlugin.so \
