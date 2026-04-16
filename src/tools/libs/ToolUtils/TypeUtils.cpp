@@ -22,8 +22,12 @@ namespace lore::tool {
 
     std::string getTypeString(const clang::QualType &T) {
         auto res = T.getAsString();
+        // x86_64 va_list
         res = str::replace(res, "struct __va_list_tag[1]", "va_list");
         res = str::replace(res, "struct __va_list_tag *", "va_list");
+        // arm64 va_list
+        res = str::replace(res, "struct std::__va_list", "va_list");
+        res = str::replace(res, "struct __va_list", "va_list");
         return res;
     }
 

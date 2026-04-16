@@ -103,6 +103,9 @@ macro(add_thunk)
             list(APPEND _extra_args ${LORE_TLC_EXTRA_ARGS})
         endif()
 
+        # Specify guest triplet
+        list(APPEND _extra_args -target x86_64-pc-linux-gnu)
+
         # Add plugin
         if(PLUGIN_target)
             list(APPEND _options PLUGINS $<TARGET_FILE:${PLUGIN_target}>)
@@ -247,7 +250,6 @@ function(_tlc_stat _name _input_file _out_file _config_file)
     set(multiValueArgs EXTRA_ARGS DEPENDS)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    set(_tool $<TARGET_FILE:LoreTLC>)
     set(_args)
     list(APPEND _args -o ${_out_file} -c ${_config_file})
 
@@ -265,8 +267,8 @@ function(_tlc_stat _name _input_file _out_file _config_file)
     file(MAKE_DIRECTORY ${_dir})
 
     add_custom_command(OUTPUT ${_out_file}
-        COMMAND ${_tool} "stat" ${_args}
-        DEPENDS ${_tool} ${_input_file} ${_config_file} ${FUNC_DEPENDS}
+        COMMAND ${LORE_TLC_EXECUTABLE} "stat" ${_args}
+        DEPENDS ${LORE_TLC_EXECUTABLE} ${_input_file} ${_config_file} ${FUNC_DEPENDS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -283,7 +285,6 @@ function(_tlc_generate _name _input_file _out_file _input_stat_file)
     set(multiValueArgs PLUGINS EXTRA_ARGS DEPENDS)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    set(_tool $<TARGET_FILE:LoreTLC>)
     set(_args)
     list(APPEND _args -o ${_out_file} -s ${_input_stat_file})
 
@@ -314,8 +315,8 @@ function(_tlc_generate _name _input_file _out_file _input_stat_file)
     file(MAKE_DIRECTORY ${_dir})
 
     add_custom_command(OUTPUT ${_out_file}
-        COMMAND ${_tool} "generate" ${_args}
-        DEPENDS ${_tool} ${_input_file} ${_input_stat_file} ${FUNC_DEPENDS}
+        COMMAND ${LORE_TLC_EXECUTABLE} "generate" ${_args}
+        DEPENDS ${LORE_TLC_EXECUTABLE} ${_input_file} ${_input_stat_file} ${FUNC_DEPENDS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

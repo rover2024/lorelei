@@ -40,6 +40,14 @@
                 "libGLX",
                 "libGL"
             ]
+        },
+        {
+            "name": "libGLX_nvidia",
+            "fileName": "libGLX_nvidia.so.0",
+            "thunks": [
+                "libGLX",
+                "libGL"
+            ]
         }
     ]
 }

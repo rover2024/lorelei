@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stddef.h>
 
 struct RegState {
     uintptr_t x19;
@@ -12,8 +13,8 @@ struct RegState {
     uintptr_t x27;
     uintptr_t x28;
     uintptr_t x29;
-    uintptr_t sp;
     uintptr_t lr;
+    uintptr_t sp;
     uintptr_t pc; // not used
 };
 

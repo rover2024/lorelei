@@ -2,14 +2,21 @@
 set(LORE_GUEST_ARCH "x86_64")
 set(LORE_GUEST_FIXED_REGISTER "r11")
 
+execute_process(
+    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+    OUTPUT_VARIABLE _target_triplet
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REGEX MATCH "^[^-]+" _target_arch "${_target_triplet}")
+
 if(NOT LORE_HOST_ARCH)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
+    if(_target_arch MATCHES "x86_64|amd64")
         set(LORE_HOST_ARCH "x86_64")
         set(LORE_HOST_FIXED_REGISTER "r11")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    elseif(_target_arch MATCHES "aarch64|arm64")
         set(LORE_HOST_ARCH "aarch64")
         set(LORE_HOST_FIXED_REGISTER "x16")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
+    elseif(_target_arch MATCHES "riscv64")
         set(LORE_HOST_ARCH "riscv64")
         set(LORE_HOST_FIXED_REGISTER "t1")
     endif()

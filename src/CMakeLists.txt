@@ -4,11 +4,21 @@ lore_init_buildsystem()
 
 # Project variables
 if(NOT DEFINED LORE_THUNK_DATA_DIR)
+    set(LORE_THUNK_DATA_DIR_USER_DEFINED FALSE)
     set(LORE_THUNK_DATA_DIR ${LORE_BUILD_SHARE_DIR}/lorelei/thunks)
+else()
+    set(LORE_THUNK_DATA_DIR_USER_DEFINED TRUE)
 endif()
 
 if(NOT DEFINED LORE_THUNK_SOURCE_DIR)
+    set(LORE_THUNK_SOURCE_DIR_USER_DEFINED FALSE)
     set(LORE_THUNK_SOURCE_DIR ${LORE_BUILD_BASE_DIR}/src/thunks)
+else()
+    set(LORE_THUNK_SOURCE_DIR_USER_DEFINED TRUE)
+endif()
+
+if (NOT DEFINED LORE_TLC_EXECUTABLE)
+    set(LORE_TLC_EXECUTABLE $<TARGET_FILE:LoreTLC>)
 endif()
 
 # Target for generating all thunks
@@ -33,13 +43,17 @@ if(LORE_INSTALL)
     # Install shared files
     include("${LORE_SOURCE_DIR}/share/install.cmake")
 
-    install(DIRECTORY ${LORE_THUNK_DATA_DIR}/
-        DESTINATION ${LORE_INSTALL_DATA_DIR}/thunks
-    )
+    if(NOT LORE_THUNK_DATA_DIR_USER_DEFINED)
+        install(DIRECTORY ${LORE_THUNK_DATA_DIR}/
+            DESTINATION ${LORE_INSTALL_DATA_DIR}/thunks
+        )
+    endif()
 
-    install(DIRECTORY ${LORE_THUNK_SOURCE_DIR}/
-        DESTINATION src/thunks
-    )
+    if(NOT LORE_THUNK_SOURCE_DIR_USER_DEFINED)
+        install(DIRECTORY ${LORE_THUNK_SOURCE_DIR}/
+            DESTINATION src/thunks
+        )
+    endif()
 endif()
 
 lore_finish_buildsystem()
