@@ -5,13 +5,16 @@
 #include "a.h"
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: %s <algo> <times>\n", argv[0]);
+    if (argc < 4) {
+        printf("Usage: %s <algo> <times> <lib_times>\n", argv[0]);
         return 0;
     }
 
     char *algo = argv[1];
     int times = atoi(argv[2]);
+    int lib_times = atoi(argv[3]);
+
+    set_times(lib_times);
 
     double res = 0;
     if (strcmp("sqrt", algo) == 0) {

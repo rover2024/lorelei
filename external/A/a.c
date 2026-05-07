@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdint.h>
 
+static int m_times = 1;
+
 static inline void qemu_magic_ud2(uint32_t op, uint32_t tag) {
     register uint32_t eax __asm__("eax") = op;
     register uint32_t ebx __asm__("ebx") = tag;
@@ -15,29 +17,57 @@ static inline void qemu_magic_ud2(uint32_t op, uint32_t tag) {
 }
 
 double sqrt_A(double x) {
-    return sqrt(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = sqrt(i);
+    }
+    return res;
 }
 
 double exp_A(double x) {
-    return exp(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = exp(i);
+    }
+    return res;
 }
 
 double log_A(double x) {
-    return log(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = log(i);
+    }
+    return res;
 }
 
 double cos_A(double x) {
-    return cos(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = cos(i);
+    }
+    return res;
 }
 
 double sin_A(double x) {
-    return sin(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = sin(i);
+    }
+    return res;
 }
 
 double tan_A(double x) {
-    return tan(x);
+    volatile double res;
+    for (int i = 0; i < m_times; i++) {
+        res = tan(i);
+    }
+    return res;
 }
 
 void consume(double x) {
     (void)x;
+}
+
+void set_times(int times) {
+    m_times = times;
 }

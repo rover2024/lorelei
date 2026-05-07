@@ -13,6 +13,8 @@ double tan_A(double x);
 
 void consume(double x);
 
+void set_times(int times);
+
 #ifdef __cplusplus
 }
 #endif
