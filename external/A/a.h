@@ -5,11 +5,11 @@ extern "C" {
 #endif
 
 double sqrt_A(double x);
-double exp_A(double x);
-double log_A(double x);
-double cos_A(double x);
-double sin_A(double x);
-double tan_A(double x);
+double exp_A(double x, double y);
+double log_A(double x, double y, double z);
+double cos_A(double x, double y, double z, double w);
+double sin_A(double x, double y, double z, double w, double v);
+double tan_A(double x, double y, double z, double w, double v, double u);
 
 void consume(double x);
 

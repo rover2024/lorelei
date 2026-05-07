@@ -24,7 +24,7 @@ double sqrt_A(double x) {
     return res;
 }
 
-double exp_A(double x) {
+double exp_A(double x, double y) {
     volatile double res;
     for (int i = 0; i < m_times; i++) {
         res = exp(i);
@@ -32,7 +32,7 @@ double exp_A(double x) {
     return res;
 }
 
-double log_A(double x) {
+double log_A(double x, double y, double z) {
     volatile double res;
     for (int i = 0; i < m_times; i++) {
         res = log(i);
@@ -40,7 +40,7 @@ double log_A(double x) {
     return res;
 }
 
-double cos_A(double x) {
+double cos_A(double x, double y, double z, double w) {
     volatile double res;
     for (int i = 0; i < m_times; i++) {
         res = cos(i);
@@ -48,7 +48,7 @@ double cos_A(double x) {
     return res;
 }
 
-double sin_A(double x) {
+double sin_A(double x, double y, double z, double w, double v) {
     volatile double res;
     for (int i = 0; i < m_times; i++) {
         res = sin(i);
@@ -56,7 +56,7 @@ double sin_A(double x) {
     return res;
 }
 
-double tan_A(double x) {
+double tan_A(double x, double y, double z, double w, double v, double u) {
     volatile double res;
     for (int i = 0; i < m_times; i++) {
         res = tan(i);

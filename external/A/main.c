@@ -24,27 +24,27 @@ int main(int argc, char *argv[]) {
         }
     } else if (strcmp("exp", algo) == 0) {
         for (int i = 0; i < times; i++) {
-            res = exp_A((i + 1) % 20);
+            res = exp_A((i + 1) % 20, 0);
             consume(res);
         }
     } else if (strcmp("log", algo) == 0) {
         for (int i = 0; i < times; i++) {
-            res = log_A(i + 1);
+            res = log_A(i + 1, 0, 0);
             consume(res);
         }
     } else if (strcmp("cos", algo) == 0) {
         for (int i = 0; i < times; i++) {
-            res = cos_A(i + 1);
+            res = cos_A(i + 1, 0, 0, 0);
             consume(res);
         }
     } else if (strcmp("sin", algo) == 0) {
         for (int i = 0; i < times; i++) {
-            res = sin_A(i + 1);
+            res = sin_A(i + 1, 0, 0, 0, 0);
             consume(res);
         }
     } else if (strcmp("tan", algo) == 0) {
         for (int i = 0; i < times; i++) {
-            res = tan_A(i + 1);
+            res = tan_A(i + 1, 0, 0, 0, 0, 0);
             consume(res);
         }
     } else {
