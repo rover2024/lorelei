@@ -12,6 +12,8 @@
 #include <lorelei/Base/PassThrough/Core/IServer.h>
 #include <lorelei/Base/PassThrough/ThunkTools/VariadicAdaptor.h>
 
+#include <lorelei/Tools/ThunkInterface/QemuTimer.h>
+
 #ifdef __x86_64__
 #  include "Arch/x86_64/Syscall_x86_64.h"
 #elif defined(__aarch64__)
@@ -221,6 +223,8 @@ namespace lore::mod {
 
     int GuestSyscallClient::invokeProc_impl(const InvocationArguments *ia) {
         ReentryArguments *ra = nullptr;
+
+        gtl_end();
 
         int sysret = static_cast<int>(send(SPID_InvokeProc, reinterpret_cast<uintptr_t>(ia),
                                            reinterpret_cast<uintptr_t>(&ra)));

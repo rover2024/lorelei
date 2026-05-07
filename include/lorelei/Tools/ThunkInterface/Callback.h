@@ -97,4 +97,6 @@ namespace lore::thunk {
 
 }
 
+#include "QemuTimer.h"
+
 #endif // LORE_TOOLS_THUNKINTERFACE_CALLBACK_H

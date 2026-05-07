@@ -1,7 +1,5 @@
 set(_thunks
-    zlib zstd # Compress
-    EGL OpenGL GLX GL vulkan # Graphics
-    SDL2 # Video
+    A
 )
 
 foreach(_thunk IN LISTS _thunks)

@@ -45,6 +45,9 @@ namespace lore::tool::TLC {
                                          ast);
         out += " {\n";
         out += "    // prolog\n";
+        if (document().mode() == DocumentContext::Guest && phase == Entry) {
+            out += "    gtl_start();\n";
+        }
         out += src.body.prolog.toRawText();
         out += "    // forward\n";
         out += src.body.forward.toRawText();
