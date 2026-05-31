@@ -12,11 +12,7 @@
 
 #define __LORE_OFFSET_OF__(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
 
-#define __LORE_FUNC_TYPE__(EXPR)                                                                   \
-    __typeof__(({                                                                                  \
-        __auto_type __tmp = (EXPR);                                                                \
-        __tmp;                                                                                     \
-    }))
+#define __LORE_FUNC_TYPE__(EXPR)  __typeof__(&*(EXPR))
 
 #ifdef _WIN32
 typedef unsigned long long __LORE_SIZE_T__;
@@ -70,6 +66,10 @@ struct LoreFileContext {
     // Function decay guards
     __LORE_SIZE_T__ numFDGs;
     struct LoreStaticFunctionDecayGuardInfo *FDGs;
+
+    // Initializers
+    __LORE_SIZE_T__ numInitializers;
+    void **initializers;
 };
 
 #define __LORE_THUNK_INSTR_OFFSET__ __LORE_OFFSET_OF__(struct LoreFunctionTrampoline, thunk_instr)

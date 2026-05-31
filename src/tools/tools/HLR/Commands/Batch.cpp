@@ -373,6 +373,9 @@ namespace lore::tool::command::batch {
             }
             out << "};\n\n";
 
+            out << "static void *LoreFileContext_initializers[] = {\n";
+            out << "};\n\n";
+
             out << "__LORE_PRIV__ struct LoreFileContext LoreFileContext_instance = {\n";
             out << "    .runtimeContext = 0,\n";
             out << "    .emuAddr = 0,\n";
@@ -386,6 +389,8 @@ namespace lore::tool::command::batch {
             out << "    .numFDGs = " << stat.functionDecayGuardStats.size() << ",\n";
             out << "    .FDGs = LoreFileContext_FDGs,\n";
             out << "#endif\n";
+            out << "    .numInitializers = 0,\n";
+            out << "    .initializers = LoreFileContext_initializers,\n";
             out << "};\n\n";
 
             out << "__LORE_EXPORT__ struct LoreFileContext *__Lore_GetFileContext() {\n";
