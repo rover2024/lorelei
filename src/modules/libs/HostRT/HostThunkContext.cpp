@@ -72,6 +72,8 @@ namespace lore::mod {
             CStaticCallCheckGuardInfo *CCGs;
             size_t numFDGs;
             CStaticFunctionDecayGuardInfo *FDGs;
+            size_t numInitializers;
+            void **initializers;
         };
 
         using PFN_GetFileContext = LoreFileContext *(*) ();
@@ -241,6 +243,13 @@ namespace lore::mod {
         if (fileCtx->FDGs) {
             m_staticContext->numFDGs = fileCtx->numFDGs;
             m_staticContext->FDGs = fileCtx->FDGs;
+        }
+
+        // Initialize host library context
+        if (fileCtx->initializers && fileCtx->numInitializers > 0) {
+            for (size_t i = 0; i < fileCtx->numInitializers; ++i) {
+                ((void (*)()) fileCtx->initializers[i])();
+            }
         }
     }
 

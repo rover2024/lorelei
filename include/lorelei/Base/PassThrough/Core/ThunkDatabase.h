@@ -49,13 +49,13 @@ namespace lore {
         mutable std::unique_ptr<CDataGuard> m_c_data;
     };
 
-    class LOREPASSTHROUGH_EXPORT ThunkInfoConfig {
+    class LOREPASSTHROUGH_EXPORT ThunkDatabase {
     public:
-        ThunkInfoConfig() = default;
-        ~ThunkInfoConfig() = default;
+        ThunkDatabase() = default;
+        ~ThunkDatabase() = default;
 
-        ThunkInfoConfig(const ThunkInfoConfig &) = delete;
-        ThunkInfoConfig &operator=(const ThunkInfoConfig &) = delete;
+        ThunkDatabase(const ThunkDatabase &) = delete;
+        ThunkDatabase &operator=(const ThunkDatabase &) = delete;
 
     public:
         bool load(const std::filesystem::path &path,

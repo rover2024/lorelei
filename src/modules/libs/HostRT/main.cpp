@@ -120,7 +120,7 @@ namespace lore {
                 configPath = std::filesystem::path("share") / "lorelei" / "ThunkDB.json";
             }
 
-            auto config = std::make_unique<ThunkInfoConfig>();
+            auto config = std::make_unique<ThunkDatabase>();
             const auto loaded = config->load(configPath, buildConfigVars(rootDir, guestRootDir));
             if (!loaded) {
                 loreWarning("[HRT] %1: Failed to load thunk config", configPath.string());

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <memory>
 
-#include <lorelei/Base/PassThrough/Core/ThunkInfo.h>
+#include <lorelei/Base/PassThrough/Core/ThunkDatabase.h>
 #include <lorelei/Modules/HostRT/Invocation.h>
 #include <lorelei/Modules/HostRT/Global.h>
 
@@ -22,9 +22,9 @@ namespace lore::mod {
         static uint64_t dispatchSyscall(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
                                         uint64_t a4, uint64_t a5, uint64_t a6);
 
-        void setThunkConfig(std::unique_ptr<ThunkInfoConfig> config);
+        void setThunkConfig(std::unique_ptr<ThunkDatabase> config);
 
-        inline const ThunkInfoConfig *thunkConfig() const {
+        inline const ThunkDatabase *thunkConfig() const {
             return m_thunkConfig.get();
         }
 
@@ -41,7 +41,7 @@ namespace lore::mod {
             return Invocation::reenter(ra);
         }
 
-        std::unique_ptr<ThunkInfoConfig> m_thunkConfig;
+        std::unique_ptr<ThunkDatabase> m_thunkConfig;
 
         static HostSyscallServer *self;
 

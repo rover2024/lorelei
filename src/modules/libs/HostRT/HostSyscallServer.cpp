@@ -101,7 +101,7 @@ namespace lore::mod {
         self = nullptr;
     }
 
-    void HostSyscallServer::setThunkConfig(std::unique_ptr<ThunkInfoConfig> config) {
+    void HostSyscallServer::setThunkConfig(std::unique_ptr<ThunkDatabase> config) {
         assert(config != nullptr);
         m_thunkConfig = std::move(config);
     }

@@ -1,4 +1,4 @@
-#include "ThunkInfo.h"
+#include "ThunkDatabase.h"
 
 #include <fstream>
 #include <sstream>
@@ -79,7 +79,7 @@ namespace lore {
 
     ReversedThunkInfo::~ReversedThunkInfo() = default;
 
-    bool ThunkInfoConfig::load(const std::filesystem::path &path,
+    bool ThunkDatabase::load(const std::filesystem::path &path,
                                const std::map<std::string, std::string> &vars) {
         std::ifstream file(path);
         if (!file.is_open()) {

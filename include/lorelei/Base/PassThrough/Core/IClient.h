@@ -4,7 +4,7 @@
 #include <array>
 
 #include <lorelei/Base/Support/Logging.h>
-#include <lorelei/Base/PassThrough/Core/ThunkInfo.h>
+#include <lorelei/Base/PassThrough/Core/ThunkDatabase.h>
 
 namespace lore {
 
