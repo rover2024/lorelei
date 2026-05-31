@@ -1,4 +1,5 @@
 #define TOOL_MAIN_COMMAND_FOREACH(F)                                                               \
+    F(dump)                                                                                        \
     F(stat)                                                                                        \
     F(generate)                                                                                    \
     F(help)
