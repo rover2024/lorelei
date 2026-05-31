@@ -8,4 +8,6 @@ if(NOT WIN32)
     add_subdirectory(EmulatorIntegration)
 endif()
 
-add_subdirectory(Midware)
+if(LORE_BUILD_MIDWARE)
+    add_subdirectory(Midware)
+endif()

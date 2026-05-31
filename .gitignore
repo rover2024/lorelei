@@ -94,6 +94,9 @@ CMakeSettings.json
 /*.natvis
 
 .clangd
-.codex
 
 .git-credentials
+
+# AI
+.codex
+.claude

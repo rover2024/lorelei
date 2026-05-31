@@ -8,7 +8,7 @@ if(NOT _xcb_lib)
 endif()
 
 file(GLOB_RECURSE _src *.h *.cpp)
-lore_add_host_thunk(${PROJECT_NAME} SHARED
+lore_add_library(${PROJECT_NAME} SHARED
     SOURCES ${_src}
     LINKS_PRIVATE LoreSupport xcb
 )

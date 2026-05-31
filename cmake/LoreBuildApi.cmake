@@ -117,36 +117,6 @@ function(lore_generate_global_header _target _rel_path)
     endif()
 endfunction()
 
-function(lore_guest_thunk_disable_register _target)
-    target_compile_options(${_target} PRIVATE "-ffixed-${LORE_GUEST_FIXED_REGISTER}")
-endfunction()
-
-function(lore_host_thunk_disable_register _target)
-    target_compile_options(${_target} PRIVATE "-ffixed-${LORE_HOST_FIXED_REGISTER}")
-endfunction()
-
-function(lore_add_guest_thunk _target)
-    set(_dir ${LORE_GUEST_ARCH}-LoreGTL)
-    lore_add_library(${_target} SHARED
-        LIBRARY_DIRECTORY ${_dir}
-        ${ARGN}
-    )
-    _lore_configure_thunk(${_target} ${_dir} ${ARGN})
-
-    if(_target MATCHES "(.+)_GTL")
-        set_target_properties(${_target} PROPERTIES OUTPUT_NAME ${CMAKE_MATCH_1})
-    endif()
-endfunction()
-
-function(lore_add_host_thunk _target)
-    set(_dir ${LORE_HOST_ARCH}-LoreHTL)
-    lore_add_library(${_target} SHARED
-        LIBRARY_DIRECTORY ${_dir}
-        ${ARGN}
-    )
-    _lore_configure_thunk(${_target} ${_dir} ${ARGN})
-endfunction()
-
 macro(lore_add_resource _target _in_file)
     qm_import(private/Generate)
     set(_res_out_file)
@@ -160,36 +130,4 @@ function(lore_add_auto_test _src)
     add_executable(${_name} ${_src})
     target_link_libraries(${_name} PRIVATE Boost::unit_test_framework)
     add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
-endfunction()
-
-# ----------------------------------
-# Internal Functions
-# ----------------------------------
-function(_lore_configure_thunk _target _dir)
-    set(options)
-    set(oneValueArgs)
-    set(multiValueArgs POST_LINK_ALIAS)
-    cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(FUNC_POST_LINK_ALIAS)
-        foreach(_link IN LISTS FUNC_POST_LINK_ALIAS)
-            add_custom_command(TARGET ${_target} POST_BUILD
-                COMMAND ln -sf $<TARGET_FILE_NAME:${_target}> ${_link}
-                WORKING_DIRECTORY $<TARGET_FILE_DIR:${_target}>
-            )
-        endforeach()
-    endif()
-
-    if(LORE_INSTALL AND NOT LORE_SKIP_INSTALL)
-        if(FUNC_POST_LINK_ALIAS)
-            foreach(_link IN LISTS FUNC_POST_LINK_ALIAS)
-                install(CODE "
-                    execute_process(
-                        COMMAND ln -sf $<TARGET_FILE_NAME:${_target}> ${_link}
-                        WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${_dir}
-                    )
-                ")
-            endforeach()
-        endif()
-    endif()
 endfunction()

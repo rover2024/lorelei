@@ -12,20 +12,10 @@ project(lorelei
 # ----------------------------------
 option(LORE_BUILD_GUEST_TARGETS "Build guest targets" OFF)
 option(LORE_BUILD_TOOLS "Build tool targets" ON)
+option(LORE_BUILD_MIDWARE "Build midware targets" ON)
 option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
-
-# Other options
-#
-# LORE_THUNK_DATA_DIR:          Specify the thunk data directory that is generated before.
-# LORE_THUNK_SOURCE_DIR:        Specify the thunk source directory that is generated before.
-# LORE_TLC_EXECUTABLE:          Specify the native TLC executable if it is a cross building system
-# LORE_TLC_NO_RUN:              Do not generate TLC stat files and thunk files.
-# LORE_TLC_EXTRA_ARGS:          Extra arguments for TLC.
-# LORE_DISABLE_THUNKS:          Disabled thunk lists, separated by semicolon.
-#
-# LORE_VULKAN_INCLUDE_DIR:      Pull from https://github.com/KhronosGroup/Vulkan-Headers, and specify "include".
 
 # ----------------------------------
 # CMake Settings
