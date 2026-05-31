@@ -33,16 +33,9 @@ if(LORE_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
-if(LORE_BUILD_THUNKS)
-    add_subdirectory(thunks)
-endif()
-
 lore_install()
 
 if(LORE_INSTALL)
-    # Install shared files
-    include("${LORE_SOURCE_DIR}/share/install.cmake")
-
     if(NOT LORE_THUNK_DATA_DIR_USER_DEFINED)
         install(DIRECTORY ${LORE_THUNK_DATA_DIR}/
             DESTINATION ${LORE_INSTALL_DATA_DIR}/thunks
