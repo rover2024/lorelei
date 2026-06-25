@@ -1,5 +1,5 @@
-#ifndef LORE_TOOLS_TLCAPI_GLOBAL_H
-#define LORE_TOOLS_TLCAPI_GLOBAL_H
+#ifndef LORE_TLCAPI_GLOBAL_H
+#define LORE_TLCAPI_GLOBAL_H
 
 #include <lorelei/Support/Global.h>
 
@@ -15,4 +15,4 @@
 #  endif
 #endif
 
-#endif // LORE_TOOLS_TLCAPI_GLOBAL_H
+#endif // LORE_TLCAPI_GLOBAL_H

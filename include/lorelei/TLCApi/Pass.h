@@ -1,5 +1,5 @@
-#ifndef LORE_TOOLS_TLCAPI_PASS_H
-#define LORE_TOOLS_TLCAPI_PASS_H
+#ifndef LORE_TLCAPI_PASS_H
+#define LORE_TLCAPI_PASS_H
 
 #include <map>
 #include <memory>
@@ -84,4 +84,4 @@ namespace lore::tool::TLC {
 
 }
 
-#endif // LORE_TOOLS_TLCAPI_PASS_H
+#endif // LORE_TLCAPI_PASS_H

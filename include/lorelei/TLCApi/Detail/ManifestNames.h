@@ -3,9 +3,6 @@
 
 namespace lore::tool::TLC::names {
 
-    // Names that TLC matches against the manifest AST. They mirror the C++ symbols declared in
-    // <lorelei/ThunkInterface/Proc.h> and <lorelei/ThunkInterface/PassTags.h>; keep them in sync.
-
     // Fully-qualified ThunkInterface template names.
     inline constexpr const char *ProcFn = "lore::thunk::ProcFn";
     inline constexpr const char *ProcCb = "lore::thunk::ProcCb";

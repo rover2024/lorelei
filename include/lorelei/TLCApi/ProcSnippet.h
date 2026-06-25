@@ -1,5 +1,5 @@
-#ifndef LORE_TOOLS_TLCAPI_PROC_SNIPPET_H
-#define LORE_TOOLS_TLCAPI_PROC_SNIPPET_H
+#ifndef LORE_TLCAPI_PROCSNIPPET_H
+#define LORE_TLCAPI_PROCSNIPPET_H
 
 #include <cassert>
 #include <string>
@@ -15,61 +15,56 @@ namespace lore::tool::TLC {
 
     class DocumentContext;
 
-    /// ProcSnippet - Canonical per-proc model used by TLC generate passes.
+    /// ProcSnippet - The per-proc model that TLC's generate passes read from and write into.
     ///
-    /// A `ProcSnippet` instance represents one thunk procedure candidate and owns:
-    /// 1. Identity and source binding:
-    ///    - Function mode: points to a concrete `clang::FunctionDecl`.
-    ///    - Callback mode: stores a canonical function-pointer `QualType`.
-    /// 2. Per-phase metadata:
-    ///    - Descriptor metadata (`Desc`) parsed from ProcDesc specializations
-    ///      (builder selection, overlay type, extra pass tags).
-    ///    - Optional user-provided proc definitions for each phase.
-    /// 3. Generation buffers:
-    ///    - Structured text fragments (`ProcSource`) to be filled by passes,
-    ///      then emitted by the command layer.
+    /// Each instance describes one thunk procedure and binds it to its source: a function proc
+    /// points at a concrete \c clang::FunctionDecl, while a callback proc holds a canonical
+    /// function-pointer \c QualType. Alongside that identity it carries the descriptor metadata
+    /// parsed from the manifest's ProcDesc specializations (builder selection, overlay type, extra
+    /// pass tags), the optional user-provided per-phase definitions, and the generation buffers
+    /// (\c ProcSource) that passes fill in.
     ///
-    /// Lifecycle:
-    /// 1. Constructed by the command pipeline after AST collection.
-    /// 2. `initialize()` resolves stable fields such as canonical type/name.
-    /// 3. Builder/Guard/Misc passes mutate `m_sources`.
-    /// 4. Command layer serializes `m_sources` into the output translation unit.
-    ///
-    /// Design note:
-    /// `ProcSnippet` is intentionally a data-centric object. It does not perform
-    /// AST matching by itself; AST discovery is expected to happen outside
-    /// (typically in command/main), and only normalized inputs are injected here.
+    /// It is deliberately data-centric and performs no AST matching of its own: discovery happens
+    /// in the command layer, which injects already-normalized inputs here. The lifecycle is
+    /// construct -> initialize() (resolves the canonical type and name) -> Builder/Guard/Misc passes
+    /// mutate the sources -> the command layer serializes them into the output translation unit.
     class LORETLCAPI_EXPORT ProcSnippet {
     public:
+        /// Whether the proc wraps a named function or an anonymous callback type.
         enum Kind {
             Function,
             Callback,
             NumKinds,
         };
 
+        /// Which side of the boundary calls the other.
         enum Direction {
             GuestToHost,
             HostToGuest,
             NumDirections,
         };
 
+        /// The distinct source phases generated for a single proc.
         enum Phase {
             Entry,
             Caller,
             NumPhases,
         };
 
+        /// A resolved pass id paired with the type argument it was configured with.
         struct PassInfo {
             int id = -1;
             clang::QualType type;
         };
 
+        /// Descriptor metadata parsed from a ProcDesc specialization.
         struct Desc {
             std::optional<clang::QualType> overlayType;
             std::optional<PassInfo> builderPass;
             llvm::SmallVector<PassInfo, 10> passes;
         };
 
+        /// The ordered line buffers that make up one generated function body.
         struct FunctionBodySource {
             SourceLineList<> prolog;
             SourceLineList<> forward;
@@ -78,6 +73,7 @@ namespace lore::tool::TLC {
             SourceLineList<> epilog;
         };
 
+        /// All generated text for one phase: a head, the function body, and a tail.
         struct ProcSource {
             FunctionInfo functionInfo;
             SourceLineList<> head;
@@ -85,7 +81,7 @@ namespace lore::tool::TLC {
             SourceLineList<> tail;
         };
 
-        /// Constructs from a function declaration
+        /// Constructs a function proc from a function declaration.
         ProcSnippet(
             Kind kind, Direction direction, const clang::FunctionDecl *FD, std::string nameHint,
             std::optional<Desc> desc,
@@ -97,7 +93,7 @@ namespace lore::tool::TLC {
             initialize(nameHint);
         }
 
-        /// Constructs from a function pointer type
+        /// Constructs a callback proc from a function-pointer type.
         ProcSnippet(
             Kind kind, Direction direction, clang::QualType functionPointerType, std::string nameHint,
             std::optional<Desc> desc,
@@ -133,7 +129,8 @@ namespace lore::tool::TLC {
             return *m_doc;
         }
 
-        // FunctionDecl or FunctionPointerType that initializes this instance
+        /// The source this snippet was built from: a \c FunctionDecl in function mode, or a
+        /// function-pointer \c QualType in callback mode (only one is populated).
         inline const clang::FunctionDecl *functionDecl() const {
             return m_functionDecl;
         }
@@ -141,12 +138,12 @@ namespace lore::tool::TLC {
             return m_functionPointerType;
         }
 
-        /// Optional user-provided \c ProcFnDesc<> or \c ProcCbDesc<>
+        /// Descriptor metadata from the optional \c ProcFnDesc<> / \c ProcCbDesc<> manifest entry.
         inline const std::optional<Desc> &desc() const {
             return m_desc;
         }
 
-        /// Optional user-provided \c ProcFn<> or \c ProcCb<>
+        /// Whether the manifest supplied a \c ProcFn<> / \c ProcCb<> definition for the phase.
         bool hasDefinition(Phase phase) const {
             return m_definitions[phase] != nullptr;
         }
@@ -154,11 +151,12 @@ namespace lore::tool::TLC {
             return m_definitions[phase];
         }
 
+        /// The generated thunk symbol name.
         const std::string &name() const {
             return m_name;
         }
 
-        /// Real normalized type information
+        /// The resolved, normalized function-pointer type and a cached view over its signature.
         clang::QualType realFunctionPointerType() const {
             return m_realFunctionPointerType;
         }
@@ -166,7 +164,7 @@ namespace lore::tool::TLC {
             return m_realFunctionTypeView;
         }
 
-        /// Sources to generate.
+        /// The per-phase generation buffer that passes fill in.
         const ProcSource &source(Phase phase) const {
             return m_sources[phase];
         }
@@ -174,7 +172,7 @@ namespace lore::tool::TLC {
             return m_sources[phase];
         }
 
-        /// Merged source text.
+        /// Renders the phase's buffers into the final proc source text.
         std::string text(Phase phase, bool hasDecl) const;
 
     protected:
@@ -188,15 +186,15 @@ namespace lore::tool::TLC {
         std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> m_definitions;
         DocumentContext *m_doc = nullptr;
 
-        // Initialized in initialize()
+        // Resolved by initialize().
         std::string m_name;
         clang::QualType m_realFunctionPointerType;
         FunctionTypeView m_realFunctionTypeView;
 
-        // Generated by passes
+        // Produced by the passes.
         std::array<ProcSource, NumPhases> m_sources;
     };
 
 }
 
-#endif // LORE_TOOLS_TLCAPI_PROC_SNIPPET_H
+#endif // LORE_TLCAPI_PROCSNIPPET_H
