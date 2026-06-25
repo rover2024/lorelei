@@ -1,4 +1,4 @@
-add_auto_test(CallbackTrampoline.cpp LoreDLCall)
-add_auto_test(FunctionTrampoline.cpp LoreDLCall)
-add_auto_test(VariadicAdaptor.cpp LoreDLCall)
-add_auto_test(VariadicArgDefs.cpp)
+add_auto_test(tst_CallbackTrampoline.cpp LoreDLCall)
+add_auto_test(tst_FunctionTrampoline.cpp LoreDLCall)
+add_auto_test(tst_VariadicAdaptor.cpp LoreDLCall)
+add_auto_test(tst_VariadicArgDefs.cpp)

@@ -1,7 +1,8 @@
-add_auto_test(StringExtras.cpp LoreSupport)
-add_auto_test(ScopeGuard.cpp)
-add_auto_test(ConfigFile.cpp LoreSupport)
-add_auto_test(Logging.cpp LoreSupport)
+add_auto_test(tst_StringExtras.cpp LoreSupport)
+add_auto_test(tst_ScopeGuard.cpp)
+add_auto_test(tst_ConfigFile.cpp LoreSupport)
+add_auto_test(tst_Logging.cpp LoreSupport)
+add_auto_test(tst_VarSizeArray.cpp)
 
 # Ship the INI fixtures next to the test binary and point the test at them.
 qm_add_copy_command(tst_ConfigFile

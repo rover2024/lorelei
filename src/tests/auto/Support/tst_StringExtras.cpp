@@ -48,6 +48,15 @@ BOOST_AUTO_TEST_CASE(formatN_substitutes_indexed_placeholders) {
     BOOST_VERIFY(str::formatN("%1%%", "x") == "x%");
 }
 
+BOOST_AUTO_TEST_CASE(formatN_handles_multiple_placeholders) {
+    // 20 substitutions plus their separators overflow format()'s internal VarSizeArray<Part, 10>,
+    // so this also exercises the container's heap growth. (Indices are multi-digit: %10..%20.)
+    auto out = str::formatN(
+        "%1.%2.%3.%4.%5.%6.%7.%8.%9.%10.%11.%12.%13.%14.%15.%16.%17.%18.%19.%20",
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+    BOOST_VERIFY(out == "1.2.3.4.5.6.7.8.9.10.11.12.13.14.15.16.17.18.19.20");
+}
+
 BOOST_AUTO_TEST_CASE(varexp_expands_braced_variables) {
     std::map<std::string, std::string> vars = {{"a", "1"}, {"b", "2"}};
     BOOST_VERIFY(str::varexp("${a}/${b}", vars) == "1/2");
@@ -61,6 +70,23 @@ BOOST_AUTO_TEST_CASE(varexp_expands_nested_variables) {
     // A nested ${...} is expanded first and its result is used as the variable name.
     BOOST_VERIFY(str::varexp("${${k}}", vars) == "1");     // ${k} -> a, then ${a} -> 1
     BOOST_VERIFY(str::varexp("${x_${i}}", vars) == "foo"); // x_${i} -> x_1, then -> foo
+}
+
+BOOST_AUTO_TEST_CASE(varexp_handles_multiple_variables) {
+    // Likewise grows varexp()'s internal VarSizeArray<varexp_part, 10> past its inline buffer.
+    std::map<std::string, std::string> vars;
+    std::string input;
+    std::string expected;
+    for (int i = 1; i <= 20; ++i) {
+        vars["v" + std::to_string(i)] = std::to_string(i * 10);
+        input += "${v" + std::to_string(i) + "}";
+        expected += std::to_string(i * 10);
+        if (i != 20) {
+            input += ",";
+            expected += ",";
+        }
+    }
+    BOOST_VERIFY(str::varexp(input, vars) == expected); // "10,20,...,200"
 }
 
 BOOST_AUTO_TEST_CASE(prefix_suffix_and_case) {

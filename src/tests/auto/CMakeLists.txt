@@ -9,13 +9,13 @@ endif()
 # add_auto_test(<source> [extra link libraries...])
 function(add_auto_test _src)
     get_filename_component(_name ${_src} NAME_WE)
-    add_executable(tst_${_name} ${_src})
-    target_include_directories(tst_${_name} PRIVATE
+    add_executable(${_name} ${_src})
+    target_include_directories(${_name} PRIVATE
         ${LORE_SOURCE_DIR}/include
         ${LORE_BUILD_INCLUDE_DIR}
     )
-    target_link_libraries(tst_${_name} PRIVATE Boost::unit_test_framework ${ARGN})
-    add_test(NAME tst_${_name} COMMAND $<TARGET_FILE:tst_${_name}>)
+    target_link_libraries(${_name} PRIVATE Boost::unit_test_framework ${ARGN})
+    add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
 endfunction()
 
 add_subdirectory(DLCall)
