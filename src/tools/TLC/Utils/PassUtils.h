@@ -1,5 +1,5 @@
-#ifndef PASSCOMMON_H
-#define PASSCOMMON_H
+#ifndef LORE_TOOLS_TLC_PASSUTILS_H
+#define LORE_TOOLS_TLC_PASSUTILS_H
 
 #include <llvm/ADT/StringExtras.h>
 #include <clang/AST/ASTContext.h>
@@ -66,4 +66,4 @@ namespace lore::tool::TLC {
 
 }
 
-#endif // PASSCOMMON_H
+#endif // LORE_TOOLS_TLC_PASSUTILS_H

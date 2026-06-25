@@ -16,10 +16,8 @@ namespace lore::thunk {
         /// \example Supported fields
         ///
         /// \code
-        ///     static constexpr const auto BUILDER_PASS = pass::printf<>;
-        ///     static constexpr const auto MISC_PASSES =
-        ///         pass::PassTags<pass::GetProcAddress<>>
-        ///     ;
+        ///     static constexpr const pass::printf<> builder_pass = {};
+        ///     static constexpr const pass::PassTagList<pass::GetProcAddress<>> passes = {};
         /// \endcode
     };
 

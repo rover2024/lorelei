@@ -25,6 +25,7 @@
 #include <lorelei/Support/ConfigFile.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
+#include <lorelei/ClangExtras/DeclUtils.h>
 
 using namespace clang;
 using namespace clang::tooling;
@@ -145,28 +146,6 @@ namespace lore::tool::command::dump {
             text += "; ";
         }
         text += reason.str();
-    }
-
-    template <class T>
-    static bool isCDecl(const T *decl) {
-        const DeclContext *dc = decl->getDeclContext();
-        if (const auto *lsd = dyn_cast<LinkageSpecDecl>(dc)) {
-            return lsd->getLanguage() == LinkageSpecLanguageIDs::C;
-        }
-
-        const LangOptions &langOpts = decl->getASTContext().getLangOpts();
-        if (!langOpts.CPlusPlus) {
-            return true;
-        }
-        return false;
-    }
-
-    template <class T>
-    static bool isCLinkage(const T *decl) {
-        if (decl->getLanguageLinkage() == CLanguageLinkage) {
-            return true;
-        }
-        return isCDecl(decl);
     }
 
     static void collectRequestedFunctionsFromSection(llvm::StringRef sectionName) {

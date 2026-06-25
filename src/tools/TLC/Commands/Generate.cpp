@@ -7,6 +7,7 @@
 #include <system_error>
 
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/Error.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <clang/AST/ASTContext.h>
@@ -44,6 +45,18 @@ namespace lore::tool::command::generate {
         TLC::DocumentContext doc;
 
         std::string outBuffer;
+
+        bool failed = false;
+        std::string errorMessage;
+
+        // Record the first error raised from inside a Clang callback (which can't return one).
+        void recordError(llvm::Error err) {
+            auto msg = llvm::toString(std::move(err));
+            if (!failed) {
+                failed = true;
+                errorMessage = std::move(msg);
+            }
+        }
     };
 
     static GlobalContext &g_ctx() {
@@ -91,7 +104,9 @@ namespace lore::tool::command::generate {
     class MyASTConsumer : public ASTConsumer {
     public:
         void HandleTranslationUnit(ASTContext &ast) override {
-            g_ctx().doc.handleTranslationUnit(ast);
+            if (auto err = g_ctx().doc.handleTranslationUnit(ast)) {
+                g_ctx().recordError(std::move(err));
+            }
         }
     };
 
@@ -111,11 +126,14 @@ namespace lore::tool::command::generate {
         void EndSourceFileAction() override {
             CompilerInstance &CI = getCompilerInstance();
             DiagnosticsEngine &DE = CI.getDiagnostics();
-            if (DE.hasErrorOccurred()) {
+            if (DE.hasErrorOccurred() || g_ctx().failed) {
                 return;
             }
 
-            g_ctx().doc.endSourceFileAction();
+            if (auto err = g_ctx().doc.endSourceFileAction()) {
+                g_ctx().recordError(std::move(err));
+                return;
+            }
 
             // Generate output
             {
@@ -125,7 +143,10 @@ namespace lore::tool::command::generate {
                                                                 TOOL_VERSION)
                     << "\n";
                 out << "\n";
-                g_ctx().doc.generateOutput(out);
+                if (auto err = g_ctx().doc.generateOutput(out)) {
+                    g_ctx().recordError(std::move(err));
+                    return;
+                }
             }
         }
     };
@@ -240,6 +261,10 @@ namespace lore::tool::command::generate {
             });
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {
             return ret;
+        }
+        if (g_ctx().failed) {
+            llvm::errs() << "error: " << g_ctx().errorMessage << "\n";
+            return 1;
         }
 
         if (!g_ctx().outBuffer.empty()) {

@@ -6,6 +6,7 @@
 #include <string>
 
 #include <clang/AST/Mangle.h>
+#include <llvm/Support/Error.h>
 
 #include <lorelei/ClangExtras/FunctionTypeView.h>
 
@@ -20,13 +21,13 @@ namespace lore::tool::TLC {
 
     public:
         /// Initialize the alias maker with the \c ProcFn template declaration.
-        void initialize(clang::ClassTemplateDecl *procDecl);
+        llvm::Error initialize(clang::ClassTemplateDecl *procDecl);
 
         /// Return the mangled name of the \a invoke member function symbol of a \c ProcFn
         /// declaration.
-        std::string getInvokeAlias(const char *direction, const char *phase,
-                                   clang::FunctionDecl *fd,
-                                   const std::optional<clang::QualType> &overlayType = {}) const;
+        llvm::Expected<std::string>
+            getInvokeAlias(const char *direction, const char *phase, clang::FunctionDecl *fd,
+                           const std::optional<clang::QualType> &overlayType = {}) const;
 
     private:
         clang::ClassTemplateDecl *m_procDecl = nullptr;

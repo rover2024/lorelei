@@ -1,5 +1,5 @@
-#ifndef LORE_BUILDERPASSUTILS_H
-#define LORE_BUILDERPASSUTILS_H
+#ifndef LORE_TOOLS_TLC_PASSCODETEMPLATES_H
+#define LORE_TOOLS_TLC_PASSCODETEMPLATES_H
 
 #include <llvm/ADT/StringExtras.h>
 #include <clang/AST/ASTContext.h>
@@ -127,4 +127,4 @@ namespace lore::tool::TLC {
 
 }
 
-#endif // LORE_BUILDERPASSUTILS_H
+#endif // LORE_TOOLS_TLC_PASSCODETEMPLATES_H

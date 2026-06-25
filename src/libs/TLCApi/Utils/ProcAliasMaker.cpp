@@ -10,7 +10,7 @@
 
 namespace lore::tool::TLC {
 
-    void ProcAliasMaker::initialize(clang::ClassTemplateDecl *procDecl) {
+    llvm::Error ProcAliasMaker::initialize(clang::ClassTemplateDecl *procDecl) {
         assert(procDecl);
 
         m_procDecl = procDecl;
@@ -19,9 +19,9 @@ namespace lore::tool::TLC {
         auto templateParams = procDecl->getTemplateParameters()->asArray();
 
         if (templateParams.size() != 3) {
-            llvm::errs() << "error: invalid template parameter count of " << procDecl->getName()
-                         << "\n";
-            std::exit(1);
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "invalid template parameter count of %s",
+                                           procDecl->getName().str().c_str());
         }
 
         /// STEP: Materialize enum template arguments (`ProcDirection` + `ProcPhase`).
@@ -31,39 +31,39 @@ namespace lore::tool::TLC {
         if (auto nonTypeArg = llvm::dyn_cast<clang::NonTypeTemplateParmDecl>(templateParams[1])) {
             auto argType = nonTypeArg->getType();
             if (!argType->isEnumeralType()) {
-                llvm::errs() << "error: invalid template parameter type of "
-                             << nonTypeArg->getName() << "\n";
-                std::exit(1);
+                return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                               "invalid template parameter type of %s",
+                                               nonTypeArg->getName().str().c_str());
             }
             auto enumDecl = argType->getAs<clang::EnumType>()->getDecl();
             if (enumDecl->getName() != "ProcDirection") {
-                llvm::errs() << "error: invalid template parameter type of "
-                             << nonTypeArg->getName() << "\n";
-                std::exit(1);
+                return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                               "invalid template parameter type of %s",
+                                               nonTypeArg->getName().str().c_str());
             }
             procDirectionEnumDecl = enumDecl;
         } else {
-            llvm::errs() << "error: failed to find template parameter ProcDirection\n";
-            std::exit(1);
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "failed to find template parameter ProcDirection");
         }
 
         if (auto nonTypeArg = llvm::dyn_cast<clang::NonTypeTemplateParmDecl>(templateParams[2])) {
             auto argType = nonTypeArg->getType();
             if (!argType->isEnumeralType()) {
-                llvm::errs() << "error: invalid template parameter type of "
-                             << nonTypeArg->getName() << "\n";
-                return;
+                return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                               "invalid template parameter type of %s",
+                                               nonTypeArg->getName().str().c_str());
             }
             auto enumDecl = argType->getAs<clang::EnumType>()->getDecl();
             if (enumDecl->getName() != "ProcPhase") {
-                llvm::errs() << "error: invalid template parameter type of "
-                             << nonTypeArg->getName() << "\n";
-                return;
+                return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                               "invalid template parameter type of %s",
+                                               nonTypeArg->getName().str().c_str());
             }
             procPhaseEnumDecl = enumDecl;
         } else {
-            llvm::errs() << "error: failed to find template parameter ProcPhase\n";
-            std::exit(1);
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "failed to find template parameter ProcPhase");
         }
 
         m_procDirectionEnumDecl = procDirectionEnumDecl;
@@ -71,9 +71,10 @@ namespace lore::tool::TLC {
 
         /// STEP: Create mangle context.
         m_mangleContext.reset(clang::ItaniumMangleContext::create(ast, ast.getDiagnostics()));
+        return llvm::Error::success();
     }
 
-    std::string
+    llvm::Expected<std::string>
         ProcAliasMaker::getInvokeAlias(const char *direction, const char *phase,
                                        clang::FunctionDecl *fd,
                                        const std::optional<clang::QualType> &overlayType) const {
@@ -99,9 +100,9 @@ namespace lore::tool::TLC {
         }
 
         if (!procDirectionECD || !procPhaseECD) {
-            llvm::errs() << "error: failed to find enum constant " << direction << " or " << phase
-                         << "\n";
-            return {};
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "failed to find enum constant %s or %s", direction,
+                                           phase);
         }
 
         auto procDirectionTemplateArg = clang::TemplateArgument(
@@ -131,8 +132,8 @@ namespace lore::tool::TLC {
         }
 
         if (!specDecl) {
-            llvm::errs() << "error: failed to find or create thunk proc specialization.\n";
-            return {};
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "failed to find or create thunk proc specialization");
         }
 
         /// STEP: Find (or create) static method `invoke`.
@@ -180,8 +181,8 @@ namespace lore::tool::TLC {
         }
 
         if (!invokeMethod->isUserProvided()) {
-            llvm::errs() << "error: failed to create user-provided `invoke` method.\n";
-            return {};
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "failed to create user-provided `invoke` method");
         }
 
         /// STEP: Return the mangled function symbol for alias generation.

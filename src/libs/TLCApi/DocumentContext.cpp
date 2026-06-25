@@ -17,6 +17,7 @@
 #include <lorelei/TLCApi/Pass.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
+#include <lorelei/ClangExtras/DeclUtils.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 
 #include "Utils/ProcAliasMaker.h"
@@ -29,28 +30,6 @@ namespace lore::tool::TLC {
     DocumentContext::DocumentContext() = default;
 
     DocumentContext::~DocumentContext() = default;
-
-    template <class T>
-    static bool isCDecl(const T *decl) {
-        const DeclContext *dc = decl->getDeclContext();
-        if (const auto *lsd = dyn_cast<LinkageSpecDecl>(dc)) {
-            return lsd->getLanguage() == LinkageSpecLanguageIDs::C;
-        }
-
-        const LangOptions &langOpts = decl->getASTContext().getLangOpts();
-        if (!langOpts.CPlusPlus) {
-            return true;
-        }
-        return false;
-    }
-
-    template <class T>
-    static bool isCLinkage(const T *decl) {
-        if (decl->getLanguageLinkage() == CLanguageLinkage) {
-            return true;
-        }
-        return isCDecl(decl);
-    }
 
     static bool isBridgeNamespaceDecl(const Decl *decl) {
         const auto *namedDecl = dyn_cast_or_null<NamedDecl>(decl);
@@ -180,14 +159,14 @@ namespace lore::tool::TLC {
             }
 
             auto memberName = vd->getName();
-            if (memberName == "builder_pass" || memberName == "BUILDER_PASS") {
+            if (memberName == "builder_pass") {
                 auto builderType = vd->getType().getCanonicalType();
                 if (auto passID = extractPassIDFromType(builderType, ast)) {
                     desc.builderPass = {*passID, builderType};
                 }
                 continue;
             }
-            if (memberName == "passes" || memberName == "PASSES") {
+            if (memberName == "passes") {
                 appendPassTypesFromPassListType(vd->getType(), ast, desc.passes);
                 continue;
             }
@@ -246,7 +225,7 @@ namespace lore::tool::TLC {
         return true;
     }
 
-    void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
+    llvm::Error DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
         m_ast = &ast;
 
         ClassTemplateDecl *procFnTemplateDecl = nullptr;
@@ -446,12 +425,14 @@ namespace lore::tool::TLC {
         finder.matchAST(ast);
 
         if (!procFnTemplateDecl) {
-            llvm::errs() << "ProcFn template declaration not found.\n";
-            std::exit(1);
+            return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                           "ProcFn template declaration not found");
         }
 
         m_procAliasMaker = std::make_unique<ProcAliasMaker>();
-        m_procAliasMaker->initialize(procFnTemplateDecl);
+        if (auto err = m_procAliasMaker->initialize(procFnTemplateDecl)) {
+            return err;
+        }
 
         /// STEP: Filter requested items.
         for (const auto &[name, fd] : std::as_const(functionByName)) {
@@ -547,9 +528,11 @@ namespace lore::tool::TLC {
                 }
             }
         }
+
+        return llvm::Error::success();
     }
 
-    void DocumentContext::endSourceFileAction() {
+    llvm::Error DocumentContext::endSourceFileAction() {
         struct RunPassTask {
             ProcSnippet *proc = nullptr;
             Pass *pass = nullptr;
@@ -578,12 +561,12 @@ namespace lore::tool::TLC {
             }
         };
 
-        const auto appendBuilderPassTasks = [&]() {
+        const auto appendBuilderPassTasks = [&]() -> llvm::Error {
             auto &builderPassMap = m_passMaps[Pass::Builder];
             auto defaultBuilderIt = builderPassMap.find(lore::thunk::pass::ID_DefaultBuilder);
             if (defaultBuilderIt == builderPassMap.end() || !defaultBuilderIt->second) {
-                llvm::errs() << "error: no default builder pass found\n";
-                std::exit(1);
+                return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                               "no default builder pass found");
             }
             Pass *defaultBuilder = defaultBuilderIt->second;
 
@@ -610,6 +593,8 @@ namespace lore::tool::TLC {
                     }
                 }
             }
+
+            return llvm::Error::success();
         };
 
         // Begin document-level processing.
@@ -623,27 +608,29 @@ namespace lore::tool::TLC {
         }
 
         // Select per-proc pass tasks.
-        appendBuilderPassTasks();
+        if (auto err = appendBuilderPassTasks()) {
+            return err;
+        }
         appendMultiMatchPassTasks(Pass::Guard);
         appendMultiMatchPassTasks(Pass::Misc);
 
         // Run begin hooks in order.
         for (auto &task : runPassTasks) {
             if (auto err = task.pass->beginHandleProc(*task.proc, task.message)) {
-                llvm::errs() << "error: in proc \"" << task.proc->name()
-                             << "\", failed to begin pass @" << task.pass->name() << ": "
-                             << llvm::toString(std::move(err)) << "\n";
-                std::exit(1);
+                return llvm::createStringError(
+                    llvm::inconvertibleErrorCode(), "in proc \"%s\", failed to begin pass @%s: %s",
+                    task.proc->name().c_str(), task.pass->name().c_str(),
+                    llvm::toString(std::move(err)).c_str());
             }
         }
 
         // Run end hooks in reverse order.
         for (auto it = runPassTasks.rbegin(); it != runPassTasks.rend(); ++it) {
             if (auto err = it->pass->endHandleProc(*it->proc, it->message)) {
-                llvm::errs() << "error: in proc \"" << it->proc->name()
-                             << "\", failed to end pass @" << it->pass->name() << ": "
-                             << llvm::toString(std::move(err)) << "\n";
-                std::exit(1);
+                return llvm::createStringError(
+                    llvm::inconvertibleErrorCode(), "in proc \"%s\", failed to end pass @%s: %s",
+                    it->proc->name().c_str(), it->pass->name().c_str(),
+                    llvm::toString(std::move(err)).c_str());
             }
         }
 
@@ -656,11 +643,14 @@ namespace lore::tool::TLC {
                 }
             }
         }
+
+        return llvm::Error::success();
     }
 
-    void DocumentContext::generateOutput(llvm::raw_ostream &os) {
+    llvm::Error DocumentContext::generateOutput(llvm::raw_ostream &os) {
+        constexpr int kLegendWidth = 75;
         const auto &legend = [](const std::string &name) {
-            int eqCount = (75 - name.size()) / 2;
+            int eqCount = (kLegendWidth - name.size()) / 2;
             return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
         };
 
@@ -681,23 +671,27 @@ namespace lore::tool::TLC {
         os << "#pragma GCC diagnostic ignored \"-Wattribute-alias\"\n";
         if (m_mode == Host) {
             for (auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::HostToGuest]) {
+                auto alias = m_procAliasMaker->getInvokeAlias(
+                    "HostToGuest", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
+                    proc.desc() ? proc.desc()->overlayType : std::nullopt);
+                if (!alias) {
+                    return alias.takeError();
+                }
                 os << "LORE_DECL_EXPORT "
                    << FunctionInfo(proc.functionDecl()).declText("GTL_" + proc.name(), *m_ast)
-                   << "\n    __attribute__((alias(\""
-                   << m_procAliasMaker->getInvokeAlias(
-                          "HostToGuest", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
-                          proc.desc() ? proc.desc()->overlayType : std::nullopt)
-                   << "\")));\n";
+                   << "\n    __attribute__((alias(\"" << *alias << "\")));\n";
             }
         } else {
             for (auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::GuestToHost]) {
+                auto alias = m_procAliasMaker->getInvokeAlias(
+                    "GuestToHost", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
+                    proc.desc() ? proc.desc()->overlayType : std::nullopt);
+                if (!alias) {
+                    return alias.takeError();
+                }
                 os << "LORE_DECL_EXPORT "
                    << FunctionInfo(proc.functionDecl()).declText(proc.name(), *m_ast)
-                   << "\n    __attribute__((alias(\""
-                   << m_procAliasMaker->getInvokeAlias(
-                          "GuestToHost", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
-                          proc.desc() ? proc.desc()->overlayType : std::nullopt)
-                   << "\")));\n";
+                   << "\n    __attribute__((alias(\"" << *alias << "\")));\n";
             }
         }
         os << "#pragma GCC diagnostic pop\n";
@@ -811,6 +805,7 @@ namespace lore::tool::TLC {
         os << "#include <lorelei/ThunkInterface/Detail/ProcImpl.cpp.inc>\n";
 
         os << "\n";
+        return llvm::Error::success();
     }
 
 }

@@ -70,10 +70,10 @@ namespace lore::tool::TLC {
         }
 
         bool beginSourceFileAction(clang::CompilerInstance &CI);
-        void handleTranslationUnit(clang::ASTContext &ast);
-        void endSourceFileAction();
+        llvm::Error handleTranslationUnit(clang::ASTContext &ast);
+        llvm::Error endSourceFileAction();
 
-        void generateOutput(llvm::raw_ostream &os);
+        llvm::Error generateOutput(llvm::raw_ostream &os);
 
     public:
         inline Mode mode() const {
@@ -143,7 +143,7 @@ namespace lore::tool::TLC {
         std::unique_ptr<ProcAliasMaker> m_procAliasMaker;
 
         // Cached pass instances
-        std::array<std::map<int, Pass *>, 3> m_passMaps;
+        std::array<std::map<int, Pass *>, Pass::NumPhases> m_passMaps;
         std::vector<std::unique_ptr<Pass>> m_passInstances;
     };
 

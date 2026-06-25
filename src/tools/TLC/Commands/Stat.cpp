@@ -20,6 +20,7 @@
 #include <lorelei/Support/ConfigFile.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
+#include <lorelei/ClangExtras/DeclUtils.h>
 #include <lorelei/TLCApi/ManifestFile.h>
 
 using namespace clang;
@@ -118,28 +119,6 @@ namespace lore::tool::command::stat {
             }
         }
         return std::nullopt;
-    }
-
-    template <class T>
-    static bool isCDecl(const T *decl) {
-        const DeclContext *dc = decl->getDeclContext();
-        if (const auto *lsd = dyn_cast<LinkageSpecDecl>(dc)) {
-            return lsd->getLanguage() == LinkageSpecLanguageIDs::C;
-        }
-
-        const LangOptions &langOpts = decl->getASTContext().getLangOpts();
-        if (!langOpts.CPlusPlus) {
-            return true;
-        }
-        return false;
-    }
-
-    template <class T>
-    static bool isCLinkage(const T *decl) {
-        if (decl->getLanguageLinkage() == CLanguageLinkage) {
-            return true;
-        }
-        return isCDecl(decl);
     }
 
     class MyASTConsumer : public ASTConsumer {
