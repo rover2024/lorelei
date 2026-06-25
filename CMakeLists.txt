@@ -58,6 +58,13 @@ endif()
 qm_init_directories()
 
 # ----------------------------------
+# Tests
+# ----------------------------------
+if(LORE_BUILD_TESTS)
+    enable_testing()
+endif()
+
+# ----------------------------------
 # Add source modules
 # ----------------------------------
 add_subdirectory(src)
