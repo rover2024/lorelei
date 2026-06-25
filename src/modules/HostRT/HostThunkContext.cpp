@@ -13,8 +13,6 @@
 
 #include "HostServer.h"
 
-// #define LORE_HOOK_PTHREAD
-
 namespace lore {
 
     extern thread_local void *thread_last_callback;

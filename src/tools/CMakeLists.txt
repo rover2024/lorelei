@@ -1,4 +1,4 @@
 add_subdirectory(TLC)
 
-# TODO: under development
+# TODO: not used in this version
 # add_subdirectory(HLR)
