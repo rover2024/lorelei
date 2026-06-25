@@ -6,25 +6,6 @@
 
 namespace lore::tool::TLC {
 
-    void ManifestFile::addFunction(FunctionDirection direction, std::string name,
-                                   std::string location) {
-        auto &bucket = functions[direction];
-        auto &info = bucket[name];
-        info.location = std::move(location);
-    }
-
-    void ManifestFile::addCallbackSignature(const std::string &signature, const std::string &origin,
-                                            const std::string &preferredAlias) {
-        auto &info = callbacks[signature];
-        info.signature = signature;
-        if (!preferredAlias.empty() && info.alias.empty()) {
-            info.alias = preferredAlias;
-        }
-        if (!origin.empty() && info.origin.empty()) {
-            info.origin = origin;
-        }
-    }
-
     bool ManifestFile::loadFromJson(const std::string &filePath, std::string &errorMessage) {
         auto buffer = llvm::MemoryBuffer::getFile(filePath);
         if (std::error_code ec = buffer.getError()) {

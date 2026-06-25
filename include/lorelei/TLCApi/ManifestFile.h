@@ -81,9 +81,10 @@ namespace lore::tool::TLC {
             callbacks.clear();
         }
 
-        void addFunction(FunctionDirection direction, std::string name, std::string location);
-        void addCallbackSignature(const std::string &signature, const std::string &origin,
-                                  const std::string &preferredAlias = {});
+        inline void addFunction(FunctionDirection direction, std::string name,
+                                std::string location);
+        inline void addCallbackSignature(const std::string &signature, const std::string &origin,
+                                         const std::string &preferredAlias = {});
 
         bool loadFromJson(const std::string &filePath, std::string &errorMessage);
         bool saveAsJson(const std::string &filePath, std::string &errorMessage) const;
@@ -93,6 +94,26 @@ namespace lore::tool::TLC {
         std::array<std::set<std::string>, NumFunctionDirection> missingFunctions;
         std::map<std::string, CallbackInfo> callbacks;
     };
+
+    inline void ManifestFile::addFunction(FunctionDirection direction, std::string name,
+                                          std::string location) {
+        auto &bucket = functions[direction];
+        auto &info = bucket[name];
+        info.location = std::move(location);
+    }
+
+    inline void ManifestFile::addCallbackSignature(const std::string &signature,
+                                                   const std::string &origin,
+                                                   const std::string &preferredAlias) {
+        auto &info = callbacks[signature];
+        info.signature = signature;
+        if (!preferredAlias.empty() && info.alias.empty()) {
+            info.alias = preferredAlias;
+        }
+        if (!origin.empty() && info.origin.empty()) {
+            info.origin = origin;
+        }
+    }
 
 }
 
