@@ -18,6 +18,7 @@
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 #include <lorelei/ClangExtras/DeclUtils.h>
+#include <lorelei/TLCApi/Detail/ManifestNames.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 
 #include "Utils/ProcAliasMaker.h"
@@ -37,7 +38,7 @@ namespace lore::tool::TLC {
             return false;
         }
         const auto qualifiedName = namedDecl->getQualifiedNameAsString();
-        return qualifiedName.find("lore::thunk::__bridge__::") != std::string::npos;
+        return qualifiedName.find(names::BridgeNamespacePrefix) != std::string::npos;
     }
 
     static const FunctionDecl *extractFunctionDeclFromTemplateArg(const TemplateArgument &arg) {
@@ -92,7 +93,7 @@ namespace lore::tool::TLC {
 
         for (const auto *subDecl : decl->decls()) {
             const auto *vd = dyn_cast<VarDecl>(subDecl);
-            if (!vd || !vd->isStaticDataMember() || vd->getName() != "ID") {
+            if (!vd || !vd->isStaticDataMember() || vd->getName() != names::PassID) {
                 continue;
             }
             if (auto passID = evalStaticPassID(*vd, vd->getASTContext())) {
@@ -107,7 +108,7 @@ namespace lore::tool::TLC {
         (void) ast;
         listType = listType.getCanonicalType();
         const auto *decl = listType->getAsCXXRecordDecl();
-        if (!decl || decl->getName() != "PassTagList") {
+        if (!decl || decl->getName() != names::PassTagList) {
             return;
         }
 
@@ -131,7 +132,7 @@ namespace lore::tool::TLC {
                                                       ASTContext &ast) {
         for (const auto *subDecl : decl.decls()) {
             const auto *td = dyn_cast<TypedefNameDecl>(subDecl);
-            if (!td || td->getName() != "overlay_type") {
+            if (!td || td->getName() != names::OverlayType) {
                 continue;
             }
             auto type = td->getUnderlyingType().getCanonicalType();
@@ -159,14 +160,14 @@ namespace lore::tool::TLC {
             }
 
             auto memberName = vd->getName();
-            if (memberName == "builder_pass") {
+            if (memberName == names::BuilderPass) {
                 auto builderType = vd->getType().getCanonicalType();
                 if (auto passID = extractPassIDFromType(builderType, ast)) {
                     desc.builderPass = {*passID, builderType};
                 }
                 continue;
             }
-            if (memberName == "passes") {
+            if (memberName == names::Passes) {
                 appendPassTypesFromPassListType(vd->getType(), ast, desc.passes);
                 continue;
             }
@@ -393,7 +394,7 @@ namespace lore::tool::TLC {
 
         // Matches "lore::thunk::ProcFn" for the initialization of ProcAliasMaker.
         finder.addMatcher(
-            classTemplateDecl(hasName("lore::thunk::ProcFn")).bind("procFnTemplateDecl"),
+            classTemplateDecl(hasName(names::ProcFn)).bind("procFnTemplateDecl"),
             &matchHandler);
 
         // Matches requested functions.
@@ -407,19 +408,19 @@ namespace lore::tool::TLC {
         finder.addMatcher(typeAliasDecl().bind("typeAliasDecl"), &matchHandler);
 
         // Matches requested descriptions.
-        finder.addMatcher(classTemplateSpecializationDecl(hasName("lore::thunk::ProcFnDesc"))
+        finder.addMatcher(classTemplateSpecializationDecl(hasName(names::ProcFnDesc))
                               .bind("procFnDescDecl"),
                           &matchHandler);
-        finder.addMatcher(classTemplateSpecializationDecl(hasName("lore::thunk::ProcCbDesc"))
+        finder.addMatcher(classTemplateSpecializationDecl(hasName(names::ProcCbDesc))
                               .bind("procCbDescDecl"),
                           &matchHandler);
 
         // Matches requested definitions.
         finder.addMatcher(
-            classTemplateSpecializationDecl(hasName("lore::thunk::ProcFn")).bind("procFnDecl"),
+            classTemplateSpecializationDecl(hasName(names::ProcFn)).bind("procFnDecl"),
             &matchHandler);
         finder.addMatcher(
-            classTemplateSpecializationDecl(hasName("lore::thunk::ProcCb")).bind("procCbDefl"),
+            classTemplateSpecializationDecl(hasName(names::ProcCb)).bind("procCbDefl"),
             &matchHandler);
 
         finder.matchAST(ast);
@@ -647,60 +648,89 @@ namespace lore::tool::TLC {
         return llvm::Error::success();
     }
 
-    llvm::Error DocumentContext::generateOutput(llvm::raw_ostream &os) {
+    static std::string legendLine(const std::string &name) {
         constexpr int kLegendWidth = 75;
-        const auto &legend = [](const std::string &name) {
-            int eqCount = (kLegendWidth - name.size()) / 2;
-            return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
-        };
+        int eqCount = (kLegendWidth - name.size()) / 2;
+        return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
+    }
 
-        /// STEP: Add macro
+    llvm::Error DocumentContext::generateOutput(llvm::raw_ostream &os) {
+        emitManifestPrologue(os);
+
+        if (auto err = emitExportedAliases(os)) {
+            return err;
+        }
+
+        /// STEP: Generate document head
+        os << m_source.head.toRawText() << "\n";
+
+        emitForeachMacros(os);
+
+        /// STEP: Generate forward declarations
+        os << "namespace lore::thunk {\n\n";
+        emitProcTexts(os, /*asDeclaration=*/true);
+        os << "}\n\n";
+
+        /// STEP: Include main source file
+        os << "#include \"" << std::filesystem::path(m_mainFileName).filename().string()
+           << "\"\n\n";
+
+        /// STEP: Generate definitions
+        os << "namespace lore::thunk {\n\n";
+        emitProcTexts(os, /*asDeclaration=*/false);
+        os << "}\n\n";
+
+        /// STEP: Generate document tail
+        os << m_source.tail.toRawText() << "\n";
+
+        emitMissingComments(os);
+
+        /// STEP: Add manifest implementation (LORE_THUNK_HOST was set by the manifest's host entry)
+        os << "#include <lorelei/ThunkInterface/Detail/ProcImpl.cpp.inc>\n";
+        os << "\n";
+        return llvm::Error::success();
+    }
+
+    void DocumentContext::emitManifestPrologue(llvm::raw_ostream &os) const {
         os << "#define LORE_THUNK_BUILD\n\n";
 
-        /// STEP: Add manifest declarations
         os << "#include <lorelei/ThunkInterface/Detail/Callback.h>" << "\n";
         os << "#include <lorelei/ThunkInterface/Detail/Variadic.h>" << "\n";
         os << "\n";
         os << "#include \"" << std::filesystem::path(m_preIncludeFileName).filename().string()
            << "\"\n";
         os << "\n";
+    }
 
-        /// STEP: Generate symbol declarations
+    llvm::Error DocumentContext::emitExportedAliases(llvm::raw_ostream &os) const {
         os << "extern \"C\" {\n";
         os << "#pragma GCC diagnostic push\n";
         os << "#pragma GCC diagnostic ignored \"-Wattribute-alias\"\n";
-        if (m_mode == Host) {
-            for (auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::HostToGuest]) {
-                auto alias = m_procAliasMaker->getInvokeAlias(
-                    "HostToGuest", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
-                    proc.desc() ? proc.desc()->overlayType : std::nullopt);
-                if (!alias) {
-                    return alias.takeError();
-                }
-                os << "LORE_DECL_EXPORT "
-                   << FunctionInfo(proc.functionDecl()).declText("GTL_" + proc.name(), *m_ast)
-                   << "\n    __attribute__((alias(\"" << *alias << "\")));\n";
+
+        // A host thunk exports the guest function under a GTL_-prefixed symbol; a guest thunk
+        // exports the host function under its own name. Both alias the generated Entry invoke.
+        const bool isHost = m_mode == Host;
+        const auto direction = isHost ? ProcSnippet::HostToGuest : ProcSnippet::GuestToHost;
+        const char *directionName = isHost ? "HostToGuest" : "GuestToHost";
+        for (const auto &[_, proc] : m_procs[ProcSnippet::Function][direction]) {
+            auto alias = m_procAliasMaker->getInvokeAlias(
+                directionName, "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
+                proc.desc() ? proc.desc()->overlayType : std::nullopt);
+            if (!alias) {
+                return alias.takeError();
             }
-        } else {
-            for (auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::GuestToHost]) {
-                auto alias = m_procAliasMaker->getInvokeAlias(
-                    "GuestToHost", "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
-                    proc.desc() ? proc.desc()->overlayType : std::nullopt);
-                if (!alias) {
-                    return alias.takeError();
-                }
-                os << "LORE_DECL_EXPORT "
-                   << FunctionInfo(proc.functionDecl()).declText(proc.name(), *m_ast)
-                   << "\n    __attribute__((alias(\"" << *alias << "\")));\n";
-            }
+            const std::string symbol = isHost ? ("GTL_" + proc.name()) : proc.name();
+            os << "LORE_DECL_EXPORT "
+               << FunctionInfo(proc.functionDecl()).declText(symbol, *m_ast)
+               << "\n    __attribute__((alias(\"" << *alias << "\")));\n";
         }
+
         os << "#pragma GCC diagnostic pop\n";
         os << "}\n\n";
+        return llvm::Error::success();
+    }
 
-        /// STEP: Generate document head
-        os << m_source.head.toRawText() << "\n";
-
-        /// STEP: Generate macros
+    void DocumentContext::emitForeachMacros(llvm::raw_ostream &os) const {
         os << "#define LORE_THUNK_FUNCTION_G2H_FOREACH(F)";
         for (const auto &[_, proc] : m_procs[ProcSnippet::Function][ProcSnippet::GuestToHost]) {
             os << " \\\n    F(" << proc.name() << ")";
@@ -726,60 +756,30 @@ namespace lore::tool::TLC {
                << getTypeString(proc.functionPointerType().value()) << "\")";
         }
         os << "\n\n";
+    }
 
-        /// STEP: Generate forward declarations
-        os << "namespace lore::thunk {\n\n";
-
+    void DocumentContext::emitProcTexts(llvm::raw_ostream &os, bool asDeclaration) const {
         for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKinds; ++kind) {
             for (int direction = ProcSnippet::GuestToHost; direction < ProcSnippet::NumDirections;
                  ++direction) {
-                for (auto &[name, proc] : m_procs[kind][direction]) {
-                    os << legend(proc.name()) << "\n";
+                for (const auto &entry : m_procs[kind][direction]) {
+                    const auto &proc = entry.second;
+                    os << legendLine(proc.name()) << "\n";
                     if (!proc.hasDefinition(ProcSnippet::Caller)) {
-                        os << proc.text(ProcSnippet::Caller, true) << "\n";
+                        os << proc.text(ProcSnippet::Caller, asDeclaration) << "\n";
                     }
                     if (!proc.hasDefinition(ProcSnippet::Entry)) {
-                        os << proc.text(ProcSnippet::Entry, true) << "\n";
+                        os << proc.text(ProcSnippet::Entry, asDeclaration) << "\n";
                     }
                 }
             }
         }
+    }
 
-        os << "}\n\n";
-
-        /// STEP: Include main source file
-        os << "#include \"" << std::filesystem::path(m_mainFileName).filename().string()
-           << "\"\n\n";
-
-        /// STEP: Generate definitions
-        os << "namespace lore::thunk {\n\n";
-
-        for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKinds; ++kind) {
-            for (int direction = ProcSnippet::GuestToHost; direction < ProcSnippet::NumDirections;
-                 ++direction) {
-                for (auto &[name, proc] : m_procs[kind][direction]) {
-                    os << legend(proc.name()) << "\n";
-                    if (!proc.hasDefinition(ProcSnippet::Caller)) {
-                        os << proc.text(ProcSnippet::Caller, false) << "\n";
-                    }
-                    if (!proc.hasDefinition(ProcSnippet::Entry)) {
-                        os << proc.text(ProcSnippet::Entry, false) << "\n";
-                    }
-                }
-            }
-        }
-
-        os << "}\n\n";
-
-        /// STEP: Generate document tail
-        os << m_source.tail.toRawText() << "\n";
-
-        /// STEP: Generate missing items in comments
+    void DocumentContext::emitMissingComments(llvm::raw_ostream &os) const {
         os << "//\n// Missing Function Declarations\n//\n";
-        for (const auto &name :
-             std::as_const(m_requestedProcData.functions[ProcSnippet::GuestToHost])) {
-            auto &dstMap = m_functionDecls[ProcSnippet::GuestToHost];
-            if (auto it = dstMap.find(name); it != dstMap.end()) {
+        for (const auto &name : m_requestedProcData.functions[ProcSnippet::GuestToHost]) {
+            if (m_functionDecls[ProcSnippet::GuestToHost].count(name)) {
                 continue;
             }
             os << "// " << name << "\n";
@@ -787,10 +787,8 @@ namespace lore::tool::TLC {
         os << "\n";
 
         os << "//\n// Missing Guest Function Declarations\n//\n";
-        for (const auto &name :
-             std::as_const(m_requestedProcData.functions[ProcSnippet::HostToGuest])) {
-            auto &dstMap = m_functionDecls[ProcSnippet::HostToGuest];
-            if (auto it = dstMap.find(name); it != dstMap.end()) {
+        for (const auto &name : m_requestedProcData.functions[ProcSnippet::HostToGuest]) {
+            if (m_functionDecls[ProcSnippet::HostToGuest].count(name)) {
                 continue;
             }
             os << "// " << name << "\n";
@@ -800,12 +798,6 @@ namespace lore::tool::TLC {
         os << "//\n// Missing Variable Declarations\n//\n";
         // TODO: future work
         os << "\n";
-
-        /// STEP: Add manifest implementation (LORE_THUNK_HOST was set by the manifest's host entry)
-        os << "#include <lorelei/ThunkInterface/Detail/ProcImpl.cpp.inc>\n";
-
-        os << "\n";
-        return llvm::Error::success();
     }
 
 }

@@ -21,6 +21,7 @@
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 #include <lorelei/ClangExtras/DeclUtils.h>
+#include <lorelei/TLCApi/Detail/ManifestNames.h>
 #include <lorelei/TLCApi/ManifestFile.h>
 
 using namespace clang;
@@ -81,7 +82,7 @@ namespace lore::tool::command::stat {
                                                       ASTContext &ast) {
         for (const auto *subDecl : decl.decls()) {
             const TypedefNameDecl *td = dyn_cast<TypedefNameDecl>(subDecl);
-            if (!td || td->getName() != "overlay_type") {
+            if (!td || td->getName() != TLC::names::OverlayType) {
                 continue;
             }
 
@@ -101,7 +102,7 @@ namespace lore::tool::command::stat {
     static std::optional<std::string> extractNameHint(const ClassTemplateSpecializationDecl &decl) {
         for (const auto *subDecl : decl.decls()) {
             const auto *vd = dyn_cast<VarDecl>(subDecl);
-            if (!vd || !vd->isStaticDataMember() || vd->getName() != "name") {
+            if (!vd || !vd->isStaticDataMember() || vd->getName() != TLC::names::NameHint) {
                 continue;
             }
 
@@ -179,10 +180,10 @@ namespace lore::tool::command::stat {
 
             tool::CommonMatchFinder matchHandler(matchCallback);
             MatchFinder finder;
-            finder.addMatcher(classTemplateSpecializationDecl(hasName("lore::thunk::ProcFnDesc"))
+            finder.addMatcher(classTemplateSpecializationDecl(hasName(TLC::names::ProcFnDesc))
                                   .bind("procFnDescDecl"),
                               &matchHandler);
-            finder.addMatcher(classTemplateSpecializationDecl(hasName("lore::thunk::ProcCbDesc"))
+            finder.addMatcher(classTemplateSpecializationDecl(hasName(TLC::names::ProcCbDesc))
                                   .bind("procCbDescDecl"),
                               &matchHandler);
             finder.addMatcher(typedefDecl().bind("typedefDecl"), &matchHandler);

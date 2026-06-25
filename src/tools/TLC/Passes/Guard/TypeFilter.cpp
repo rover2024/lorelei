@@ -2,6 +2,7 @@
 #include <lorelei/TLCApi/Pass.h>
 #include <lorelei/TLCApi/ProcSnippet.h>
 #include <lorelei/TLCApi/DocumentContext.h>
+#include <lorelei/TLCApi/Detail/ManifestNames.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
@@ -78,10 +79,10 @@ namespace lore::tool::TLC {
         MatchFinder finder;
 
         finder.addMatcher(
-            classTemplateSpecializationDecl(hasName("ProcArgFilter")).bind("procArgFilter"),
+            classTemplateSpecializationDecl(hasName(names::ProcArgFilter)).bind("procArgFilter"),
             &matchHandler);
         finder.addMatcher(
-            classTemplateSpecializationDecl(hasName("ProcReturnFilter")).bind("procReturnFilter"),
+            classTemplateSpecializationDecl(hasName(names::ProcReturnFilter)).bind("procReturnFilter"),
             &matchHandler);
 
         finder.matchAST(doc.ast());

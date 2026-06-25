@@ -3,6 +3,7 @@
 
 #include <tuple>
 
+#include <lorelei/Support/Global.h>
 #include <lorelei/DLCall/ProcDefs.h>
 
 #define _PROC LORE_USED static
