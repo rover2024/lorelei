@@ -1,5 +1,5 @@
-add_subdirectory(libs)
-
-if (LORE_BUILD_TESTS)
-    add_subdirectory(tests)
+if(LORE_BUILD_GUEST_TARGETS)
+    add_subdirectory(GuestRT)
 endif()
+
+add_subdirectory(HostRT)

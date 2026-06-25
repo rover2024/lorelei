@@ -1,7 +1,4 @@
-add_subdirectory(libs)
+# add_subdirectory(TLC)
 
-add_subdirectory(tools)
-
-if (LORE_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
+# TODO: under development
+# add_subdirectory(HLR)

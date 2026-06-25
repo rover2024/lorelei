@@ -1,27 +1,26 @@
 #ifndef LORE_MODULES_HOSTRT_HOSTTHUNKCONTEXT_H
 #define LORE_MODULES_HOSTRT_HOSTTHUNKCONTEXT_H
 
-#include <lorelei/Base/PassThrough/c/CProc.h>
-
+#include <lorelei/DLCall/ProcDefs.h>
 #include <lorelei/Modules/HostRT/Global.h>
 
 namespace lore::mod {
 
     class LOREHOSTRT_EXPORT HostThunkContext {
     public:
-        inline HostThunkContext(CStaticThunkContext *localContext)
-            : m_staticContext(localContext) {
+        inline HostThunkContext(StaticThunkContext *localContext)
+            : m_staticThunkContext(localContext) {
         }
         ~HostThunkContext();
 
-        inline const CStaticThunkContext *staticThunkContext() const {
-            return m_staticContext;
+        inline const StaticThunkContext *staticThunkContext() const {
+            return m_staticThunkContext;
         }
 
         void initialize();
 
     protected:
-        CStaticThunkContext *m_staticContext;
+        StaticThunkContext *m_staticThunkContext;
         void *m_hostLibraryHandle = nullptr;
     };
 

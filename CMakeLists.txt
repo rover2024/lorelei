@@ -12,7 +12,6 @@ project(lorelei
 # ----------------------------------
 option(LORE_BUILD_GUEST_TARGETS "Build guest targets" OFF)
 option(LORE_BUILD_TOOLS "Build tool targets" ON)
-option(LORE_BUILD_MIDWARE "Build midware targets" ON)
 option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
@@ -44,11 +43,6 @@ set(LORE_VERSION ${PROJECT_VERSION})
 set(LORE_DESCRIPTION ${PROJECT_DESCRIPTION})
 set(LORE_HOMEPAGE_URL ${PROJECT_HOMEPAGE_URL})
 set(LORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ----------------------------------
-# Add external modules
-# ----------------------------------
-add_subdirectory(external)
 
 # ----------------------------------
 # Initialize QMSetup (Required)

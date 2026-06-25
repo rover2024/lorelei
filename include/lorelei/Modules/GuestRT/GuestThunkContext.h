@@ -3,30 +3,27 @@
 
 #include <vector>
 
-#include <lorelei/Base/PassThrough/c/CProc.h>
-#include <lorelei/Base/PassThrough/ThunkTools/FunctionTrampoline.h>
-
+#include <lorelei/DLCall/ProcDefs.h>
 #include <lorelei/Modules/GuestRT/Global.h>
 
 namespace lore::mod {
 
     class LOREGUESTRT_EXPORT GuestThunkContext {
     public:
-        inline GuestThunkContext(CStaticThunkContext *localContext)
-            : m_staticContext(localContext) {
+        inline GuestThunkContext(StaticThunkContext *localContext)
+            : m_staticThunkContext(localContext) {
         }
         ~GuestThunkContext();
 
-        inline const CStaticThunkContext *staticThunkContext() const {
-            return m_staticContext;
+        inline const StaticThunkContext *staticThunkContext() const {
+            return m_staticThunkContext;
         }
 
         void initialize();
 
     protected:
-        CStaticThunkContext *m_staticContext;
+        StaticThunkContext *m_staticThunkContext;
         void *m_htlHandle = nullptr;
-        std::vector<FunctionTrampolineTable *> m_fdgTrampolineTables;
     };
 
 }

@@ -1,7 +1,7 @@
 #ifndef LORE_MODULES_GUESTRT_GLOBAL_H
 #define LORE_MODULES_GUESTRT_GLOBAL_H
 
-#include <lorelei/Base/Support/Global.h>
+#include <lorelei/Support/Global.h>
 
 #ifndef LOREGUESTRT_EXPORT
 #  ifdef LOREGUESTRT_STATIC

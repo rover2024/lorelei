@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include <lorelei/Base/PassThrough/c/CVariadicArgs.h>
+#include <lorelei/DLCall/Tools/VariadicArgDefs.h>
 
 #ifdef __cplusplus
 extern "C" {

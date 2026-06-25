@@ -1,7 +1,7 @@
 #ifndef LORE_MODULES_HOSTRT_GLOBAL_H
 #define LORE_MODULES_HOSTRT_GLOBAL_H
 
-#include <lorelei/Base/Support/Global.h>
+#include <lorelei/Support/Global.h>
 
 #ifndef LOREHOSTRT_EXPORT
 #  ifdef LOREHOSTRT_STATIC

@@ -1,8 +1,0 @@
-#ifndef LORE_TOOLS_THUNKINTERFACE_VARIADIC_H
-#define LORE_TOOLS_THUNKINTERFACE_VARIADIC_H
-
-#include <lorelei/Base/PassThrough/ThunkTools/VariadicAdaptor.h>
-
-#define LORE_THUNK_VARG_MAX 64
-
-#endif // LORE_TOOLS_THUNKINTERFACE_VARIADIC_H
