@@ -668,8 +668,8 @@ namespace lore::tool::TLC {
         os << "#define LORE_THUNK_BUILD\n\n";
 
         /// STEP: Add manifest declarations
-        os << "#include <lorelei/Tools/ThunkInterface/Callback.h>" << "\n";
-        os << "#include <lorelei/Tools/ThunkInterface/Variadic.h>" << "\n";
+        os << "#include <lorelei/ThunkInterface/Detail/Callback.h>" << "\n";
+        os << "#include <lorelei/ThunkInterface/Detail/Variadic.h>" << "\n";
         os << "\n";
         os << "#include \"" << std::filesystem::path(m_preIncludeFileName).filename().string()
            << "\"\n";
@@ -807,12 +807,8 @@ namespace lore::tool::TLC {
         // TODO: future work
         os << "\n";
 
-        /// STEP: Add manifest implementation
-        if (m_mode == Host) {
-            os << "#include <lorelei/Tools/ThunkInterface/Host/ManifestImpl.cpp.inc>\n";
-        } else {
-            os << "#include <lorelei/Tools/ThunkInterface/Guest/ManifestImpl.cpp.inc>\n";
-        }
+        /// STEP: Add manifest implementation (LORE_THUNK_HOST was set by the manifest's host entry)
+        os << "#include <lorelei/ThunkInterface/Detail/ProcImpl.cpp.inc>\n";
 
         os << "\n";
     }

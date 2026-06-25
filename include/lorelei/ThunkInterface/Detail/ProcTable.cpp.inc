@@ -1,4 +1,4 @@
-#include <lorelei/Base/PassThrough/c/CProc.h>
+#include <lorelei/DLCall/ProcDefs.h>
 
 #ifndef LORE_THUNK_FUNCTION_G2H_FOREACH
 #  define LORE_THUNK_FUNCTION_G2H_FOREACH(F)
@@ -82,20 +82,20 @@ namespace lore::thunk::detail {
     };
 
     // Implemented in the generated codes
-    static CStaticProcInfo hostFunctions_guestEntries[NumHostFunction + 1];
-    static CStaticProcInfo guestFunctions_guestEntries[NumGuestFunction + 1];
-    static CStaticProcInfo hostCallbacks_guestEntries[NumCallback + 1];
-    static CStaticProcInfo guestCallbacks_guestEntries[NumCallback + 1];
+    static ProcInfoPair hostFunctions_guestEntries[NumHostFunction + 1];
+    static ProcInfoPair guestFunctions_guestEntries[NumGuestFunction + 1];
+    static ProcInfoPair hostCallbacks_guestEntries[NumCallback + 1];
+    static ProcInfoPair guestCallbacks_guestEntries[NumCallback + 1];
 
     // Assigned in the initializer
-    static CStaticProcInfo hostFunctions_hostEntries[NumHostFunction + 1];
-    static CStaticProcInfo guestFunctions_hostEntries[NumGuestFunction + 1];
-    static CStaticProcInfo hostCallbacks_hostEntries[NumCallback + 1];
-    static CStaticProcInfo guestCallbacks_hostEntries[NumCallback + 1];
+    static ProcInfoPair hostFunctions_hostEntries[NumHostFunction + 1];
+    static ProcInfoPair guestFunctions_hostEntries[NumGuestFunction + 1];
+    static ProcInfoPair hostCallbacks_hostEntries[NumCallback + 1];
+    static ProcInfoPair guestCallbacks_hostEntries[NumCallback + 1];
 
-    static CStaticProcInfo libraryFunctions[NumLibraryFunction + 1];
+    static ProcInfoPair libraryFunctions[NumLibraryFunction + 1];
 
-    static CStaticThunkContext staticThunkContext = {
+    static StaticThunkContext staticThunkContext = {
         {
          {{hostFunctions_guestEntries, NumHostFunction},
              {guestFunctions_guestEntries, NumGuestFunction}},

@@ -1,12 +1,20 @@
 #include <lorelei/Support/STLTraitExtras.h>
-#include <lorelei/Modules/HostRT/HostThunkContext.h>
-#include <lorelei/Tools/ThunkInterface/Traits.h>
-#include <lorelei/Tools/ThunkInterface/Proc.h>
+#ifdef LORE_THUNK_HOST
+#  include <lorelei/Modules/HostRT/HostThunkContext.h>
+#else
+#  include <lorelei/Modules/GuestRT/GuestThunkContext.h>
+#endif
+#include <lorelei/ThunkInterface/Detail/Traits.h>
+#include <lorelei/ThunkInterface/Proc.h>
 
 namespace lore::thunk::detail {
 
     struct LocalThunkContext {
+#ifdef LORE_THUNK_HOST
         mod::HostThunkContext commonContext;
+#else
+        mod::GuestThunkContext commonContext;
+#endif
 
         LocalThunkContext() : commonContext(nullptr) {
         }
@@ -22,7 +30,11 @@ namespace lore::thunk {
     /// G_Entry -> G_Caller -> GRT -> EMU -> HRT -> H_Entry -> H_Caller
     template <auto F>
     struct ProcFn<F, GuestToHost, Entry> {
+#ifdef LORE_THUNK_HOST
         static constexpr CommonFunctionThunk invoke = nullptr;
+#else
+        static constexpr remove_attr_t<F> invoke = nullptr;
+#endif
     };
 
     template <auto F>
@@ -35,7 +47,11 @@ namespace lore::thunk {
         static inline void *get() {
             return nullptr;
         }
+#ifdef LORE_THUNK_HOST
         static constexpr remove_attr_t<F> invoke = nullptr;
+#else
+        static constexpr CommonFunctionThunk invoke = nullptr;
+#endif
     };
 
 
@@ -43,7 +59,11 @@ namespace lore::thunk {
     /// H_Entry -> H_Caller -> HRT -> EMU -> GRT -> G_Entry -> G_Caller
     template <auto F>
     struct ProcFn<F, HostToGuest, Entry> {
+#ifdef LORE_THUNK_HOST
         static constexpr remove_attr_t<F> invoke = nullptr;
+#else
+        static constexpr CommonFunctionThunk invoke = nullptr;
+#endif
     };
 
     template <auto F>
@@ -56,7 +76,11 @@ namespace lore::thunk {
         static inline void *get() {
             return nullptr;
         }
+#ifdef LORE_THUNK_HOST
         static constexpr CommonFunctionThunk invoke = nullptr;
+#else
+        static constexpr remove_attr_t<F> invoke = nullptr;
+#endif
     };
 
 
@@ -64,7 +88,11 @@ namespace lore::thunk {
     /// G_Entry -> G_Caller -> GRT -> EMU -> HRT -> H_Entry -> H_Caller
     template <class F>
     struct ProcCb<F, GuestToHost, Entry> {
+#ifdef LORE_THUNK_HOST
         static constexpr CommonCallbackThunk invoke = nullptr;
+#else
+        static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
+#endif
     };
 
     template <class F>
@@ -77,7 +105,11 @@ namespace lore::thunk {
         static inline void *get() {
             return nullptr;
         }
+#ifdef LORE_THUNK_HOST
         static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
+#else
+        static constexpr CommonCallbackThunk invoke = nullptr;
+#endif
     };
 
 
@@ -85,7 +117,11 @@ namespace lore::thunk {
     /// H_Entry -> H_Caller -> HRT -> EMU -> GRT -> G_Entry -> G_Caller
     template <class F>
     struct ProcCb<F, HostToGuest, Entry> {
+#ifdef LORE_THUNK_HOST
         static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
+#else
+        static constexpr CommonCallbackThunk invoke = nullptr;
+#endif
     };
 
     template <class F>
@@ -98,8 +134,11 @@ namespace lore::thunk {
         static inline void *get() {
             return nullptr;
         }
+#ifdef LORE_THUNK_HOST
         static constexpr CommonCallbackThunk invoke = nullptr;
+#else
+        static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
+#endif
     };
 
 }
-

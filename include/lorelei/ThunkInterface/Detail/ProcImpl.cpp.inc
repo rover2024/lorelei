@@ -8,31 +8,30 @@ namespace lore::thunk {
 
 }
 
-#include "ProcImpl.cpp.inc"
+#include "ProcInit.cpp.inc"
+
+#ifdef LORE_THUNK_HOST
 
 extern "C" {
-LORE_DECL_EXPORT void LoreExchangeContext(CStaticThunkContext *guestCtx) {
+LORE_DECL_EXPORT void LoreExchangeContext(lore::StaticThunkContext *guestCtx) {
     using namespace lore::thunk::detail;
 
-    const auto copyProcs = [](CStaticProcInfoArrayRef src, CStaticProcInfoArrayRef dest) {
+    const auto copyProcs = [](lore::ProcArrayRef src, lore::ProcArrayRef dest) {
         const size_t n = src.size < dest.size ? src.size : dest.size;
         for (size_t i = 0; i < n; ++i) {
             dest.arr[i] = src.arr[i];
         }
     };
 
-    for (int kind = CProcKind_Function; kind < CProcKind_NumProcKind; ++kind) {
-        for (int dir = CProcDirection_GuestToHost; dir < CProcDirection_NumProcDirection; ++dir) {
+    for (int kind = lore::Function; kind < lore::NumProcKind; ++kind) {
+        for (int dir = lore::GuestToHost; dir < lore::NumProcDirection; ++dir) {
             copyProcs(guestCtx->guestProcs[kind][dir], staticThunkContext.guestProcs[kind][dir]);
             copyProcs(staticThunkContext.hostProcs[kind][dir], guestCtx->hostProcs[kind][dir]);
         }
     }
 
     guestCtx->emuAddr = staticThunkContext.emuAddr;
+}
+}
 
-    guestCtx->numCCGs = staticThunkContext.numCCGs;
-    guestCtx->CCGs = staticThunkContext.CCGs;
-    guestCtx->numFDGs = staticThunkContext.numFDGs;
-    guestCtx->FDGs = staticThunkContext.FDGs;
-}
-}
+#endif // LORE_THUNK_HOST

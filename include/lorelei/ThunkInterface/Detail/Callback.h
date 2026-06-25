@@ -75,7 +75,7 @@ namespace lore::thunk {
         return false;
     }
 #else
-        ; // implemented in 'ManifestImpl.cpp.inc'
+        ; // implemented in 'ProcImpl.cpp.inc'
 #endif
 
     template <bool isGuest, class F>
