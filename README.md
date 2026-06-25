@@ -58,7 +58,7 @@ cd lorelei
 
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/lorelei \
+    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
     -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
     -DLORE_BUILD_GUEST_TARGETS=TRUE \   # Disable if building for host ISA
     -DLORE_BUILD_TOOLS=TRUE             # Disable if building for guest ISA
