@@ -39,9 +39,9 @@ namespace lore::thunk {
 
     static constexpr const size_t kMaxCallbackTrampolineCount = 16;
 
-    struct GlobalTramplolineContext {};
+    struct GlobalTrampolineContext {};
 
-    template <auto F, class Context = GlobalTramplolineContext,
+    template <auto F, class Context = GlobalTrampolineContext,
               size_t Count = kMaxCallbackTrampolineCount>
     static auto allocCallbackTrampoline(void *input) {
         using ReturnType = decltype(F);
