@@ -5,6 +5,7 @@
 
 namespace lore {
 
+    /// LogContext - The call-site information attached to a single log record.
     class LogContext {
     public:
         inline LogContext() noexcept = default;
@@ -13,14 +14,16 @@ namespace lore {
             : line(lineNumber), file(fileName), function(functionName), category(categoryName) {
         }
 
-        int line = 0;
-        const char *file = nullptr;
-        const char *function = nullptr;
-        const char *category = nullptr;
+        int line = 0;                   ///< source line, or 0 if unknown
+        const char *file = nullptr;     ///< source file path
+        const char *function = nullptr; ///< enclosing function name
+        const char *category = nullptr; ///< originating LogCategory name
     };
 
+    /// Logger - A one-shot emitter for a single log record, bound to a LogContext.
     class LORESUPPORT_EXPORT Logger {
     public:
+        /// Severity levels, ordered low to high.
         enum Level {
             Trace = 1,
             Debug,
@@ -38,6 +41,7 @@ namespace lore {
             : m_ctx(file, line, function, category) {
         }
 
+        /// Formats the arguments with \a formatN() and emits the record at the method's level.
         template <class... Args>
         inline void trace(const std::string_view &format, Args &&...args) {
             print(Trace, formatN(format, std::forward<Args>(args)...));
@@ -68,26 +72,33 @@ namespace lore {
             print(Critical, formatN(format, std::forward<Args>(args)...));
         }
 
+        /// Emits the record, then terminates the process via abort().
         template <class... Args>
         [[noreturn]] inline void fatal(const std::string_view &format, Args &&...args) {
-            print(Critical, formatN(format, std::forward<Args>(args)...));
+            print(Fatal, formatN(format, std::forward<Args>(args)...));
             abort();
         }
 
+        /// Emits the record at a level chosen at run time.
         template <class... Args>
         inline void log(int level, const std::string_view &format, Args &&...args) {
             print(level, formatN(format, std::forward<Args>(args)...));
         }
 
+        /// Hands an already-formatted message to the active LogCallback.
         void print(int level, const std::string_view &message);
 
+        /// Like print(), but builds the message with printf-style formatting.
         void printf(int level, const char *fmt, ...);
 
+        /// Terminates the process; used by the Fatal path.
         [[noreturn]] static void abort();
 
     public:
+        /// The sink that receives every emitted record: (level, context, message).
         using LogCallback = void (*)(int, const LogContext &, const std::string_view &);
 
+        /// The process-wide sink; the default prints Success and above to stdout/stderr.
         static LogCallback logCallback();
         static void setLogCallback(LogCallback callback);
 
@@ -95,25 +106,40 @@ namespace lore {
         LogContext m_ctx;
     };
 
-    /// Yet another logging category implementation of Qt QLoggingCategory.
+    /// LogCategory - Yet another logging category implementation of Qt \c QLoggingCategory.
+    ///
+    /// A named logging channel with independently toggleable levels. Each category registers itself
+    /// in a global registry on construction (and applies the active filter rules), letting the
+    /// logging macros gate output per category and per level. Prefer the lore*/lore*F macros over
+    /// calling log() directly.
     class LORESUPPORT_EXPORT LogCategory {
     public:
+        /// Registers the category under \c name and applies the current filter rules to it.
         explicit LogCategory(const char *name);
         ~LogCategory();
 
+        /// The category name.
         inline const char *name() const {
             return m_name;
         }
+        /// Whether records at \c level (a Logger::Level) are currently emitted.
         inline bool isLevelEnabled(int level) const {
             return levelEnabled[level];
         }
+        /// Enables or disables a single level; normally driven by the filter rules.
         inline void setLevelEnabled(int level, bool enabled) {
             levelEnabled[level] = enabled;
         }
 
+        /// A hook that sets a category's enabled levels, run on registration and on rule changes.
         using LogCategoryFilter = void (*)(LogCategory *);
 
+        /// The installed filter. The default one applies filterRules().
         static LogCategoryFilter logFilter();
+
+        /// Replaces the category filter (pass nullptr to restore the default) and re-runs it over
+        /// every registered category. A custom filter takes over entirely, so the rules apply only
+        /// if it defers to the default.
         static void setLogFilter(LogCategoryFilter filter);
 
         /// Returns the filter-rules string most recently passed to setFilterRules().
@@ -136,8 +162,12 @@ namespace lore {
         /// \endcode
         void setFilterRules(std::string rules);
 
+        /// The fallback category used by the macros when no user category is in scope.
         static LogCategory &defaultCategory();
 
+        /// Macro entry point: if the compile-time \c Level is enabled, formats the arguments with
+        /// formatN() (%1, %2, ...) and emits the record, aborting afterwards when \c Level is
+        /// Fatal.
         template <int Level, class... Args>
         void log(const char *fileName, int lineNumber, const char *functionName,
                  const std::string_view &format, Args &&...args) const {
@@ -151,6 +181,7 @@ namespace lore {
             }
         }
 
+        /// Like \a log(), but builds the message with printf-style formatting.
         template <int Level, class... Args>
         void logf(const char *fileName, int lineNumber, const char *functionName, const char *fmt,
                   Args &&...args) const {
@@ -164,6 +195,7 @@ namespace lore {
             }
         }
 
+        /// Internal: lets the macros resolve an in-scope user category via unqualified lookup.
         inline const LogCategory &__loreGetLogCategory() const {
             return *this;
         }
@@ -171,6 +203,9 @@ namespace lore {
     protected:
         const char *m_name;
 
+        // Per-level enable flags, indexed by Logger::Level. The union aliases all eight bytes as a
+        // single word so every level can be set at once through `enabled` (e.g. the ctor's
+        // 0x01..01 turns them all on).
         union {
             bool levelEnabled[8];
             uint64_t enabled;
@@ -179,6 +214,7 @@ namespace lore {
 
 }
 
+// Fallback for the macros when no LogCategory member is in scope: resolves to the default category.
 static inline const lore::LogCategory &__loreGetLogCategory() {
     return lore::LogCategory::defaultCategory();
 }
@@ -201,6 +237,9 @@ static inline const lore::LogCategory &__loreGetLogCategory() {
     \endcode
 */
 
+// Per-category logging macros. Each resolves the in-scope category through __loreGetLogCategory()
+// (the member form for a user category, the free form for the default) and forwards the call site.
+// The plain macros use formatN() (%1, %2, ...); the *F variants use printf-style formatting.
 #define loreLog(LEVEL, ...)                                                                        \
     __loreGetLogCategory().log<lore::Logger::LEVEL>(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define loreTrace(...)    loreLog(Trace, __VA_ARGS__)

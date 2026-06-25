@@ -72,8 +72,10 @@ namespace lore::tool::TLC {
 
         /// Instantiates the pass pipeline for this source file; returns false to abort the action.
         bool beginSourceFileAction(clang::CompilerInstance &CI);
+
         /// Collects the requested procs and their metadata from the parsed AST.
         llvm::Error handleTranslationUnit(clang::ASTContext &ast);
+
         /// Runs the Builder/Guard/Misc passes over the collected procs.
         llvm::Error endSourceFileAction();
 
