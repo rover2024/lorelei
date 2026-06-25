@@ -105,9 +105,6 @@ namespace lore::tool::TLC {
         inline const std::map<std::string, FunctionPointerTypeInfo> &callbackTypes() const {
             return m_callbackTypes;
         }
-        inline const std::map<std::string, const clang::VarDecl *> &varDecls() const {
-            return m_varDecls;
-        }
 
         /// The document-level generation buffer.
         inline DocumentSource &source() {
@@ -145,7 +142,6 @@ namespace lore::tool::TLC {
         std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumDirections>
             m_functionDecls;
         std::map<std::string, FunctionPointerTypeInfo> m_callbackTypes;
-        std::map<std::string, const clang::VarDecl *> m_varDecls;
 
         // Produced by the passes.
         DocumentSource m_source;
