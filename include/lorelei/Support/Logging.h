@@ -116,7 +116,24 @@ namespace lore {
         static LogCategoryFilter logFilter();
         static void setLogFilter(LogCategoryFilter filter);
 
+        /// Returns the filter-rules string most recently passed to setFilterRules().
         static std::string filterRules();
+
+        /// Installs Qt-style category filter rules controlling which levels each category emits.
+        ///
+        /// Rules are separated by newlines or ';', and `#`-prefixed lines are comments. Each rule
+        /// reads `category[.level] = true|false`, where:
+        ///   - category may carry a single leading and/or trailing `*` wildcard
+        ///     (`lore.*`, `*.io`, `*`); otherwise it matches exactly.
+        ///   - level is one of trace/debug/success/info/warning/critical/fatal; omit it to affect
+        ///     every level.
+        /// Rules are applied in order over an all-enabled baseline, so a later matching rule
+        /// overrides an earlier one. For example:
+        /// \code
+        ///   *.debug = false       // silence debug everywhere
+        ///   lore.io = false       // silence the lore.io category entirely
+        ///   lore.io.warning = true // ...except its warnings
+        /// \endcode
         void setFilterRules(std::string rules);
 
         static LogCategory &defaultCategory();
