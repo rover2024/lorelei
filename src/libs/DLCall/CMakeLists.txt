@@ -6,7 +6,7 @@ file(GLOB_RECURSE _src *.h *.cpp)
 lore_add_library(${PROJECT_NAME} STATIC
     SOURCES ${_src}
     LINKS LoreSupport
-    LINKS_PRIVATE $<BUILD_INTERFACE:json11> $<BUILD_INTERFACE:printf> $<BUILD_INTERFACE:llvm-standalone>
+    LINKS_PRIVATE $<BUILD_INTERFACE:json11> $<BUILD_INTERFACE:printf>
 )
 qm_include_recursive(${PROJECT_NAME} PRIVATE
     ${LORE_INCLUDE_DIR}/lorelei/DLCall

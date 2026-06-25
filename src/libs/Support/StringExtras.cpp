@@ -1,6 +1,6 @@
 #include "StringExtras.h"
 
-#include <llvm/ADT/SmallVector.h>
+#include <lorelei/Support/VarSizeArray.h>
 
 #include <cstring>
 #include <cstdarg>
@@ -33,7 +33,7 @@ namespace lore::str {
         \internal
     */
     static bool varexp_split(const std::string_view &s,
-                             llvm::SmallVectorImpl<varexp_part> &result) {
+                             lore::VarSizeArrayBase<varexp_part> &result) {
         varexp_part buf{
             varexp_part_type::literal,
             s.data(),
@@ -234,7 +234,7 @@ namespace lore::str {
             const char *data;
             size_t size;
         };
-        llvm::SmallVector<Part, 10> parts;
+        lore::VarSizeArray<Part, 10> parts;
 
         const auto &push_back = [&parts](const char *data, size_t size) {
             parts.push_back({data, size});
@@ -315,7 +315,7 @@ namespace lore::str {
     */
     std::string varexp(const std::string_view &s,
                        const std::function<std::string(const std::string_view &)> &find) {
-        llvm::SmallVector<varexp_part, 10> parts;
+        lore::VarSizeArray<varexp_part, 10> parts;
         if (!varexp_split(s, parts)) {
             return {};
         }

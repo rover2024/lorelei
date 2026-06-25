@@ -2,11 +2,12 @@
 
 #include <cstdarg>
 #include <cassert>
+#include <cstring>
 
 #include <printf/printf.h>
 #include <printf/printf_scanf.h>
 
-#include <llvm/ADT/SmallVector.h>
+#include <lorelei/Support/VarSizeArray.h>
 
 namespace lore {
 
@@ -161,7 +162,7 @@ namespace lore {
         CVargEntry vret{};
         callFormatBox64_ret_entry(fmt[0], &vret);
 
-        llvm::SmallVector<CVargEntry, 16> vargs;
+        lore::VarSizeArray<CVargEntry, 16> vargs;
         vargs.resize(len - 2);
         for (size_t i = 0; i < len - 2; ++i) {
             const auto fmt_char = fmt[i + 2];
