@@ -6,11 +6,19 @@
 
 namespace lore::tool {
 
-    /// \class SourceLineList
-    /// \brief A container of source code lines.
+    /// SourceLineList - An ordered collection of generated source lines.
+    ///
+    /// Each line carries an id tag (used by passes to locate or group the lines they emitted) and
+    /// the line text. Lines stay in insertion order and can be rendered back into a single,
+    /// newline-terminated string with toRawText().
+    ///
+    /// The backing container is a template parameter, so callers can swap the sequence type (for
+    /// example std::vector) without changing this interface. It defaults to std::list, whose
+    /// iterators and references stay valid across insertion at either end.
     template <template <class...> class ListType = std::list, class... ListMods>
     class SourceLineList {
     public:
+        /// One source line: an identifier tag plus its text.
         struct Line {
             std::string id;
             std::string text;
@@ -19,64 +27,54 @@ namespace lore::tool {
 
         SourceLineList() = default;
 
-    public:
+        /// Appends a line. Empty-text lines are ignored.
         void push_back(Line line) {
             if (line.text.empty())
                 return;
-            _lines.insert(_lines.end(), std::move(line));
+            m_lines.insert(m_lines.end(), std::move(line));
         }
 
+        /// @overload
         void push_back(std::string id, std::string text) {
             push_back({std::move(id), std::move(text)});
         }
 
+        /// Prepends a line. Empty-text lines are ignored.
         void push_front(Line line) {
             if (line.text.empty())
                 return;
-            _lines.insert(_lines.begin(), std::move(line));
+            m_lines.insert(m_lines.begin(), std::move(line));
         }
 
+        /// @overload
         void push_front(std::string id, std::string text) {
             push_front({std::move(id), std::move(text)});
         }
 
         const LineList &lines() const {
-            return _lines;
+            return m_lines;
         }
-
         LineList &lines() {
-            return _lines;
+            return m_lines;
         }
 
         bool empty() const {
-            return _lines.empty();
+            return m_lines.empty();
         }
 
+        /// Concatenates every line, terminating each with a newline if it lacks one.
         std::string toRawText() const {
-            if (_lines.empty()) {
-                return {};
-            }
             std::string result;
-            auto last = std::prev(_lines.end());
-            for (auto it = _lines.begin(); it != last; it++) {
-                const Line &line = *it;
+            for (const Line &line : m_lines) {
                 result += line.text;
-                if (line.text.back() != '\n') {
-                    result += "\n";
-                }
-            }
-            {
-                const Line &line = *last;
-                result += line.text;
-                if (line.text.back() != '\n') {
-                    result += "\n";
-                }
+                if (!line.text.empty() && line.text.back() != '\n')
+                    result += '\n';
             }
             return result;
         }
 
     protected:
-        LineList _lines;
+        LineList m_lines;
     };
 
 }
