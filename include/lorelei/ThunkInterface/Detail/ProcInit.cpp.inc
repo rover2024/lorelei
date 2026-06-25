@@ -13,7 +13,8 @@ namespace lore::thunk::detail {
     void LocalThunkContext::preInitialize() {
         // Local entry tables: name + this side's invoke address.
 #define _F(NAME)                                                                                   \
-    _LORE_THUNK_THIS_ENTRY(hostFunctions)[HostFunction_##NAME] = {                                  \
+    _LORE_THUNK_THIS_ENTRY(hostFunctions)                                                          \
+    [HostFunction_##NAME] = {                                                                      \
         #NAME,                                                                                     \
         reinterpret_cast<void *>(ProcFn<NAME, GuestToHost, Entry>::invoke),                        \
     };
@@ -21,7 +22,8 @@ namespace lore::thunk::detail {
 #undef _F
 
 #define _F(NAME)                                                                                   \
-    _LORE_THUNK_THIS_ENTRY(guestFunctions)[GuestFunction_##NAME] = {                                \
+    _LORE_THUNK_THIS_ENTRY(guestFunctions)                                                         \
+    [GuestFunction_##NAME] = {                                                                     \
         #NAME,                                                                                     \
         reinterpret_cast<void *>(ProcFn<NAME, HostToGuest, Entry>::invoke),                        \
     };
@@ -29,7 +31,8 @@ namespace lore::thunk::detail {
 #undef _F
 
 #define _F(NAME, SIGNATURE)                                                                        \
-    _LORE_THUNK_THIS_ENTRY(hostCallbacks)[Callback_##NAME] = {                                      \
+    _LORE_THUNK_THIS_ENTRY(hostCallbacks)                                                          \
+    [Callback_##NAME] = {                                                                          \
         SIGNATURE,                                                                                 \
         reinterpret_cast<void *>(ProcCb<NAME, GuestToHost, Entry>::invoke),                        \
     };
@@ -37,7 +40,8 @@ namespace lore::thunk::detail {
 #undef _F
 
 #define _F(NAME, SIGNATURE)                                                                        \
-    _LORE_THUNK_THIS_ENTRY(guestCallbacks)[Callback_##NAME] = {                                     \
+    _LORE_THUNK_THIS_ENTRY(guestCallbacks)                                                         \
+    [Callback_##NAME] = {                                                                          \
         SIGNATURE,                                                                                 \
         reinterpret_cast<void *>(ProcCb<NAME, HostToGuest, Entry>::invoke),                        \
     };
@@ -61,9 +65,9 @@ namespace lore::thunk::detail {
         LORE_THUNK_CALLBACK_FOREACH(_F)
 #undef _F
 
-        // This side's real library symbols (static-link folds the address in directly).
+        // This side's real library symbols (auto-link folds the address in directly).
 #ifdef LORE_THUNK_HOST
-#  ifndef LORE_THUNK_CONFIG_HOST_FUNCTION_STATIC_LINK
+#  ifndef LORE_THUNK_AUTO_LINK
 #    define _F(NAME) libraryFunctions[HostFunction_##NAME].key = #NAME;
         LORE_THUNK_FUNCTION_G2H_FOREACH(_F)
 #    undef _F
@@ -77,25 +81,14 @@ namespace lore::thunk::detail {
 #    undef _F
 #  endif
 #else
-#  ifndef LORE_THUNK_CONFIG_GUEST_FUNCTION_STATIC_LINK
-#    define _F(NAME) libraryFunctions[GuestFunction_##NAME].key = #NAME;
+#  define _F(NAME) libraryFunctions[GuestFunction_##NAME].key = #NAME;
         LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
-#    undef _F
-#  else
-#    define _F(NAME)                                                                               \
-        libraryFunctions[GuestFunction_##NAME] = {                                                 \
-            #NAME,                                                                                 \
-            reinterpret_cast<void *>(NAME),                                                        \
-        };
-        LORE_THUNK_FUNCTION_H2G_FOREACH(_F)
-#    undef _F
-#  endif
+#  undef _F
 #endif
     }
 
     void LocalThunkContext::postInitialize() {
     }
-
 }
 
 #undef _LORE_THUNK_THIS_ENTRY

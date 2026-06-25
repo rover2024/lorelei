@@ -39,7 +39,7 @@ namespace lore {
         ProcArrayRef hostProcs[NumProcKind][NumProcDirection];
         ProcArrayRef thisProcs;
         void *emuAddr;
-        bool autoLink;
+        bool autoLink; // available in host manifest
     };
 
 }

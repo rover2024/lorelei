@@ -108,6 +108,15 @@ namespace lore::thunk::detail {
          },
         {libraryFunctions, NumLibraryFunction},
         nullptr,
+#ifdef LORE_THUNK_HOST
+#  ifdef LORE_THUNK_AUTO_LINK
+        true,
+#  else
+        false,
+#  endif
+#else
+        false,
+#endif
     };
 
 }
