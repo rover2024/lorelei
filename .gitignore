@@ -100,3 +100,7 @@ CMakeSettings.json
 # AI
 .codex
 .claude
+CLAUDE.md
+AGENTS.md
+docs/claude
+docs/codex
