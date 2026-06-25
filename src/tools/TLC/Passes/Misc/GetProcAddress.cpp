@@ -1,8 +1,8 @@
-#include <lorelei/Base/Support/StringExtras.h>
-#include <lorelei/TLCApi/Core/Pass.h>
-#include <lorelei/TLCApi/Core/ProcSnippet.h>
-#include <lorelei/TLCApi/Core/DocumentContext.h>
-#include <lorelei/Tools/ThunkInterface/PassTags.h>
+#include <lorelei/Support/StringExtras.h>
+#include <lorelei/TLCApi/Pass.h>
+#include <lorelei/TLCApi/ProcSnippet.h>
+#include <lorelei/TLCApi/DocumentContext.h>
+#include <lorelei/ThunkInterface/PassTags.h>
 
 #include "Utils/PassUtils.h"
 #include "Utils/PassCodeTemplates.h"

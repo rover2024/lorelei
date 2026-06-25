@@ -17,10 +17,10 @@
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <lorelei/Base/Support/ConfigFile.h>
+#include <lorelei/Support/ConfigFile.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
-#include <lorelei/TLCApi/Utils/ManifestStatistics.h>
+#include <lorelei/TLCApi/ManifestFile.h>
 
 using namespace clang;
 using namespace clang::tooling;
@@ -34,7 +34,7 @@ namespace lore::tool::command::stat {
         std::string outputPath;
         std::string configPath;
         lore::ConfigFile config;
-        TLC::ManifestStatistics stat;
+        TLC::ManifestFile stat;
     };
 
     static GlobalContext &g_ctx() {
@@ -379,7 +379,7 @@ namespace lore::tool::command::stat {
         }
 
         void collectConfigFunctionSection(StringRef sectionName,
-                                          TLC::ManifestStatistics::FunctionDirection direction) {
+                                          TLC::ManifestFile::FunctionDirection direction) {
             auto sectionOpt = g_ctx().config.get(sectionName.str());
             if (!sectionOpt) {
                 return;
@@ -450,8 +450,8 @@ namespace lore::tool::command::stat {
         }
 
         void collectConfigSeeds() {
-            collectConfigFunctionSection("Function", TLC::ManifestStatistics::GuestToHost);
-            collectConfigFunctionSection("Guest Function", TLC::ManifestStatistics::HostToGuest);
+            collectConfigFunctionSection("Function", TLC::ManifestFile::GuestToHost);
+            collectConfigFunctionSection("Guest Function", TLC::ManifestFile::HostToGuest);
             collectConfigCallbackSection();
         }
 

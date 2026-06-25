@@ -1,4 +1,4 @@
-#include "ManifestStatistics.h"
+#include "ManifestFile.h"
 
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/FileSystem.h>
@@ -6,16 +6,15 @@
 
 namespace lore::tool::TLC {
 
-    void ManifestStatistics::addFunction(FunctionDirection direction, std::string name,
-                                         std::string location) {
+    void ManifestFile::addFunction(FunctionDirection direction, std::string name,
+                                   std::string location) {
         auto &bucket = functions[direction];
         auto &info = bucket[name];
         info.location = std::move(location);
     }
 
-    void ManifestStatistics::addCallbackSignature(const std::string &signature,
-                                                  const std::string &origin,
-                                                  const std::string &preferredAlias) {
+    void ManifestFile::addCallbackSignature(const std::string &signature, const std::string &origin,
+                                            const std::string &preferredAlias) {
         auto &info = callbacks[signature];
         info.signature = signature;
         if (!preferredAlias.empty() && info.alias.empty()) {
@@ -26,7 +25,7 @@ namespace lore::tool::TLC {
         }
     }
 
-    bool ManifestStatistics::loadFromJson(const std::string &filePath, std::string &errorMessage) {
+    bool ManifestFile::loadFromJson(const std::string &filePath, std::string &errorMessage) {
         auto buffer = llvm::MemoryBuffer::getFile(filePath);
         if (std::error_code ec = buffer.getError()) {
             errorMessage = ec.message();
@@ -128,7 +127,7 @@ namespace lore::tool::TLC {
         return true;
     }
 
-    bool ManifestStatistics::saveAsJson(const std::string &filePath, std::string &errorMessage) const {
+    bool ManifestFile::saveAsJson(const std::string &filePath, std::string &errorMessage) const {
         llvm::json::Object root;
         root["version"] = 1;
         root["fileName"] = fileName;

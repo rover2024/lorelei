@@ -20,7 +20,7 @@ namespace clang {
 
 namespace lore::tool::TLC {
 
-    class ManifestStatistics;
+    class ManifestFile;
     class Pass;
     class ProcAliasMaker;
 
@@ -58,7 +58,7 @@ namespace lore::tool::TLC {
             std::string name;
         };
 
-        DocumentContext() = default;
+        DocumentContext();
         ~DocumentContext();
 
         inline void initialize(Mode mode, std::string preIncludeFileName, std::string mainFileName,

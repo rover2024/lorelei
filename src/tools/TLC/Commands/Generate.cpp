@@ -15,9 +15,9 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 
-#include <lorelei/TLCApi/Core/Pass.h>
-#include <lorelei/TLCApi/Core/DocumentContext.h>
-#include <lorelei/TLCApi/Utils/ManifestStatistics.h>
+#include <lorelei/TLCApi/Pass.h>
+#include <lorelei/TLCApi/DocumentContext.h>
+#include <lorelei/TLCApi/ManifestFile.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 
@@ -40,7 +40,7 @@ namespace lore::tool::command::generate {
         std::string manifestStatPath;
         std::string outputPath;
 
-        TLC::ManifestStatistics stat;
+        TLC::ManifestFile stat;
         TLC::DocumentContext doc;
 
         std::string outBuffer;
@@ -52,7 +52,7 @@ namespace lore::tool::command::generate {
     }
 
     static std::string buildBridgeTranslationUnitText(llvm::StringRef manifestPath,
-                                                      const TLC::ManifestStatistics &stat) {
+                                                      const TLC::ManifestFile &stat) {
         const auto &escapeForCIncludePath = [](llvm::StringRef path) {
             std::string out;
             out.reserve(path.size());
@@ -172,7 +172,7 @@ namespace lore::tool::command::generate {
         manifestIncludePathFs = manifestIncludePathFs.lexically_normal();
         const auto manifestIncludePath = manifestIncludePathFs.string();
 
-        TLC::ManifestStatistics stat;
+        TLC::ManifestFile stat;
         if (std::string err; !stat.loadFromJson(statOption.getValue(), err)) {
             llvm::errs() << "error: failed to parse stat json: " << err << "\n";
             return 1;
@@ -188,12 +188,12 @@ namespace lore::tool::command::generate {
             TLC::DocumentContext::RequestedProcData requestedData;
 
             for (const auto &[name, _] :
-                 g_ctx().stat.functions[TLC::ManifestStatistics::GuestToHost]) {
+                 g_ctx().stat.functions[TLC::ManifestFile::GuestToHost]) {
                 (void) _;
                 requestedData.functions[TLC::ProcSnippet::GuestToHost].insert(name);
             }
             for (const auto &[name, _] :
-                 g_ctx().stat.functions[TLC::ManifestStatistics::HostToGuest]) {
+                 g_ctx().stat.functions[TLC::ManifestFile::HostToGuest]) {
                 (void) _;
                 requestedData.functions[TLC::ProcSnippet::HostToGuest].insert(name);
             }

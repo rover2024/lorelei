@@ -26,6 +26,8 @@ using namespace clang::ast_matchers;
 
 namespace lore::tool::TLC {
 
+    DocumentContext::DocumentContext() = default;
+
     DocumentContext::~DocumentContext() = default;
 
     template <class T>

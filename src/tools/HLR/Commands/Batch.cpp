@@ -10,8 +10,8 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 
-#include <lorelei/Base/Support/ScopeGuard.h>
-#include <lorelei/Base/Support/StringExtras.h>
+#include <lorelei/Support/ScopeGuard.h>
+#include <lorelei/Support/StringExtras.h>
 
 #include "Utils/SourceStatistics.h"
 

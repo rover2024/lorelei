@@ -1,5 +1,5 @@
-#ifndef LORE_TOOLS_TLC_MANIFESTSTATISTICS_H
-#define LORE_TOOLS_TLC_MANIFESTSTATISTICS_H
+#ifndef LORE_TLCAPI_MANIFESTFILE_H
+#define LORE_TLCAPI_MANIFESTFILE_H
 
 #include <map>
 #include <string>
@@ -11,7 +11,7 @@
 
 namespace lore::tool::TLC {
 
-    /// ManifestStatistics - Serializable result model for TLC `stat`.
+    /// ManifestFile - Serializable result model for TLC `stat`.
     ///
     /// This class keeps two categories of data:
     /// 1. `functions`: configured thunk functions partitioned by direction.
@@ -40,7 +40,7 @@ namespace lore::tool::TLC {
     ///   "version": 1
     /// }
     /// \endcode
-    class LORETLCAPI_EXPORT ManifestStatistics {
+    class LORETLCAPI_EXPORT ManifestFile {
     public:
         enum FunctionDirection {
             GuestToHost = 0,
@@ -96,4 +96,4 @@ namespace lore::tool::TLC {
 
 }
 
-#endif // LORE_TOOLS_TLC_MANIFESTSTATISTICS_H
+#endif // LORE_TLCAPI_MANIFESTFILE_H

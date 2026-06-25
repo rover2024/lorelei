@@ -22,7 +22,7 @@
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
-#include <lorelei/Base/Support/ConfigFile.h>
+#include <lorelei/Support/ConfigFile.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 

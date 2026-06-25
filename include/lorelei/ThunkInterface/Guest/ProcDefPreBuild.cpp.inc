@@ -1,4 +1,4 @@
-#include <lorelei/Base/Support/STLTraitExtras.h>
+#include <lorelei/Support/STLTraitExtras.h>
 #include <lorelei/Modules/GuestRT/GuestThunkContext.h>
 #include <lorelei/Tools/ThunkInterface/Traits.h>
 #include <lorelei/Tools/ThunkInterface/Proc.h>

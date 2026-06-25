@@ -4,7 +4,7 @@
 #include <llvm/ADT/StringExtras.h>
 #include <clang/AST/ASTContext.h>
 
-#include <lorelei/TLCApi/Core/ProcSnippet.h>
+#include <lorelei/TLCApi/ProcSnippet.h>
 
 namespace lore::tool::TLC {
 
