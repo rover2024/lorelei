@@ -5,8 +5,11 @@
 
 namespace lore::tool {
 
-    /// \class FunctionTypeView
-    /// \brief A raw view of a function QualType.
+    /// FunctionTypeView - A decomposed view of a function type: return type, argument types, and
+    /// the variadic flag.
+    ///
+    /// Constructing from a \c QualType canonicalizes it and peels a leading function-pointer, so a
+    /// function, function pointer, or prototype all yield the same view.
     class FunctionTypeView {
     public:
         /// Constructs from a \c QualType.
@@ -39,16 +42,20 @@ namespace lore::tool {
         FunctionTypeView() = default;
 
     public:
+        /// The function's return type.
         const clang::QualType &returnType() const {
             return m_returnType;
         }
+        /// The function's parameter types.
         llvm::ArrayRef<clang::QualType> argTypes() const {
             return m_argTypes;
         }
+        /// Whether the function is variadic (takes a trailing \c ... pack).
         bool isVariadic() const {
             return m_variadic;
         }
 
+        /// Rebuilds a function \c clang::QualType for this signature in \a ctx.
         clang::QualType buildQualType(clang::ASTContext &ctx) const;
 
     protected:

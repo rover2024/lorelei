@@ -13,7 +13,7 @@ namespace lore::tool {
     /// newline-terminated string with toRawText().
     ///
     /// The backing container is a template parameter, so callers can swap the sequence type (for
-    /// example std::vector) without changing this interface. It defaults to std::list, whose
+    /// example \c std::vector) without changing this interface. It defaults to std::list, whose
     /// iterators and references stay valid across insertion at either end.
     template <template <class...> class ListType = std::list, class... ListMods>
     class SourceLineList {
@@ -51,6 +51,7 @@ namespace lore::tool {
             push_front({std::move(id), std::move(text)});
         }
 
+        /// The underlying lines, in insertion order.
         const LineList &lines() const {
             return m_lines;
         }
@@ -58,6 +59,7 @@ namespace lore::tool {
             return m_lines;
         }
 
+        /// Whether no line has been added yet.
         bool empty() const {
             return m_lines.empty();
         }

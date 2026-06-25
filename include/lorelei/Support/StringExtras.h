@@ -14,6 +14,7 @@ namespace lore {
 
     namespace str {
 
+        /// conv - Converts a string-like value to a UTF-8 std::string, specialized per source type.
         template <class T>
         struct conv;
 
@@ -49,12 +50,14 @@ namespace lore {
                 return to_utf8(s);
             }
 
+            /// Decodes a UTF-8 buffer into a wide string.
             LORESUPPORT_EXPORT static std::wstring from_utf8(const char *s, int size = -1);
 
             static inline std::wstring from_utf8(const std::string_view &s) {
                 return from_utf8(s.data(), int(s.size()));
             }
 
+            /// Encodes a wide string as UTF-8.
             LORESUPPORT_EXPORT static std::string to_utf8(const wchar_t *s, int size = -1);
 
             static inline std::string to_utf8(const std::wstring_view &s) {
@@ -90,6 +93,7 @@ namespace lore {
                                                                        bool native);
         };
 
+        /// Converts any supported value (numbers, bools, chars, string-likes) to a std::string.
         template <class T>
         std::string to_string(T &&t) {
             using T1 = std::remove_reference_t<T>;
@@ -117,23 +121,27 @@ namespace lore {
             }
         }
 
+        /// Concatenates \a v with \a delimiter inserted between elements.
         LORESUPPORT_EXPORT std::string join(std::span<const std::string> v,
                                             const std::string_view &delimiter);
 
-        // @overload: join(vector<string_view>, string_view)
+        /// @overload: join(vector<string_view>, string_view)
         LORESUPPORT_EXPORT std::string join(std::span<const std::string_view> v,
                                             const std::string_view &delimiter);
 
+        /// Splits \a s on \a delimiter, keeping empty tokens.
         LORESUPPORT_EXPORT std::vector<std::string_view> split(const std::string_view &s,
                                                                const std::string_view &delimiter);
 
-        // @overload: split(string &&, string_view)
+        /// @overload: split(string &&, string_view)
         LORESUPPORT_EXPORT std::vector<std::string> split(std::string &&s,
                                                           const std::string_view &delimiter);
 
+        /// Substitutes positional placeholders \c %1, \c %2, ... in \a fmt with \a args (\c %% -> %).
         LORESUPPORT_EXPORT std::string format(const std::string_view &fmt,
                                               std::span<const std::string> args);
 
+        /// Like format(), converting each argument to a string via to_string() first.
         template <class Arg1, class... Args>
         std::string formatN(const std::string_view &fmt, Arg1 &&arg1, Args &&...args) {
             return format(fmt, std::span<const std::string>({
@@ -142,26 +150,27 @@ namespace lore {
                                }));
         }
 
-        // @overload: formatN(string_view)
+        /// @overload: formatN(string_view)
         inline std::string formatN(const std::string_view &fmt) {
             return std::string(fmt);
         }
 
-        // @overload: formatN(string &&)
+        /// @overload: formatN(string &&)
         inline std::string formatN(std::string &&fmt) {
             return fmt;
         }
 
-        // @overload: formatN(const char *)
+        /// @overload: formatN(const char *)
         inline std::string formatN(const char *fmt) {
             return fmt;
         }
 
+        /// Expands \c ${name} references in \a s (nesting allowed) by resolving each through \a find.
         LORESUPPORT_EXPORT std::string
             varexp(const std::string_view &s,
                    const std::function<std::string(const std::string_view &)> &find);
 
-        // @overload: varexp(string, map<string, string>)
+        /// @overload: varexp(string, map<string, string>)
         template <template <class, class, class...> class MAP, class K, class V, class... MODS>
         inline std::string varexp(const std::string_view &s, const MAP<K, V, MODS...> &vars) {
             return varexp(s, [&vars](const std::string_view &name) -> std::string {
@@ -184,28 +193,31 @@ namespace lore {
 
     namespace str {
 
+        /// ASCII-uppercases \a s.
         inline std::string to_upper(std::string s) {
             std::transform(s.begin(), s.end(), s.begin(), ::toupper);
             return s;
         }
 
-        // @overload: to_upper(wstring)
+        /// @overload: to_upper(wstring)
         inline std::wstring to_upper(std::wstring s) {
             std::transform(s.begin(), s.end(), s.begin(), ::toupper);
             return s;
         }
 
+        /// ASCII-lowercases \a s.
         inline std::string to_lower(std::string s) {
             std::transform(s.begin(), s.end(), s.begin(), ::tolower);
             return s;
         }
 
-        // @overload: to_lower(wstring)
+        /// @overload: to_lower(wstring)
         inline std::wstring to_lower(std::wstring s) {
             std::transform(s.begin(), s.end(), s.begin(), ::tolower);
             return s;
         }
 
+        /// Whether \a s begins with \a prefix.
         inline bool starts_with(const std::string_view &s, const std::string_view &prefix) {
 #if __cplusplus >= 202002L
             return s.starts_with(prefix);
@@ -214,12 +226,12 @@ namespace lore {
 #endif
         }
 
-        // @overload: starts_with(string, char)
+        /// @overload: starts_with(string, char)
         inline bool starts_with(const std::string_view &s, char prefix) {
             return s.size() >= 1 && s.front() == prefix;
         }
 
-        // @overload: starts_with(wstring_view, wstring_view)
+        /// @overload: starts_with(wstring_view, wstring_view)
         inline bool starts_with(const std::wstring_view &s, const std::wstring_view &prefix) {
 #if __cplusplus >= 202002L
             return s.starts_with(prefix);
@@ -228,11 +240,12 @@ namespace lore {
 #endif
         }
 
-        // @overload: starts_with(wstring_view, wchar_t)
+        /// @overload: starts_with(wstring_view, wchar_t)
         inline bool starts_with(const std::wstring_view &s, wchar_t prefix) {
             return s.size() >= 1 && s.front() == prefix;
         }
 
+        /// Whether \a s ends with \a suffix.
         inline bool ends_with(const std::string_view &s, const std::string_view &suffix) {
 #if __cplusplus >= 202002L
             return s.ends_with(suffix);
@@ -241,12 +254,12 @@ namespace lore {
 #endif
         }
 
-        // @overload: ends_with(string_view, char)
+        /// @overload: ends_with(string_view, char)
         inline bool ends_with(const std::string_view &s, char suffix) {
             return s.size() >= 1 && s.back() == suffix;
         }
 
-        // @overload: ends_with(wstring_view, wstring_view)
+        /// @overload: ends_with(wstring_view, wstring_view)
         inline bool ends_with(const std::wstring_view &s, const std::wstring_view &suffix) {
 #if __cplusplus >= 202002L
             return s.ends_with(suffix);
@@ -255,98 +268,104 @@ namespace lore {
 #endif
         }
 
-        // @overload: ends_with(wstring_view, wchar_t)
+        /// @overload: ends_with(wstring_view, wchar_t)
         inline bool ends_with(const std::wstring_view &s, wchar_t suffix) {
             return s.size() >= 1 && s.back() == suffix;
         }
 
+        /// Returns \a s without its first \a N characters.
         inline std::string_view drop_front(const std::string_view &s, size_t N = 1) {
             return s.substr(N);
         }
 
-        // @overload: drop_front(string &&, size_t)
+        /// @overload: drop_front(string &&, size_t)
         inline std::string drop_front(std::string &&s, size_t N = 1) {
             return s.substr(N);
         }
 
+        /// Returns \a s without its last \a N characters.
         inline std::string_view drop_back(const std::string_view &s, size_t N = 1) {
             return s.substr(0, s.size() - N);
         }
 
-        // @overload: drop_back(string &&, size_t)
+        /// @overload: drop_back(string &&, size_t)
         inline std::string drop_back(std::string &&s, size_t N = 1) {
             return s.substr(0, s.size() - N);
         }
 
+        /// Removes leading runs of the given character(s) from \a s.
         inline std::string_view ltrim(const std::string_view &s, char Char) {
             return drop_front(s, std::min(s.size(), s.find_first_not_of(Char)));
         }
 
-        // @overload: ltrim(string &&, char)
+        /// @overload: ltrim(string &&, char)
         inline std::string ltrim(std::string &&s, char Char) {
             return std::string(
                 drop_front(std::string_view(s), std::min(s.size(), s.find_first_not_of(Char))));
         }
 
-        // @overload: ltrim(string_view, string_view)
+        /// @overload: ltrim(string_view, string_view)
         inline std::string_view ltrim(const std::string_view &s,
                                       const std::string_view &Chars = " \t\n\v\f\r") {
             return drop_front(s, std::min(s.size(), s.find_first_not_of(Chars)));
         }
 
-        // @overload: ltrim(string &&, string_view)
+        /// @overload: ltrim(string &&, string_view)
         inline std::string ltrim(std::string &&s, const std::string_view &Chars = " \t\n\v\f\r") {
             return std::string(
                 drop_front(std::string_view(s), std::min(s.size(), s.find_first_not_of(Chars))));
         }
 
+        /// Removes trailing runs of the given character(s) from \a s.
         inline std::string_view rtrim(const std::string_view &s, char Char) {
             return drop_back(s, s.size() - std::min(s.size(), s.find_last_not_of(Char) + 1));
         }
 
-        // @overload: rtrim(string &&, char)
+        /// @overload: rtrim(string &&, char)
         inline std::string rtrim(std::string &&s, char Char) {
             return std::string(drop_back(
                 std::string_view(s), s.size() - std::min(s.size(), s.find_last_not_of(Char) + 1)));
         }
 
-        // @overload: rtrim(string_view, string_view)
+        /// @overload: rtrim(string_view, string_view)
         inline std::string_view rtrim(const std::string_view &s,
                                       const std::string_view &Chars = " \t\n\v\f\r") {
             return drop_back(s, s.size() - std::min(s.size(), s.find_last_not_of(Chars) + 1));
         }
 
-        // @overload: rtrim(string &&, string)
+        /// @overload: rtrim(string &&, string)
         inline std::string rtrim(std::string &&s, const std::string_view &Chars = " \t\n\v\f\r") {
             return std::string(drop_back(
                 std::string_view(s), s.size() - std::min(s.size(), s.find_last_not_of(Chars) + 1)));
         }
 
+        /// Removes leading and trailing runs of the given character(s) from \a s.
         inline std::string_view trim(const std::string_view &s, char Char) {
             return rtrim(ltrim(s, Char), Char);
         }
 
-        // @overload: trim(string &&, char)
+        /// @overload: trim(string &&, char)
         inline std::string trim(std::string &&s, char Char) {
             return std::string(rtrim(ltrim(std::string_view(s), Char), Char));
         }
 
-        // @overload: trim(string_view, string_view)
+        /// @overload: trim(string_view, string_view)
         inline std::string_view trim(const std::string_view &s,
                                      std::string_view Chars = " \t\n\v\f\r") {
             return rtrim(ltrim(s, Chars), Chars);
         }
 
-        // @overload: trim(string &&, string)
+        /// @overload: trim(string &&, string)
         inline std::string trim(std::string &&s, std::string_view Chars = " \t\n\v\f\r") {
             return std::string(rtrim(ltrim(std::string_view(s), Chars), Chars));
         }
 
+        /// Whether \a s contains \a sub.
         inline bool contains(const std::string_view &s, const std::string_view &sub) {
             return s.find(sub) != std::string_view::npos;
         }
 
-        // @overload: contains(string_view, char)
+        /// @overload: contains(string_view, char)
         inline bool contains(const std::string_view &s, char c) {
             return s.find(c) != std::string_view::npos;
         }
@@ -363,8 +382,10 @@ namespace lore {
 
     namespace str {
 
+        /// printf-style formatting into a freshly allocated std::string.
         LORESUPPORT_EXPORT std::string asprintf(const char *fmt, ...);
 
+        /// va_list form of asprintf().
         LORESUPPORT_EXPORT std::string vasprintf(const char *fmt, va_list args);
 
     }
@@ -374,6 +395,7 @@ namespace lore {
 
     namespace str {
 
+        /// Returns \a str with every occurrence of \a from replaced by \a to.
         LORESUPPORT_EXPORT std::string replace(std::string str, std::string_view from,
                                                std::string_view to);
 
