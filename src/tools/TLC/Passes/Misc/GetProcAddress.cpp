@@ -86,11 +86,12 @@ namespace lore::tool::TLC {
 
         std::string key = name();
 
-        auto &GENT = proc.source(ProcSnippet::Entry);
-        GENT.body.backward.push_back(
+        // Rewrite the returned host proc address in the guest Adapt layer's backward section.
+        auto &GADP = proc.source(ProcSnippet::Adapt);
+        GADP.body.backward.push_back(
             key,
             SRC_asIs("ret = (decltype(ret)) mod::GuestClient::convertHostProcAddress((const char *) " +
-                     GENT.functionInfo.argumentName(nameIndex - 1) + ", (void *) ret);"));
+                     GADP.functionInfo.argumentName(nameIndex - 1) + ", (void *) ret);"));
         return llvm::Error::success();
     }
 

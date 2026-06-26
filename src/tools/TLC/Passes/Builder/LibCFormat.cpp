@@ -130,20 +130,24 @@ namespace lore::tool::TLC {
         /// \example: int (v)printf(const char *fmt, ... | va_list);
         /// \code
         ///     int  invoke(const char *fmt, ... | va_list);            // Guest Entry  (1)
-        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Caller (2)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Adapt  (2)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Caller (3)
         ///
-        ///     void invoke(void **args, void *ret, void *metadata);    // Host Entry   (3)
-        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Caller  (4)
+        ///     void invoke(void **args, void *ret, void *metadata);    // Host Entry   (4)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Adapt   (5)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Caller  (6)
         /// \endcode
 
         /// \brief Host-to-Guest variadic function thunks.
         /// \example: int (v)printf(const char *fmt, ... | va_list);
         /// \code
         ///     void invoke(void **args, void *ret, void *metadata);    // Guest Entry  (1)
-        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Caller (2)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Adapt  (2)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Guest Caller (3)
         ///
-        ///     int  invoke(const char *fmt, ... | va_list);            // Host Entry   (3)
-        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Caller  (4)
+        ///     int  invoke(const char *fmt, ... | va_list);            // Host Entry   (4)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Adapt   (5)
+        ///     int  invoke(const char *fmt, CVargEntry *vargs);        // Host Caller  (6)
         /// \endcode
 
         /// \brief Host-to-Guest variadic callback thunks.
@@ -151,12 +155,16 @@ namespace lore::tool::TLC {
         /// \code
         ///     int  invoke(const char *fmt, ... | va_list);            // Guest Entry  (1)
         ///     int  invoke(void *callback,
-        ///                 const char *fmt, CVargEntry *vargs);        // Guest Caller (2)
+        ///                 const char *fmt, CVargEntry *vargs);        // Guest Adapt  (2)
+        ///     int  invoke(void *callback,
+        ///                 const char *fmt, CVargEntry *vargs);        // Guest Caller (3)
         ///
         ///     void invoke(void *callback, void **args,
-        ///                 void *ret,      void *metadata);            // Host Entry   (3)
+        ///                 void *ret,      void *metadata);            // Host Entry   (4)
         ///     int  invoke(void *callback,
-        ///                 const char *fmt, CVargEntry *vargs);        // Host Caller  (4)
+        ///                 const char *fmt, CVargEntry *vargs);        // Host Adapt   (5)
+        ///     int  invoke(void *callback,
+        ///                 const char *fmt, CVargEntry *vargs);        // Host Caller  (6)
         /// \endcode
 
         /// \brief Guest-to-Host variadic callback thunks.
@@ -165,11 +173,15 @@ namespace lore::tool::TLC {
         ///     void invoke(void *callback, void **args,
         ///                 void *ret,      void *metadata);            // Guest Entry  (1)
         ///     int  invoke(void *callback,
-        ///                 const char *fmt, CVargEntry *vargs);        // Guest Caller (2)
-        ///
-        ///     int  invoke(const char *fmt, ... | va_list);            // Host Entry   (3)
+        ///                 const char *fmt, CVargEntry *vargs);        // Guest Adapt  (2)
         ///     int  invoke(void *callback,
-        ///                 const char *fmt, CVargEntry *vargs);        // Host Caller  (4)
+        ///                 const char *fmt, CVargEntry *vargs);        // Guest Caller (3)
+        ///
+        ///     int  invoke(const char *fmt, ... | va_list);            // Host Entry   (4)
+        ///     int  invoke(void *callback,
+        ///                 const char *fmt, CVargEntry *vargs);        // Host Adapt   (5)
+        ///     int  invoke(void *callback,
+        ///                 const char *fmt, CVargEntry *vargs);        // Host Caller  (6)
         /// \endcode
 
         /// \brief Callback variadic thunks are analogous to function thunks.
@@ -205,21 +217,33 @@ namespace lore::tool::TLC {
         bool isG2H = proc.direction() == ProcSnippet::GuestToHost;
 
         auto &ENT = proc.source(ProcSnippet::Entry);
+        auto &ADP = proc.source(ProcSnippet::Adapt);
         auto &CAL = proc.source(ProcSnippet::Caller);
         ProcSnippet::ProcSource emptyENT;
+        ProcSnippet::ProcSource emptyADP;
         ProcSnippet::ProcSource emptyCAL;
 
         auto &GENT = isHost ? emptyENT : ENT;
+        auto &GADP = isHost ? emptyADP : ADP;
         auto &GCAL = isHost ? emptyCAL : CAL;
         auto &HENT = isHost ? ENT : emptyENT;
+        auto &HADP = isHost ? ADP : emptyADP;
         auto &HCAL = isHost ? CAL : emptyCAL;
 
         auto &XENT = isG2H ? GENT : HENT;
+        auto &XADP = isG2H ? GADP : HADP;
         auto &XCAL = isG2H ? GCAL : HCAL;
         auto &YENT = isG2H ? HENT : GENT;
+        auto &YADP = isG2H ? HADP : GADP;
         auto &YCAL = isG2H ? HCAL : GCAL;
 
         const char *procDirectionStr = isG2H ? "GuestToHost" : "HostToGuest";
+        const auto &getProcFnAdaptInvoke = [&]() {
+            return formatN("ProcFn<%1, %2, Adapt>::invoke", proc.name(), procDirectionStr);
+        };
+        const auto &getProcCbAdaptInvoke = [&]() {
+            return formatN("ProcCb<%1, %2, Adapt>::invoke", proc.name(), procDirectionStr);
+        };
         const auto &getProcFnCallerInvoke = [&]() {
             return formatN("ProcFn<%1, %2, Caller>::invoke", proc.name(), procDirectionStr);
         };
@@ -234,6 +258,9 @@ namespace lore::tool::TLC {
             return formatN("ProcCb<%1, %2, Exec>::invoke(callback, args, %3, nullptr);",
                            proc.name(), procDirectionStr, isVoid ? "nullptr" : "&ret");
         };
+
+        // Adapt is a typed pass-through between Entry and Caller (here the normalized,
+        // varg-carrying signature); non-Builder passes inject into its forward/backward.
 
         const auto &addVAStartEnd = [](const std::string &fixedArgToken, const std::string &content,
                                        int indent = 4) {
@@ -289,10 +316,11 @@ namespace lore::tool::TLC {
 
         if (proc.isFunction()) {
             XENT.functionInfo = FI;
-            XCAL.functionInfo = NFI;
+            XADP.functionInfo = XCAL.functionInfo = NFI;
             YENT.functionInfo = FI_packedFunctionInfo(ast);
-            YCAL.functionInfo = NFI;
+            YADP.functionInfo = YCAL.functionInfo = NFI;
 
+            /// \example: Entry (sender)
             /// \code
             ///     // printf
             ///     int invoke(const char *fmt, ...) {
@@ -306,7 +334,7 @@ namespace lore::tool::TLC {
             ///             );
             ///             va_end(ap);
             ///         }
-            ///         ret = ProcFn<printf, GuestToHost, Caller>::invoke(fmt, vargs);
+            ///         ret = ProcFn<printf, GuestToHost, Adapt>::invoke(fmt, vargs);
             ///         return ret;
             ///     }
             ///
@@ -317,22 +345,34 @@ namespace lore::tool::TLC {
             ///         lore::VariadicAdaptor::extract(
             ///             lore::VariadicAdaptor::PrintF, fmt, ap, vargs
             ///         );
-            ///         ret = ProcFn<vprintf, GuestToHost, Caller>::invoke(fmt, vargs);
+            ///         ret = ProcFn<vprintf, GuestToHost, Adapt>::invoke(fmt, vargs);
             ///         return ret;
             ///     }
             /// \endcode
             XENT.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
-            XENT.body.prolog.push_back(key,
-                                       SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
+            XENT.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
             if (m_hasVAList) {
                 XENT.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
             } else {
                 XENT.body.center.push_back(key,
                                            addVAStartEnd(lastArgToken, getExtractStatment("ap")));
             }
-            XENT.body.center.push_back(key, SRC_callListAssign(NFI, getProcFnCallerInvoke()));
+            XENT.body.center.push_back(key, SRC_callListAssign(NFI, getProcFnAdaptInvoke()));
             XENT.body.epilog.push_back(key, SRC_returnRet(FI));
 
+            /// \example: Adapt (sender)
+            /// \code
+            ///     int invoke(const char *fmt, CVargEntry *vargs) {
+            ///         int ret;
+            ///         ret = ProcFn<printf, GuestToHost, Caller>::invoke(fmt, vargs);
+            ///         return ret;
+            ///     }
+            /// \endcode
+            XADP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
+            XADP.body.center.push_back(key, SRC_callListAssign(NFI, getProcFnCallerInvoke()));
+            XADP.body.epilog.push_back(key, SRC_returnRet(FI));
+
+            /// \example: Caller (sender)
             /// \code
             ///     // printf | vprintf
             ///     int invoke(const char *fmt, CVargEntry *vargs) {
@@ -347,19 +387,33 @@ namespace lore::tool::TLC {
             XCAL.body.center.push_back(key, SRC_asIs(getProcFnExecInvokeWithCallList()));
             XCAL.body.epilog.push_back(key, SRC_returnRet(FI));
 
+            /// \example: Entry (receiver)
             /// \code
             ///     void invoke(void **args, void *ret, void *metadata) {
             ///         auto &arg1 = *(const char **) args[0];
             ///         auto &vargs = *(CVargEntry **) args[1];
             ///         auto &ret_ref = *(int *) ret;
-            ///         ret_ref = ProcFn<printf, GuestToHost, Caller>::invoke(arg1, vargs);
+            ///         ret_ref = ProcFn<printf, GuestToHost, Adapt>::invoke(arg1, vargs);
             ///     }
             /// \endcode
             YENT.body.prolog.push_back(key, SRC_argPtrListExtractDecl(NFI, ast));
             YENT.body.prolog.push_back(key, SRC_retExtractDecl(FI, ast));
             YENT.body.center.push_back(key,
-                                       SRC_callListAssign(NFI, getProcFnCallerInvoke(), "ret_ref"));
+                                       SRC_callListAssign(NFI, getProcFnAdaptInvoke(), "ret_ref"));
 
+            /// \example: Adapt (receiver)
+            /// \code
+            ///     int invoke(const char *fmt, CVargEntry *vargs) {
+            ///         int ret;
+            ///         ret = ProcFn<printf, GuestToHost, Caller>::invoke(fmt, vargs);
+            ///         return ret;
+            ///     }
+            /// \endcode
+            YADP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
+            YADP.body.center.push_back(key, SRC_callListAssign(NFI, getProcFnCallerInvoke()));
+            YADP.body.epilog.push_back(key, SRC_returnRet(FI));
+
+            /// \example: Caller (receiver)
             /// \code
             ///     int invoke(const char *fmt, CVargEntry *vargs) {
             ///         int ret;
@@ -389,10 +443,11 @@ namespace lore::tool::TLC {
             YCAL.body.epilog.push_back(key, SRC_returnRet(FI));
         } else {
             XENT.functionInfo = FI;
-            XCAL.functionInfo = CNFI;
+            XADP.functionInfo = XCAL.functionInfo = CNFI;
             YENT.functionInfo = FI_packedCallbackInfo(ast);
-            YCAL.functionInfo = CNFI;
+            YADP.functionInfo = YCAL.functionInfo = CNFI;
 
+            /// \example: Entry (sender)
             /// \code
             ///     // printf
             ///     int invoke(const char *fmt, ...) {
@@ -407,7 +462,7 @@ namespace lore::tool::TLC {
             ///             );
             ///             va_end(ap);
             ///         }
-            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(
+            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Adapt>::invoke(
             ///             callback, fmt, vargs
             ///         );
             ///         return ret;
@@ -415,17 +470,29 @@ namespace lore::tool::TLC {
             /// \endcode
             XENT.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
             XENT.body.prolog.push_back(key, SRC_getCallback(!isG2H));
-            XENT.body.prolog.push_back(key,
-                                       SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
+            XENT.body.prolog.push_back(key, SRC_asIs("CVargEntry vargs[LORE_THUNK_VARG_MAX];"));
             if (m_hasVAList) {
                 XENT.body.center.push_back(key, SRC_asIs(getExtractStatment(getVAListName())));
             } else {
                 XENT.body.center.push_back(key,
                                            addVAStartEnd(lastArgToken, getExtractStatment("ap")));
             }
-            XENT.body.center.push_back(key, SRC_callListAssign(CNFI, getProcCbCallerInvoke()));
+            XENT.body.center.push_back(key, SRC_callListAssign(CNFI, getProcCbAdaptInvoke()));
             XENT.body.epilog.push_back(key, SRC_returnRet(FI));
 
+            /// \example: Adapt (sender)
+            /// \code
+            ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
+            ///         int ret;
+            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt, vargs);
+            ///         return ret;
+            ///     }
+            /// \endcode
+            XADP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
+            XADP.body.center.push_back(key, SRC_callListAssign(CNFI, getProcCbCallerInvoke()));
+            XADP.body.epilog.push_back(key, SRC_returnRet(FI));
+
+            /// \example: Caller (sender)
             /// \code
             ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
             ///         int ret;
@@ -441,21 +508,35 @@ namespace lore::tool::TLC {
             XCAL.body.center.push_back(key, SRC_asIs(getProcCbExecInvokeWithCallList()));
             XCAL.body.epilog.push_back(key, SRC_returnRet(FI));
 
+            /// \example: Entry (receiver)
             /// \code
             ///     void invoke(void *callback, void **args, void *ret, void *metadata) {
             ///         auto &arg1 = *(const char **) args[0];
             ///         auto &vargs = *(CVargEntry **) args[1];
             ///         auto &ret_ref = *(int *) ret;
-            ///         ret_ref = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(
+            ///         ret_ref = ProcCb<PFN_printf_like, HostToGuest, Adapt>::invoke(
             ///             callback, arg1, vargs
             ///         );
             ///     }
             /// \endcode
             YENT.body.prolog.push_back(key, SRC_argPtrListExtractDecl(NFI, ast));
             YENT.body.prolog.push_back(key, SRC_retExtractDecl(FI, ast));
-            YENT.body.center.push_back(
-                key, SRC_callListAssign(CNFI, getProcCbCallerInvoke(), "ret_ref"));
+            YENT.body.center.push_back(key,
+                                       SRC_callListAssign(CNFI, getProcCbAdaptInvoke(), "ret_ref"));
 
+            /// \example: Adapt (receiver)
+            /// \code
+            ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
+            ///         int ret;
+            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt, vargs);
+            ///         return ret;
+            ///     }
+            /// \endcode
+            YADP.body.prolog.push_back(key, SRC_emptyReturnDecl(FI, ast));
+            YADP.body.center.push_back(key, SRC_callListAssign(CNFI, getProcCbCallerInvoke()));
+            YADP.body.epilog.push_back(key, SRC_returnRet(FI));
+
+            /// \example: Caller (receiver)
             /// \code
             ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
             ///         int ret;

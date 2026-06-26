@@ -127,18 +127,15 @@ namespace lore::tool::TLC {
         bool isHost = doc.mode() == DocumentContext::Host;
         bool isG2H = proc.direction() == ProcSnippet::GuestToHost;
 
-        auto &ENT = proc.source(ProcSnippet::Entry);
-        auto &CAL = proc.source(ProcSnippet::Caller);
-        ProcSnippet::ProcSource emptyENT;
-        ProcSnippet::ProcSource emptyCAL;
+        // Argument/return filtering runs in the Adapt layer (typed args, on both sides).
+        auto &ADP = proc.source(ProcSnippet::Adapt);
+        ProcSnippet::ProcSource emptyADP;
 
-        auto &GENT = isHost ? emptyENT : ENT;
-        auto &GCAL = isHost ? emptyCAL : CAL;
-        auto &HENT = isHost ? ENT : emptyENT;
-        auto &HCAL = isHost ? CAL : emptyCAL;
+        auto &GADP = isHost ? emptyADP : ADP;
+        auto &HADP = isHost ? ADP : emptyADP;
 
-        auto &XENT = isG2H ? GENT : HENT;
-        auto &YCAL = isG2H ? HCAL : GCAL;
+        auto &XADP = isG2H ? GADP : HADP;
+        auto &YADP = isG2H ? HADP : GADP;
 
         const auto &getProcDescType = [&]() {
             if (proc.isCallback()) {
@@ -163,13 +160,13 @@ namespace lore::tool::TLC {
         };
 
         for (const auto &idx : message.filteredArgIndexes) {
-            XENT.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
-            YCAL.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
+            XADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
+            YADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
         }
 
         if (message.filterRet) {
-            XENT.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
-            YCAL.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
+            XADP.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
+            YADP.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
         }
 
         return llvm::Error::success();

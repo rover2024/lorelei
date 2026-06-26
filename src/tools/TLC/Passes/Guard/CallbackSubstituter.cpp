@@ -305,17 +305,15 @@ namespace lore::tool::TLC {
         bool isHost = doc.mode() == DocumentContext::Host;
         bool isG2H = proc.direction() == ProcSnippet::GuestToHost;
 
-        auto &ENT = proc.source(ProcSnippet::Entry);
-        auto &CAL = proc.source(ProcSnippet::Caller);
-        ProcSnippet::ProcSource emptyENT;
-        ProcSnippet::ProcSource emptyCAL;
+        // The callback-substitution context is built in the Adapt layer (receiver side), where the
+        // arguments have already been unpacked into typed form by Entry.
+        auto &ADP = proc.source(ProcSnippet::Adapt);
+        ProcSnippet::ProcSource emptyADP;
 
-        auto &GENT = isHost ? emptyENT : ENT;
-        auto &GCAL = isHost ? emptyCAL : CAL;
-        auto &HENT = isHost ? ENT : emptyENT;
-        auto &HCAL = isHost ? CAL : emptyCAL;
+        auto &GADP = isHost ? emptyADP : ADP;
+        auto &HADP = isHost ? ADP : emptyADP;
 
-        auto &YENT = isG2H ? HENT : GENT;
+        auto &YADP = isG2H ? HADP : GADP;
 
         static const char *notSupportedError = "#error \"unsupported callback type\"";
 
@@ -325,7 +323,7 @@ namespace lore::tool::TLC {
         if (message.var.type == Var::NotSupported) {
             std::stringstream ss;
             ss << "#ifdef LORE_THUNK_CALLBACK_REPLACE\n" << notSupportedError << "\n#endif\n";
-            YENT.body.forward.push_back(key, ss.str());
+            YADP.body.forward.push_back(key, ss.str());
             return llvm::Error::success();
         }
 
@@ -370,7 +368,7 @@ namespace lore::tool::TLC {
                << "    {\n"
                << initSource << "    }\n"
                << "#endif\n";
-            YENT.body.forward.push_front(key, ss.str());
+            YADP.body.forward.push_front(key, ss.str());
         }
 
         {
@@ -379,7 +377,7 @@ namespace lore::tool::TLC {
                << "    {\n"
                << finiSource << "    }\n"
                << "#endif\n";
-            YENT.body.backward.push_back(key, ss.str());
+            YADP.body.backward.push_back(key, ss.str());
         }
 
         std::array sources = {
@@ -388,10 +386,8 @@ namespace lore::tool::TLC {
             std::string("#endif"),
             std::string(),
         };
-        YENT.head.push_back(key, llvm::join(sources, "\n"));
+        YADP.head.push_back(key, llvm::join(sources, "\n"));
 
-        (void) GCAL;
-        (void) HCAL;
         return llvm::Error::success();
     }
 

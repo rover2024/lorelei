@@ -199,6 +199,9 @@ namespace lore::tool::TLC {
         if (phaseValue == ProcSnippet::Entry) {
             return ProcSnippet::Entry;
         }
+        if (phaseValue == ProcSnippet::Adapt) {
+            return ProcSnippet::Adapt;
+        }
         if (phaseValue == ProcSnippet::Caller) {
             return ProcSnippet::Caller;
         }
@@ -481,12 +484,15 @@ namespace lore::tool::TLC {
                 }
 
                 const auto &entryMap = procFnDeclByName[direction][ProcSnippet::Entry];
+                const auto &adaptMap = procFnDeclByName[direction][ProcSnippet::Adapt];
                 const auto &callerMap = procFnDeclByName[direction][ProcSnippet::Caller];
                 const auto entryIt = entryMap.find(name);
+                const auto adaptIt = adaptMap.find(name);
                 const auto callerIt = callerMap.find(name);
                 std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::Exec>
                     definitions = {
                         entryIt != entryMap.end() ? entryIt->second.second : nullptr,
+                        adaptIt != adaptMap.end() ? adaptIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
                     };
 
@@ -508,12 +514,15 @@ namespace lore::tool::TLC {
             for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
                 auto direction = static_cast<ProcSnippet::Direction>(i);
                 const auto &entryMap = procCbDeclBySignature[direction][ProcSnippet::Entry];
+                const auto &adaptMap = procCbDeclBySignature[direction][ProcSnippet::Adapt];
                 const auto &callerMap = procCbDeclBySignature[direction][ProcSnippet::Caller];
                 const auto entryIt = entryMap.find(signature);
+                const auto adaptIt = adaptMap.find(signature);
                 const auto callerIt = callerMap.find(signature);
                 std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::Exec>
                     definitions = {
                         entryIt != entryMap.end() ? entryIt->second.second : nullptr,
+                        adaptIt != adaptMap.end() ? adaptIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
                     };
 
@@ -769,6 +778,9 @@ namespace lore::tool::TLC {
                     os << legendLine(proc.name()) << "\n";
                     if (!proc.hasDefinition(ProcSnippet::Caller)) {
                         os << proc.text(ProcSnippet::Caller, asDeclaration) << "\n";
+                    }
+                    if (!proc.hasDefinition(ProcSnippet::Adapt)) {
+                        os << proc.text(ProcSnippet::Adapt, asDeclaration) << "\n";
                     }
                     if (!proc.hasDefinition(ProcSnippet::Entry)) {
                         os << proc.text(ProcSnippet::Entry, asDeclaration) << "\n";

@@ -40,6 +40,11 @@ namespace lore::thunk {
     };
 
     template <auto F>
+    struct ProcFn<F, GuestToHost, Adapt> {
+        static constexpr remove_attr_t<F> invoke = nullptr;
+    };
+
+    template <auto F>
     struct ProcFn<F, GuestToHost, Caller> {
         static constexpr remove_attr_t<F> invoke = nullptr;
     };
@@ -66,6 +71,11 @@ namespace lore::thunk {
 #else
         static constexpr CommonFunctionThunk invoke = nullptr;
 #endif
+    };
+
+    template <auto F>
+    struct ProcFn<F, HostToGuest, Adapt> {
+        static constexpr remove_attr_t<F> invoke = nullptr;
     };
 
     template <auto F>
@@ -98,6 +108,11 @@ namespace lore::thunk {
     };
 
     template <class F>
+    struct ProcCb<F, GuestToHost, Adapt> {
+        static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
+    };
+
+    template <class F>
     struct ProcCb<F, GuestToHost, Caller> {
         static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
     };
@@ -124,6 +139,11 @@ namespace lore::thunk {
 #else
         static constexpr CommonCallbackThunk invoke = nullptr;
 #endif
+    };
+
+    template <class F>
+    struct ProcCb<F, HostToGuest, Adapt> {
+        static constexpr typename PrependCallbackToArgs<F>::type invoke = nullptr;
     };
 
     template <class F>

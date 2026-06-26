@@ -20,7 +20,7 @@ namespace lore::tool::TLC {
         const auto &procTemplateName = isFunction() ? "ProcFn" : "ProcCb";
         const auto &procName = isFunction() ? ("::" + m_name) : m_name;
         const auto &directionName = (m_direction == GuestToHost) ? "GuestToHost" : "HostToGuest";
-        const auto &phaseName = (phase == Entry) ? "Entry" : "Caller";
+        const char *phaseName = phase == Entry ? "Entry" : (phase == Adapt ? "Adapt" : "Caller");
 
         std::string out;
         if (hasDecl) {

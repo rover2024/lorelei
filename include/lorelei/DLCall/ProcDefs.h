@@ -21,6 +21,7 @@ namespace lore::thunk {
 
     enum ProcPhase {
         Entry,
+        Adapt,
         Caller,
         Exec,
         NumProcPhase,
