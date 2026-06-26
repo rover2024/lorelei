@@ -41,7 +41,7 @@ namespace lore::tool::TLC {
 
         /// The procs the caller asked TLC to generate; used to filter AST collection.
         struct RequestedProcData {
-            std::array<std::set<std::string>, ProcSnippet::NumKinds> functions;
+            std::array<std::set<std::string>, ProcSnippet::NumKind> functions;
             std::map<std::string /* signature */, std::string /* name */> callbacks;
         };
 
@@ -70,8 +70,8 @@ namespace lore::tool::TLC {
             m_requestedProcData = std::move(interestedProcData);
         }
 
-        /// Instantiates the pass pipeline for this source file; returns false to abort the action.
-        bool beginSourceFileAction(clang::CompilerInstance &CI);
+        /// Instantiates the pass pipeline for this source file; a returned error aborts the action.
+        llvm::Error beginSourceFileAction(clang::CompilerInstance &CI);
 
         /// Collects the requested procs and their metadata from the parsed AST.
         llvm::Error handleTranslationUnit(clang::ASTContext &ast);
@@ -139,14 +139,14 @@ namespace lore::tool::TLC {
 
         // AST data
         clang::ASTContext *m_ast = nullptr;
-        std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumDirections>
+        std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumDirection>
             m_functionDecls;
         std::map<std::string, FunctionPointerTypeInfo> m_callbackTypes;
 
         // Produced by the passes.
         DocumentSource m_source;
-        std::array<std::array<std::map<std::string, ProcSnippet>, ProcSnippet::NumDirections>,
-                   ProcSnippet::NumKinds>
+        std::array<std::array<std::map<std::string, ProcSnippet>, ProcSnippet::NumDirection>,
+                   ProcSnippet::NumKind>
             m_procs;
 
         // Helpers

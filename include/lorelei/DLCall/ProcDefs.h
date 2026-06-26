@@ -3,7 +3,7 @@
 
 #include <cstddef>
 
-namespace lore {
+namespace lore::thunk {
 
     enum ProcKind {
         Function,
@@ -21,7 +21,7 @@ namespace lore {
         Entry,
         Caller,
         Exec,
-        NumPhases,
+        NumProcPhase,
     };
 
     struct ProcInfoPair {

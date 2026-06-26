@@ -8,19 +8,19 @@ namespace lore::mod {
 
     class LOREHOSTRT_EXPORT HostThunkContext {
     public:
-        inline HostThunkContext(StaticThunkContext *localContext)
+        inline HostThunkContext(thunk::StaticThunkContext *localContext)
             : m_staticThunkContext(localContext) {
         }
         ~HostThunkContext();
 
-        inline const StaticThunkContext *staticThunkContext() const {
+        inline const thunk::StaticThunkContext *staticThunkContext() const {
             return m_staticThunkContext;
         }
 
         void initialize();
 
     protected:
-        StaticThunkContext *m_staticThunkContext;
+        thunk::StaticThunkContext *m_staticThunkContext;
         void *m_hostLibraryHandle = nullptr;
     };
 

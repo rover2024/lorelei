@@ -113,7 +113,8 @@ namespace lore::tool::command::generate {
     class MyASTFrontendAction : public ASTFrontendAction {
     public:
         bool BeginSourceFileAction(CompilerInstance &CI) override {
-            if (!g_ctx().doc.beginSourceFileAction(CI)) {
+            if (auto err = g_ctx().doc.beginSourceFileAction(CI)) {
+                g_ctx().recordError(std::move(err));
                 return false;
             }
             return true;

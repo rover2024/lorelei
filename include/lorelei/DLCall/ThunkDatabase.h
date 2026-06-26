@@ -38,7 +38,7 @@ namespace lore {
         const CReversedThunkInfo *reversed;
     };
 
-    /// ThunkDatabase - In-memory database of thunk descriptions loaded from a JSON manifest.
+    /// ThunkDatabase - In-memory database of thunk descriptions loaded from a JSON file.
     ///
     /// Entries are exposed as plain-old-data so they can cross the guest/host boundary without
     /// any layout assumptions. The database owns the backing string storage in a stable arena,

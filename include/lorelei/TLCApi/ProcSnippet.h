@@ -26,29 +26,30 @@ namespace lore::tool::TLC {
     ///
     /// It is deliberately data-centric and performs no AST matching of its own: discovery happens
     /// in the command layer, which injects already-normalized inputs here. The lifecycle is
-    /// construct -> initialize() (resolves the canonical type and name) -> Builder/Guard/Misc passes
-    /// mutate the sources -> the command layer serializes them into the output translation unit.
+    /// construct -> initialize() (resolves the canonical type and name) -> Builder/Guard/Misc
+    /// passes mutate the sources -> the command layer serializes them into the output translation
+    /// unit.
     class LORETLCAPI_EXPORT ProcSnippet {
     public:
         /// Whether the proc wraps a named function or an anonymous callback type.
         enum Kind {
             Function,
             Callback,
-            NumKinds,
+            NumKind,
         };
 
         /// Which side of the boundary calls the other.
         enum Direction {
             GuestToHost,
             HostToGuest,
-            NumDirections,
+            NumDirection,
         };
 
         /// The distinct source phases generated for a single proc.
         enum Phase {
             Entry,
             Caller,
-            NumPhases,
+            NumPhase,
         };
 
         /// A resolved pass id paired with the type argument it was configured with.
@@ -85,7 +86,7 @@ namespace lore::tool::TLC {
         ProcSnippet(
             Kind kind, Direction direction, const clang::FunctionDecl *FD, std::string nameHint,
             std::optional<Desc> desc,
-            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
+            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction), m_functionDecl(FD), m_desc(std::move(desc)),
               m_definitions(std::move(definitions)), m_doc(&documentContext) {
@@ -95,9 +96,9 @@ namespace lore::tool::TLC {
 
         /// Constructs a callback proc from a function-pointer type.
         ProcSnippet(
-            Kind kind, Direction direction, clang::QualType functionPointerType, std::string nameHint,
-            std::optional<Desc> desc,
-            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> definitions,
+            Kind kind, Direction direction, clang::QualType functionPointerType,
+            std::string nameHint, std::optional<Desc> desc,
+            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction),
               m_functionPointerType(std::move(functionPointerType)), m_desc(std::move(desc)),
@@ -183,7 +184,7 @@ namespace lore::tool::TLC {
         const clang::FunctionDecl *m_functionDecl = nullptr;
         std::optional<clang::QualType> m_functionPointerType;
         std::optional<Desc> m_desc;
-        std::array<const clang::ClassTemplateSpecializationDecl *, NumPhases> m_definitions;
+        std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> m_definitions;
         DocumentContext *m_doc = nullptr;
 
         // Resolved by initialize().
@@ -192,7 +193,7 @@ namespace lore::tool::TLC {
         FunctionTypeView m_realFunctionTypeView;
 
         // Produced by the passes.
-        std::array<ProcSource, NumPhases> m_sources;
+        std::array<ProcSource, NumPhase> m_sources;
     };
 
 }
