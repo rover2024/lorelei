@@ -1,35 +1,59 @@
-#ifndef LORE_MODULES_HOSTRT_INVOCATION_H
-#define LORE_MODULES_HOSTRT_INVOCATION_H
+#ifndef LORE_UTILS_TINYCOROUTINE_INVOCATION_H
+#define LORE_UTILS_TINYCOROUTINE_INVOCATION_H
 
 #include <cstdint>
 
 namespace lore::utils {
 
+    /// Invocation - Drives one coroutine-style native call that can suspend to reenter the caller.
+    ///
+    /// This is the machinery behind nested cross-boundary calls: a native invocation runs to
+    /// completion unless it needs to call back ("reenter") the other side, in which case it
+    /// suspends and hands the reentry arguments back to the driver, which services them and resumes
+    /// it. The driver loop is:
+    ///
+    /// \code
+    ///   ReentryArguments *ra;
+    ///   int64_t r = Invocation::invoke(ia, &ra);
+    ///   while (r == 1) {        // 1 == suspended at a reentry, 0 == finished
+    ///       service(ra);        // handle the reentry on the other side
+    ///       r = Invocation::resume();
+    ///   }
+    /// \endcode
+    ///
+    /// All members are static; the class is never instantiated.
+    ///
+    /// \note invokeByConv() is NOT defined here. The main target must provide it (it performs the
+    /// actual ABI-specific native call); otherwise linking fails.
     class Invocation {
     public:
+        /// Opaque invocation arguments; the concrete layout is defined by the main target.
         using InvocationArguments = void;
+        /// Opaque reentry arguments, surfaced to the driver between suspensions.
         using ReentryArguments = void;
 
+        // Static-only utility; not instantiable.
         Invocation() = delete;
         ~Invocation() = delete;
 
-        /// Start a native pass-through invocation.
-        /// @param ia The invocation arguments.
-        /// @param ra_ptr The pointer for caller to get the next reentry arguments.
-        /// @return 0 if the invocation is complete, 1 if there is a reentry.
+        /// Starts a native invocation. On a reentry it suspends and writes the next reentry
+        /// arguments through \a ra_ptr.
+        /// \returns 0 when the invocation finished, or 1 when it suspended at a reentry.
         static int64_t invoke(const InvocationArguments *ia, ReentryArguments **ra_ptr);
 
-        /// Resume the invocation, called by the guest after a reentry.
+        /// Resumes a suspended invocation after its reentry has been serviced; called by the guest.
+        /// \returns 0 when finished, or 1 when it suspended at the next reentry.
         static int64_t resume();
 
-        /// Reenter the invocation, called by the host during an invocation.
-        /// @param ra The reentry arguments.
+        /// Suspends the running invocation to reenter the other side; called by the host from within
+        /// the native call. \a ra is surfaced to the driver as the next reentry's arguments.
         static void reenter(ReentryArguments *ra);
 
-        /// Must be defined in the main target.
+        /// Performs the actual ABI-specific native call. Must be defined by the main target (see the
+        /// class note); not provided here.
         static int invokeByConv(const InvocationArguments *ia);
     };
 
 }
 
-#endif // LORE_MODULES_HOSTRT_INVOCATION_H
+#endif // LORE_UTILS_TINYCOROUTINE_INVOCATION_H
