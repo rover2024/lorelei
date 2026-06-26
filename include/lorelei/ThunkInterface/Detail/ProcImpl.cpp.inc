@@ -15,18 +15,19 @@ namespace lore::thunk {
 #ifdef LORE_THUNK_HOST
 
 extern "C" {
-LORE_DECL_EXPORT void LoreExchangeContext(lore::StaticThunkContext *guestCtx) {
+LORE_DECL_EXPORT void LoreExchangeContext(lore::thunk::StaticThunkContext *guestCtx) {
+    using namespace lore::thunk;
     using namespace lore::thunk::detail;
 
-    const auto copyProcs = [](lore::ProcArrayRef src, lore::ProcArrayRef dest) {
+    const auto copyProcs = [](ProcArrayRef src, ProcArrayRef dest) {
         const size_t n = src.size < dest.size ? src.size : dest.size;
         for (size_t i = 0; i < n; ++i) {
             dest.arr[i] = src.arr[i];
         }
     };
 
-    for (int kind = lore::Function; kind < lore::NumProcKind; ++kind) {
-        for (int dir = lore::GuestToHost; dir < lore::NumProcDirection; ++dir) {
+    for (int kind = Function; kind < NumProcKind; ++kind) {
+        for (int dir = GuestToHost; dir < NumProcDirection; ++dir) {
             copyProcs(guestCtx->guestProcs[kind][dir], staticThunkContext.guestProcs[kind][dir]);
             copyProcs(staticThunkContext.hostProcs[kind][dir], guestCtx->hostProcs[kind][dir]);
         }
