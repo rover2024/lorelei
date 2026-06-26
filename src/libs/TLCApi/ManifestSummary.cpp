@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "ManifestSummary.h"
 
 #include <llvm/Support/MemoryBuffer.h>

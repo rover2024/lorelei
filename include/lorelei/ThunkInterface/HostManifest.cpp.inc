@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #define LORE_THUNK_HOST
 
 #include <lorelei/ThunkInterface/Detail/Callback.h>

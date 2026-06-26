@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "FunctionTrampoline.h"
 
 #ifndef _WIN32

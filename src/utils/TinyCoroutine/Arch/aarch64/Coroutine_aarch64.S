@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 .text
 
 // int64_t coroutine_start(

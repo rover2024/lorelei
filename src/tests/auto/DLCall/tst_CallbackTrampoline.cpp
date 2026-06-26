@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/ThunkInterface/Detail/Callback.h>
 
 #define BOOST_TEST_MAIN

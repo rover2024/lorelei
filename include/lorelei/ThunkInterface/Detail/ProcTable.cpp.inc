@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/DLCall/ProcDefs.h>
 
 #ifndef LORE_THUNK_FUNCTION_G2H_FOREACH

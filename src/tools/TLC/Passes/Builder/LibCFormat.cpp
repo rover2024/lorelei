@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/Support/StringExtras.h>
 #include <lorelei/TLCApi/Pass.h>
 #include <lorelei/TLCApi/ProcSnippet.h>

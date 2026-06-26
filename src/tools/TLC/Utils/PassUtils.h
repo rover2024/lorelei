@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_TOOLS_TLC_PASSUTILS_H
 #define LORE_TOOLS_TLC_PASSUTILS_H
 

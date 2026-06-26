@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "Invocation.h"
 
 #include <pthread.h>

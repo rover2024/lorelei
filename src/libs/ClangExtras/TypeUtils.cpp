@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "TypeUtils.h"
 
 #include <lorelei/Support/StringExtras.h>

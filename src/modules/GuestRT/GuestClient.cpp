@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "GuestClient.h"
 
 #include <pthread.h>

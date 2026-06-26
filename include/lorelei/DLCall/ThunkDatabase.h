@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_DLCALL_THUNKDATABASE_H
 #define LORE_DLCALL_THUNKDATABASE_H
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_SUPPORT_CONFIGFILE_H
 #define LORE_SUPPORT_CONFIGFILE_H
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #define TOOL_MAIN_COMMAND_FOREACH(F)                                                               \
     F(dump)                                                                                        \
     F(stat)                                                                                        \

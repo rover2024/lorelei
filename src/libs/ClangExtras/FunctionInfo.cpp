@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "FunctionInfo.h"
 
 #include "TypeUtils.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_TLCAPI_MANIFESTNAMES_H
 #define LORE_TLCAPI_MANIFESTNAMES_H
 

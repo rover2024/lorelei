@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "FunctionTypeView.h"
 
 #include <clang/AST/ASTContext.h>

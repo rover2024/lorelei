@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "StringExtras.h"
 
 #include <lorelei/Support/VarSizeArray.h>

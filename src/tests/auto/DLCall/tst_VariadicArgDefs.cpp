@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/DLCall/Tools/VariadicArgDefs.h>
 
 #define BOOST_TEST_MAIN

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/ThunkInterface/Detail/Callback.h>
 #include <lorelei/ThunkInterface/Detail/Variadic.h>
 

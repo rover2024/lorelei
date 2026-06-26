@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 namespace lore::thunk {
 
     // Declared in "Callback.h"

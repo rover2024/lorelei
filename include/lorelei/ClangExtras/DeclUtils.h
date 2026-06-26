@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_CLANGEXTRAS_DECLUTILS_H
 #define LORE_CLANGEXTRAS_DECLUTILS_H
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <dlfcn.h>
 
 #include <cstdio>

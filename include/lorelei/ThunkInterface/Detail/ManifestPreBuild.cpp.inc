@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <lorelei/Support/STLTraitExtras.h>
 #ifdef LORE_THUNK_HOST
 #  include <lorelei/Modules/HostRT/HostThunkContext.h>

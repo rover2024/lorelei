@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include "HostThunkContext.h"
 
 #include <dlfcn.h>

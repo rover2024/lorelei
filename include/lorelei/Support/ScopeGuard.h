@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #ifndef LORE_SUPPORT_SCOPEGUARD_H
 #define LORE_SUPPORT_SCOPEGUARD_H
 

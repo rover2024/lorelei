@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 #include <utility>
 
 #include <lorelei/Support/ScopeGuard.h>
