@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cassert>
 
+#include <lorelei/DLCall/Global.h>
+
 namespace lore {
 
     /// FunctionTrampoline - A tiny executable stub handed out in place of a real function pointer.
@@ -31,7 +33,7 @@ namespace lore {
     /// FunctionTrampolineTable - A contiguous, executable (\c mmap RWX) table of
     /// \c FunctionTrampoline instances that share one landing stub. Layout: \c jump_instr, then
     /// \c count instances in \c trampoline[].
-    struct FunctionTrampolineTable {
+    struct LOREDLCALL_EXPORT FunctionTrampolineTable {
         /// Shared landing stub all instances jump into: recovers the per-instance \c saved_function
         /// from the scratch register and tail-jumps to the table's \a target.
         char jump_instr[32]; // mov -8(%r11), %r11; mov target, %rax; jmp *%rax

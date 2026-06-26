@@ -5,6 +5,7 @@
 
 #include <cstdarg>
 
+#include <lorelei/DLCall/Global.h>
 #include <lorelei/DLCall/Tools/VariadicArgDefs.h>
 
 namespace lore {
@@ -16,7 +17,7 @@ namespace lore {
     /// boundary, so arguments are carried as a sentinel-terminated array of \c CVargEntry (each a
     /// type tag plus a value). These helpers extract such an array from a \c va_list and re-issue
     /// the call with the platform calling convention.
-    class VariadicAdaptor {
+    class LOREDLCALL_EXPORT VariadicAdaptor {
     public:
         /// Selects how a format string is interpreted when extracting arguments: printf semantics
         /// (values) versus scanf semantics (pointers written through).

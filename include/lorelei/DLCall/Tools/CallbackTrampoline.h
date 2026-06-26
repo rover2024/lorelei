@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cassert>
 
+#include <lorelei/DLCall/Global.h>
+
 namespace lore {
 
     /// CallbackTrampoline - A tiny executable stub handed out in place of a real callback pointer.
@@ -27,7 +29,7 @@ namespace lore {
     /// CallbackTrampolineTable - A contiguous, executable (\c mmap RWX) table of
     /// \c CallbackTrampoline instances that share one landing stub. Layout: \c jump_instr, then
     /// \c count instances in \c trampoline[].
-    struct CallbackTrampolineTable {
+    struct LOREDLCALL_EXPORT CallbackTrampolineTable {
         /// Shared landing stub all instances jump into: recovers the per-instance \c saved_callback
         /// from the scratch register and tail-jumps to the table's \a target.
         char jump_instr[32]; // mov -8(%r11), %r11; mov target, %rax; jmp *%rax

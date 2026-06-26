@@ -93,16 +93,16 @@ namespace lore::mod {
             std::abort();
         }
 
-        /// STEP: load host library
-        m_hostLibraryHandle = dlopen(forward->hostLibrary, RTLD_NOW);
-        if (!m_hostLibraryHandle) {
-            loreCritical("[HTL] %1: failed to load host library (%2)", modulePath,
-                         forward->hostLibrary);
-            std::abort();
-        }
-
-        /// STEP: resolve host library symbols
         if (!m_staticThunkContext->autoLink) {
+            /// STEP: load host library
+            m_hostLibraryHandle = dlopen(forward->hostLibrary, RTLD_NOW);
+            if (!m_hostLibraryHandle) {
+                loreCritical("[HTL] %1: failed to load host library (%2)", modulePath,
+                             forward->hostLibrary);
+                std::abort();
+            }
+
+            /// STEP: resolve host library symbols
             // Resolve host-side real functions used by ProcFn<GuestToHost, Exec>.
             for (size_t i = 0; i < m_staticThunkContext->thisProcs.size; ++i) {
                 auto &entry = m_staticThunkContext->thisProcs.arr[i];

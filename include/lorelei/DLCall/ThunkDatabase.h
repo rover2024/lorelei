@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <lorelei/DLCall/Global.h>
+
 namespace lore {
 
     /// Forward thunk: maps a guest library to its guest/host thunk pair.
@@ -45,7 +47,7 @@ namespace lore {
     /// Entries are exposed as plain-old-data so they can cross the guest/host boundary without
     /// any layout assumptions. The database owns the backing string storage in a stable arena,
     /// so every pointer in an entry stays valid for the lifetime of the database.
-    class ThunkDatabase {
+    class LOREDLCALL_EXPORT ThunkDatabase {
     public:
         ThunkDatabase() = default;
         ~ThunkDatabase() = default;
