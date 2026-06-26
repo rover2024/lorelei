@@ -240,14 +240,14 @@ namespace lore::tool::TLC {
         std::array<
             std::array<std::map<std::string, std::pair<const FunctionDecl *,
                                                        const ClassTemplateSpecializationDecl *>>,
-                       ProcSnippet::NumPhase>,
-            ProcSnippet::NumDirection>
+                       ProcSnippet::Exec>,
+            ProcSnippet::NumProcDirection>
             procFnDeclByName;
         std::array<
             std::array<
                 std::map<std::string, std::pair<QualType, const ClassTemplateSpecializationDecl *>>,
-                ProcSnippet::NumPhase>,
-            ProcSnippet::NumDirection>
+                ProcSnippet::Exec>,
+            ProcSnippet::NumProcDirection>
             procCbDeclBySignature;
 
         const auto matchCallback = [&](const MatchFinder::MatchResult &result) {
@@ -437,7 +437,7 @@ namespace lore::tool::TLC {
 
         /// STEP: Filter requested items.
         for (const auto &[name, fd] : std::as_const(functionByName)) {
-            for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumDirection; ++i) {
+            for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
                 auto &srcMap = m_requestedProcData.functions[i];
                 auto &dstMap = m_functionDecls[i];
                 if (auto it = srcMap.find(name); it != srcMap.end()) {
@@ -469,7 +469,7 @@ namespace lore::tool::TLC {
         }
 
         /// STEP: Add requested function ProcSnippet items.
-        for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumDirection; ++i) {
+        for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
             auto &functionDecls = m_functionDecls[i];
             auto direction = static_cast<ProcSnippet::Direction>(i);
             for (const auto &[name, fd] : functionDecls) {
@@ -482,7 +482,7 @@ namespace lore::tool::TLC {
                 const auto &callerMap = procFnDeclByName[direction][ProcSnippet::Caller];
                 const auto entryIt = entryMap.find(name);
                 const auto callerIt = callerMap.find(name);
-                std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::NumPhase>
+                std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::Exec>
                     definitions = {
                         entryIt != entryMap.end() ? entryIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
@@ -503,13 +503,13 @@ namespace lore::tool::TLC {
             }
 
             auto key = callbackInfo.name.empty() ? signature : callbackInfo.name;
-            for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumDirection; ++i) {
+            for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
                 auto direction = static_cast<ProcSnippet::Direction>(i);
                 const auto &entryMap = procCbDeclBySignature[direction][ProcSnippet::Entry];
                 const auto &callerMap = procCbDeclBySignature[direction][ProcSnippet::Caller];
                 const auto entryIt = entryMap.find(signature);
                 const auto callerIt = callerMap.find(signature);
-                std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::NumPhase>
+                std::array<const ClassTemplateSpecializationDecl *, ProcSnippet::Exec>
                     definitions = {
                         entryIt != entryMap.end() ? entryIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
@@ -543,9 +543,9 @@ namespace lore::tool::TLC {
 
         const auto appendMultiMatchPassTasks = [&](Pass::Phase phase) {
             auto &passMap = m_passMaps[phase];
-            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKind; ++kind) {
+            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumProcKind; ++kind) {
                 for (int direction = ProcSnippet::GuestToHost;
-                     direction < ProcSnippet::NumDirection; ++direction) {
+                     direction < ProcSnippet::NumProcDirection; ++direction) {
                     for (auto &[name, proc] : m_procs[kind][direction]) {
                         (void) name;
                         for (auto &[_, pass] : passMap) {
@@ -571,9 +571,9 @@ namespace lore::tool::TLC {
             }
             Pass *defaultBuilder = defaultBuilderIt->second;
 
-            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKind; ++kind) {
+            for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumProcKind; ++kind) {
                 for (int direction = ProcSnippet::GuestToHost;
-                     direction < ProcSnippet::NumDirection; ++direction) {
+                     direction < ProcSnippet::NumProcDirection; ++direction) {
                     for (auto &[name, proc] : m_procs[kind][direction]) {
                         (void) name;
                         bool hasBuilder = false;
@@ -759,8 +759,8 @@ namespace lore::tool::TLC {
     }
 
     void DocumentContext::emitProcTexts(llvm::raw_ostream &os, bool asDeclaration) const {
-        for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumKind; ++kind) {
-            for (int direction = ProcSnippet::GuestToHost; direction < ProcSnippet::NumDirection;
+        for (int kind = ProcSnippet::Function; kind < ProcSnippet::NumProcKind; ++kind) {
+            for (int direction = ProcSnippet::GuestToHost; direction < ProcSnippet::NumProcDirection;
                  ++direction) {
                 for (const auto &entry : m_procs[kind][direction]) {
                     const auto &proc = entry.second;

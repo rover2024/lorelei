@@ -9,6 +9,7 @@
 
 #include <lorelei/ClangExtras/SourceLineList.h>
 #include <lorelei/ClangExtras/FunctionInfo.h>
+#include <lorelei/DLCall/ProcDefs.h>
 #include <lorelei/TLCApi/Global.h>
 
 namespace lore::tool::TLC {
@@ -31,26 +32,12 @@ namespace lore::tool::TLC {
     /// unit.
     class LORETLCAPI_EXPORT ProcSnippet {
     public:
-        /// Whether the proc wraps a named function or an anonymous callback type.
-        enum Kind {
-            Function,
-            Callback,
-            NumKind,
-        };
-
-        /// Which side of the boundary calls the other.
-        enum Direction {
-            GuestToHost,
-            HostToGuest,
-            NumDirection,
-        };
-
-        /// The distinct source phases generated for a single proc.
-        enum Phase {
-            Entry,
-            Caller,
-            NumPhase,
-        };
+        using Kind = lore::thunk::ProcKind;
+        using Direction = lore::thunk::ProcDirection;
+        using Phase = lore::thunk::ProcPhase;
+        using enum lore::thunk::ProcKind;
+        using enum lore::thunk::ProcDirection;
+        using enum lore::thunk::ProcPhase;
 
         /// A resolved pass id paired with the type argument it was configured with.
         struct PassInfo {
@@ -86,7 +73,7 @@ namespace lore::tool::TLC {
         ProcSnippet(
             Kind kind, Direction direction, const clang::FunctionDecl *FD, std::string nameHint,
             std::optional<Desc> desc,
-            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> definitions,
+            std::array<const clang::ClassTemplateSpecializationDecl *, Exec> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction), m_functionDecl(FD), m_desc(std::move(desc)),
               m_definitions(std::move(definitions)), m_doc(&documentContext) {
@@ -98,7 +85,7 @@ namespace lore::tool::TLC {
         ProcSnippet(
             Kind kind, Direction direction, clang::QualType functionPointerType,
             std::string nameHint, std::optional<Desc> desc,
-            std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> definitions,
+            std::array<const clang::ClassTemplateSpecializationDecl *, Exec> definitions,
             DocumentContext &documentContext)
             : m_kind(kind), m_direction(direction),
               m_functionPointerType(std::move(functionPointerType)), m_desc(std::move(desc)),
@@ -184,7 +171,7 @@ namespace lore::tool::TLC {
         const clang::FunctionDecl *m_functionDecl = nullptr;
         std::optional<clang::QualType> m_functionPointerType;
         std::optional<Desc> m_desc;
-        std::array<const clang::ClassTemplateSpecializationDecl *, NumPhase> m_definitions;
+        std::array<const clang::ClassTemplateSpecializationDecl *, Exec> m_definitions;
         DocumentContext *m_doc = nullptr;
 
         // Resolved by initialize().
@@ -193,7 +180,7 @@ namespace lore::tool::TLC {
         FunctionTypeView m_realFunctionTypeView;
 
         // Produced by the passes.
-        std::array<ProcSource, NumPhase> m_sources;
+        std::array<ProcSource, Exec> m_sources;
     };
 
 }

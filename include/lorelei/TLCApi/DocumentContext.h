@@ -20,7 +20,7 @@ namespace clang {
 
 namespace lore::tool::TLC {
 
-    class ManifestFile;
+    class ManifestSummary;
     class Pass;
     class ProcAliasMaker;
 
@@ -41,7 +41,7 @@ namespace lore::tool::TLC {
 
         /// The procs the caller asked TLC to generate; used to filter AST collection.
         struct RequestedProcData {
-            std::array<std::set<std::string>, ProcSnippet::NumKind> functions;
+            std::array<std::set<std::string>, ProcSnippet::NumProcKind> functions;
             std::map<std::string /* signature */, std::string /* name */> callbacks;
         };
 
@@ -139,14 +139,14 @@ namespace lore::tool::TLC {
 
         // AST data
         clang::ASTContext *m_ast = nullptr;
-        std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumDirection>
+        std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumProcDirection>
             m_functionDecls;
         std::map<std::string, FunctionPointerTypeInfo> m_callbackTypes;
 
         // Produced by the passes.
         DocumentSource m_source;
-        std::array<std::array<std::map<std::string, ProcSnippet>, ProcSnippet::NumDirection>,
-                   ProcSnippet::NumKind>
+        std::array<std::array<std::map<std::string, ProcSnippet>, ProcSnippet::NumProcDirection>,
+                   ProcSnippet::NumProcKind>
             m_procs;
 
         // Helpers

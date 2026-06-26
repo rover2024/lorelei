@@ -1,59 +1,46 @@
-#ifndef LORE_TLCAPI_MANIFESTFILE_H
-#define LORE_TLCAPI_MANIFESTFILE_H
+#ifndef LORE_TLCAPI_MANIFESTSUMMARY_H
+#define LORE_TLCAPI_MANIFESTSUMMARY_H
 
 #include <map>
 #include <string>
-#include <vector>
 #include <array>
 #include <set>
 
+#include <lorelei/DLCall/ProcDefs.h>
 #include <lorelei/TLCApi/Global.h>
 
 namespace lore::tool::TLC {
 
-    /// ManifestFile - Serializable result model for TLC `stat`.
+    /// ManifestSummary - The serializable result of TLC `stat`.
     ///
-    /// This class keeps two categories of data:
-    /// 1. `functions`: configured thunk functions partitioned by direction.
-    /// 2. `callbacks`: deduplicated callback signatures discovered from function types and
-    ///    explicit callback config seeds.
+    /// For one manifest it records the source file name, the configured thunk functions per
+    /// direction (both the ones that matched a declaration and the ones that did not), and the
+    /// deduplicated callback signatures. It round-trips through JSON via loadFromJson() and
+    /// saveAsJson().
     ///
-    /// \example Sample `stat.json`
     /// \code
     /// {
+    ///   "fileName": "manifest.cpp",
     ///   "functions": {
-    ///     "GuestToHost": [
-    ///       {
-    ///         "name": "SDL_SetWindowHitTest",
-    ///         "location": "/path/to/SDL_video.h:123:1"
-    ///       }
-    ///     ],
+    ///     "GuestToHost": [{ "name": "SDL_CreateWindow", "location": "SDL_video.h:42:1" }],
     ///     "HostToGuest": []
     ///   },
-    ///   "callbacks": [
-    ///     {
-    ///       "signature": "SDL_HitTestResult (*)(struct SDL_Window *, const struct SDL_Point *,
-    ///       void *)", "alias": "SDL_HitTest", "origin":
-    ///       "Config[Function]:SDL_SetWindowHitTest@arg2"
-    ///     }
-    ///   ],
-    ///   "version": 1
+    ///   "missingFunctions": { "GuestToHost": ["SDL_Unmatched"], "HostToGuest": [] },
+    ///   "callbacks": [{ "signature": "int (*)(void *)", "alias": "SDL_HitTest",
+    ///                   "origin": "Config[Function]:SDL_SetWindowHitTest@arg2" }]
     /// }
     /// \endcode
-    class LORETLCAPI_EXPORT ManifestFile {
+    class LORETLCAPI_EXPORT ManifestSummary {
     public:
-        enum FunctionDirection {
-            GuestToHost = 0,
-            HostToGuest = 1,
-            NumFunctionDirection = 2,
-        };
+        using Direction = lore::thunk::ProcDirection;
+        using enum lore::thunk::ProcDirection;
 
-        /// FunctionInfo - Metadata of one configured thunk function.
+        /// FunctionEntry - Metadata of one configured thunk function.
         ///
         /// \note Function entries are sourced from:
         /// 1. `[Function]`        -> `GuestToHost`
         /// 2. `[Guest Function]`  -> `HostToGuest`
-        struct FunctionInfo {
+        struct FunctionEntry {
             /// Source location of the matched function declaration.
             /// \example "/path/to/header.h:42:1"
             std::string location;
@@ -81,30 +68,36 @@ namespace lore::tool::TLC {
             callbacks.clear();
         }
 
-        inline void addFunction(FunctionDirection direction, std::string name,
-                                std::string location);
+        inline void addFunction(Direction direction, std::string name, std::string location);
         inline void addCallbackSignature(const std::string &signature, const std::string &origin,
                                          const std::string &preferredAlias = {});
 
         bool loadFromJson(const std::string &filePath, std::string &errorMessage);
         bool saveAsJson(const std::string &filePath, std::string &errorMessage) const;
 
+        /// The manifest source file this summary was produced from.
         std::string fileName;
-        std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> functions;
-        std::array<std::set<std::string>, NumFunctionDirection> missingFunctions;
+
+        /// Configured functions that matched a declaration, keyed by name, per direction.
+        std::array<std::map<std::string, FunctionEntry>, NumProcDirection> functions;
+
+        /// Configured function names that were requested but never matched, per direction.
+        std::array<std::set<std::string>, NumProcDirection> missingFunctions;
+
+        /// Deduplicated callback signatures discovered during stat, keyed by signature.
         std::map<std::string, CallbackInfo> callbacks;
     };
 
-    inline void ManifestFile::addFunction(FunctionDirection direction, std::string name,
-                                          std::string location) {
+    inline void ManifestSummary::addFunction(Direction direction, std::string name,
+                                             std::string location) {
         auto &bucket = functions[direction];
         auto &info = bucket[name];
         info.location = std::move(location);
     }
 
-    inline void ManifestFile::addCallbackSignature(const std::string &signature,
-                                                   const std::string &origin,
-                                                   const std::string &preferredAlias) {
+    inline void ManifestSummary::addCallbackSignature(const std::string &signature,
+                                                      const std::string &origin,
+                                                      const std::string &preferredAlias) {
         auto &info = callbacks[signature];
         info.signature = signature;
         if (!preferredAlias.empty() && info.alias.empty()) {
@@ -117,4 +110,4 @@ namespace lore::tool::TLC {
 
 }
 
-#endif // LORE_TLCAPI_MANIFESTFILE_H
+#endif // LORE_TLCAPI_MANIFESTSUMMARY_H

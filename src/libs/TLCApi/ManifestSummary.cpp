@@ -1,4 +1,4 @@
-#include "ManifestFile.h"
+#include "ManifestSummary.h"
 
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/FileSystem.h>
@@ -6,7 +6,7 @@
 
 namespace lore::tool::TLC {
 
-    bool ManifestFile::loadFromJson(const std::string &filePath, std::string &errorMessage) {
+    bool ManifestSummary::loadFromJson(const std::string &filePath, std::string &errorMessage) {
         auto buffer = llvm::MemoryBuffer::getFile(filePath);
         if (std::error_code ec = buffer.getError()) {
             errorMessage = ec.message();
@@ -26,8 +26,8 @@ namespace lore::tool::TLC {
         }
 
         std::string loadedFileName;
-        std::array<std::map<std::string, FunctionInfo>, NumFunctionDirection> loadedFunctions;
-        std::array<std::set<std::string>, NumFunctionDirection> loadedMissingFunctions;
+        std::array<std::map<std::string, FunctionEntry>, NumProcDirection> loadedFunctions;
+        std::array<std::set<std::string>, NumProcDirection> loadedMissingFunctions;
         std::map<std::string, CallbackInfo> loadedCallbacks;
 
         if (auto value = obj->getString("fileName")) {
@@ -35,7 +35,7 @@ namespace lore::tool::TLC {
         }
 
         if (auto functionsObj = obj->getObject("functions")) {
-            const auto parseFunctionArray = [&](FunctionDirection dir, const char *key) {
+            const auto parseFunctionArray = [&](Direction dir, const char *key) {
                 auto arr = functionsObj->getArray(key);
                 if (!arr) {
                     return;
@@ -61,7 +61,7 @@ namespace lore::tool::TLC {
         }
 
         if (auto missingFunctionsObj = obj->getObject("missingFunctions")) {
-            const auto parseMissingFunctionArray = [&](FunctionDirection dir, const char *key) {
+            const auto parseMissingFunctionArray = [&](Direction dir, const char *key) {
                 auto arr = missingFunctionsObj->getArray(key);
                 if (!arr) {
                     return;
@@ -108,9 +108,8 @@ namespace lore::tool::TLC {
         return true;
     }
 
-    bool ManifestFile::saveAsJson(const std::string &filePath, std::string &errorMessage) const {
+    bool ManifestSummary::saveAsJson(const std::string &filePath, std::string &errorMessage) const {
         llvm::json::Object root;
-        root["version"] = 1;
         root["fileName"] = fileName;
 
         const auto serializeFunctionMap = [](const auto &map) {

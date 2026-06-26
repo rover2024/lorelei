@@ -22,7 +22,7 @@
 #include <lorelei/ClangExtras/TypeUtils.h>
 #include <lorelei/ClangExtras/DeclUtils.h>
 #include <lorelei/TLCApi/Detail/ManifestNames.h>
-#include <lorelei/TLCApi/ManifestFile.h>
+#include <lorelei/TLCApi/ManifestSummary.h>
 
 using namespace clang;
 using namespace clang::tooling;
@@ -36,7 +36,7 @@ namespace lore::tool::command::stat {
         std::string outputPath;
         std::string configPath;
         lore::ConfigFile config;
-        TLC::ManifestFile stat;
+        TLC::ManifestSummary stat;
     };
 
     static GlobalContext &g_ctx() {
@@ -359,7 +359,7 @@ namespace lore::tool::command::stat {
         }
 
         void collectConfigFunctionSection(StringRef sectionName,
-                                          TLC::ManifestFile::FunctionDirection direction) {
+                                          TLC::ManifestSummary::Direction direction) {
             auto sectionOpt = g_ctx().config.get(sectionName.str());
             if (!sectionOpt) {
                 return;
@@ -430,8 +430,8 @@ namespace lore::tool::command::stat {
         }
 
         void collectConfigSeeds() {
-            collectConfigFunctionSection("Function", TLC::ManifestFile::GuestToHost);
-            collectConfigFunctionSection("Guest Function", TLC::ManifestFile::HostToGuest);
+            collectConfigFunctionSection("Function", TLC::ManifestSummary::GuestToHost);
+            collectConfigFunctionSection("Guest Function", TLC::ManifestSummary::HostToGuest);
             collectConfigCallbackSection();
         }
 
