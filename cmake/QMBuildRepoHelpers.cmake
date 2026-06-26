@@ -731,7 +731,7 @@ function(${_F}_install)
         if(NOT FUNC_NO_INCLUDE AND ${_V}_INCLUDE_DIR)
             install(DIRECTORY ${${_V}_INCLUDE_DIR}/
                 DESTINATION ${${_V}_INSTALL_INCLUDE_DIR}
-                FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx"
+                FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx" PATTERN "*.inc"
             )
         endif()
     endif()
