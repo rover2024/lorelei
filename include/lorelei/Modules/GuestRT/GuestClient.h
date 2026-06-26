@@ -39,6 +39,9 @@ namespace lore::mod {
         /// \c *GetProcAddress* -style APIs that hand the guest a raw host pointer.
         static void *convertHostProcAddress(const char *name, void *addr);
 
+        /// Returns true if \a addr is a host address.
+        static bool isHostAddressNaive(void *addr);
+
     public:
         /// Query a host attribute by key (e.g. \c "emu"). Served by the dlcall plugin.
         static const char *getHostAttribute(const char *key);

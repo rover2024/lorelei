@@ -44,6 +44,9 @@ namespace lore::mod {
         /// addresses apart from guest addresses (e.g. by the guard logic in HostThunkContext).
         static void *emuAddr;
 
+        /// Returns true if \a addr is a host address.
+        static bool isHostAddressNaive(void *addr);
+
     public:
         /// Reenter the guest with a specific reentry convention. Called by host-side thunk code
         /// when a host function needs to call back into guest code mid-invocation; delegates to the

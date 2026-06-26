@@ -5,6 +5,9 @@
 
 #include <lorelei/DLCall/Tools/CallbackTrampoline.h>
 
+// Now QEMU does not support address separation.
+// #define QEMU_SUPPORT_ADDRESS_SEPARATION
+
 #define LORE_THUNK_LAST_GCB lore::thread_last_callback
 
 #define LORE_THUNK_LAST_HCB lore::thread_last_callback

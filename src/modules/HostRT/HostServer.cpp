@@ -117,6 +117,12 @@ namespace lore::mod {
         m_thunkDatabase = std::move(db);
     }
 
+    bool HostServer::isHostAddressNaive(void *addr) {
+        Dl_info info;
+        bool isGuestAddr = dladdr(addr, &info);
+        return !isGuestAddr;
+    }
+
     void HostServer::reenter(ReentryArguments *ra) {
         utils::Invocation::reenter(ra);
     }

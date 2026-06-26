@@ -161,6 +161,12 @@ namespace lore::mod {
         return nullptr;
     }
 
+    bool GuestClient::isHostAddressNaive(void *addr) {
+        Dl_info info;
+        bool isGuestAddr = dladdr(addr, &info);
+        return !isGuestAddr;
+    }
+
     const char *GuestClient::getHostAttribute(const char *key) {
         const char *ret = nullptr;
         std::ignore = send(static_cast<uint64_t>(DR_GetHostAttribute),
