@@ -32,13 +32,26 @@ add_custom_command(OUTPUT ${_guest_src}
 )
 
 # Compile the generated sources so an invalid emission fails the build (the "does it compile" check).
-add_library(tst_TLC_generated OBJECT ${_host_src} ${_guest_src})
+# The guest source is generated for x86_64, so it only compiles with a native x86_64 compiler; on a
+# cross host compile just the host source (the guest source is still generated below for the test to
+# inspect, and is compiled for real by the x86_64 toolchain in the GTL build).
+set(_compile_srcs ${_host_src})
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+    list(APPEND _compile_srcs ${_guest_src})
+endif()
+add_library(tst_TLC_generated OBJECT ${_compile_srcs})
 target_compile_features(tst_TLC_generated PRIVATE cxx_std_20)
 target_include_directories(tst_TLC_generated PRIVATE
     ${LORE_SOURCE_DIR}/include ${LORE_BUILD_INCLUDE_DIR} ${_fixture})
 
 add_auto_test(tst_TLC.cpp)
 add_dependencies(tst_TLC tst_TLC_generated)
+
+# Make sure the guest source is generated even where it is not compiled, so the test can inspect it.
+if(NOT _guest_src IN_LIST _compile_srcs)
+    add_custom_target(tst_TLC_guest_src DEPENDS ${_guest_src})
+    add_dependencies(tst_TLC tst_TLC_guest_src)
+endif()
 target_compile_definitions(tst_TLC PRIVATE
     LORE_TLC_STAT="${_stat}"
     LORE_TLC_HOST_SRC="${_host_src}"

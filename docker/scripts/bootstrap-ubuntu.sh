@@ -56,8 +56,12 @@ deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${codename}-updates main rest
 deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${codename}-security main restricted universe multiverse
 EOF
     apt-get update
+    # The x86_64 cross-toolchain, plus the amd64 runtime/dev libraries the guest side links and runs
+    # against: libffcall (avcall, the VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/
+    # minizip for running the x86_64 guest binaries under qemu-x86_64.
     apt-get install -y --no-install-recommends \
         gcc-x86-64-linux-gnu g++-x86-64-linux-gnu \
+        libffcall-dev:amd64 \
         libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64
 
     # Unpack the amd64 minizip CLI and expose it as minizip-x86_64 (the guest binary the test runs).

@@ -20,7 +20,13 @@ ctest --test-dir "$LORELEI_SRC/build" --output-on-failure
 
 echo
 echo "== 2/3  ThunkExample end-to-end (in-tree manual test) =="
-cmake --build "$LORELEI_SRC/build" --target run_manual_tlc
+# run_manual_tlc is x86_64-only (the in-tree test needs the GTL and HTL in one build tree, which a
+# cross host cannot produce); on a cross host the minizip run below is the real end-to-end test.
+if [ "$(uname -m)" = "x86_64" ]; then
+    cmake --build "$LORELEI_SRC/build" --target run_manual_tlc
+else
+    echo "  skipped (x86_64-only)"
+fi
 
 echo
 echo "== 3/3  minizip over the zlib thunk: native vs emulated vs lorelei =="
