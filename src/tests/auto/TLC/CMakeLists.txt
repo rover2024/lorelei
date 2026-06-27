@@ -42,4 +42,11 @@ add_dependencies(tst_TLC tst_TLC_generated)
 target_compile_definitions(tst_TLC PRIVATE
     LORE_TLC_STAT="${_stat}"
     LORE_TLC_HOST_SRC="${_host_src}"
+    LORE_TLC_GUEST_SRC="${_guest_src}"
 )
+
+# Export the fixture and the generated sources so the manual end-to-end test (src/tests/manual/TLC)
+# can build real GTL/HTL libraries from them instead of regenerating.
+set(LORE_TLC_FIXTURE_DIR ${_fixture} CACHE INTERNAL "ThunkExample fixture directory")
+set(LORE_TLC_GEN_GUEST_SRC ${_guest_src} CACHE INTERNAL "Generated guest thunk source")
+set(LORE_TLC_GEN_HOST_SRC ${_host_src} CACHE INTERNAL "Generated host thunk source")
