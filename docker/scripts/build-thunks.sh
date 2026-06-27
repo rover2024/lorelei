@@ -21,8 +21,9 @@ else
 fi
 
 cd "$REPOS_DIR"
-if [ ! -d lorelei-thunks/.git ]; then
-    git clone https://github.com/rover2024/lorelei-thunks.git
+if [ ! -d lorelei-thunks ]; then
+    curl -fsSL https://codeload.github.com/rover2024/lorelei-thunks/tar.gz/refs/heads/main | tar xz
+    mv lorelei-thunks-main lorelei-thunks
 fi
 cd lorelei-thunks
 
