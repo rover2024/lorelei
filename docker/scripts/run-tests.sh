@@ -28,7 +28,10 @@ echo "== 3/3  minizip over the zlib thunk: native vs emulated vs lorelei =="
 # emulated under QEMU, and emulated under QEMU with the dlcall plugin so its zlib calls cross to the
 # host's libz via the thunk. minizip itself stays in the guest; only zlib runs on the host, so the
 # lorelei run should land near the native time and well under the fully-emulated one.
-minizip_bin="$(command -v minizip)"
+# native uses the host's own minizip; the emulated and lorelei runs use an x86_64 minizip under QEMU
+# (the native one on an x86_64 host, the minizip-x86_64 the bootstrap unpacked on a cross host).
+native_minizip="$(command -v minizip)"
+guest_minizip="$(command -v minizip-x86_64 || command -v minizip)"
 archive="$work/archive.bin"
 python3 "$LORELEI_SRC/docker/minizip/GenerateArchive.py" "$archive" "${ARCHIVE_SIZE:-64M}"
 
@@ -43,24 +46,26 @@ timed() {
 }
 
 timed "native (host minizip)" \
-    "$minizip_bin" -8 -o "$work/native.zip" "$archive"
+    "$native_minizip" -8 -o "$work/native.zip" "$archive"
 
 timed "emulated (qemu, no plugin)" \
-    "$QEMU" "$minizip_bin" -8 -o "$work/emulated.zip" "$archive"
+    "$QEMU" "$guest_minizip" -8 -o "$work/emulated.zip" "$archive"
 
-# The runtimes (LoreHostRT / LoreGuestRT / LoreDLCall) are installed under lorelei/, the thunks and
-# the ThunkDB under lorethunks/. LORELEI_ROOT / LORELEI_GUEST_ROOT point at lorethunks so HTL_DIR,
-# GTL_DIR and the ThunkDB (which lists libz) resolve there; LD_LIBRARY_PATH carries lorelei/lib so the
-# runtimes load. The QEMU process loads LoreHostRT / LoreDLCall; the guest minizip loads the GTL libz
-# thunk plus LoreGuestRT / LoreDLCall from the paths passed through with -E.
-lorelei_lib="$INSTALL_DIR/lorelei/lib"
-gtl_dir="$INSTALL_DIR/lorethunks/lib/x86_64-LoreGTL"
+# The host runtime (LoreHostRT / LoreDLCall, this machine's arch) and the host thunk (HTL) live under
+# install/lorelei and install/lorethunks; the x86_64 guest runtime and the GTL live under
+# install/x86_64. LORELEI_ROOT points at the host lorethunks so HTL_DIR and the ThunkDB (which lists
+# libz) resolve there; LORELEI_GUEST_ROOT points at the x86_64 lorethunks for GTL_DIR. The QEMU process
+# loads the host runtime via LD_LIBRARY_PATH; the guest minizip loads the GTL plus the x86_64 runtime
+# from the path passed through with -E.
+host_lib="$INSTALL_DIR/lorelei/lib"
+guest_lib="$INSTALL_DIR/x86_64/lorelei/lib"
+gtl_dir="$INSTALL_DIR/x86_64/lorethunks/lib/x86_64-LoreGTL"
 timed "lorelei (qemu + zlib thunk)" \
-    env LORELEI_ROOT="$INSTALL_DIR/lorethunks" LORELEI_GUEST_ROOT="$INSTALL_DIR/lorethunks" \
-        LD_LIBRARY_PATH="$lorelei_lib" \
+    env LORELEI_ROOT="$INSTALL_DIR/lorethunks" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64/lorethunks" \
+        LD_LIBRARY_PATH="$host_lib" \
         "$QEMU" -plugin "$PLUGIN" \
-        -E LD_LIBRARY_PATH="$gtl_dir:$lorelei_lib" \
-        "$minizip_bin" -8 -o "$work/lorelei.zip" "$archive"
+        -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \
+        "$guest_minizip" -8 -o "$work/lorelei.zip" "$archive"
 
 echo
 echo "All tests passed."
