@@ -1,36 +1,30 @@
 #pragma once
 
+#include "ThunkExample.h"
+
 #include <lorelei/ThunkInterface/Proc.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 
-// A small self-contained "library" surface used to drive LoreTLC in the tests. The functions are
-// only declared (TLC parses declarations), each chosen to exercise one detection path.
-extern "C" {
-
-    // A plain function: no special handling.
-    int test_add(int a, int b);
-
-    // printf-style whose name ends in "printf": auto-detected by name.
-    int test_printf(const char *fmt, ...);
-
-    // printf-style with an obscure name and no format attribute: needs a descriptor.
-    void test_emit(int channel, const char *fmt, ...);
-
-    // printf-style with an obscure name but a format attribute: auto-detected by the attribute.
-    void test_emit_attr(int channel, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-
-    // A comparator the host calls back into the guest.
-    typedef int (*test_compare_fn)(const void *a, const void *b);
-    void test_qsort(void *base, unsigned long nmemb, unsigned long size, test_compare_fn cmp);
-
-}
-
 namespace lore::thunk {
 
-    // test_emit has neither a telling name nor a format attribute, so it is tagged by hand.
+    // Most of the format functions need no descriptor:
+    //   - le_printf / le_vprintf / le_sscanf / le_vsscanf are recognised by their names ending in
+    //     "printf" / "scanf";
+    //   - le_emit_attr / le_vemit_attr are recognised by their printf format attribute, even though
+    //     their names do not reveal them.
+    //
+    // Only the two functions that have neither a telling name nor a format attribute need a
+    // descriptor. The pass parameters are <FormatIndex, VariadicIndex>, counted from 1: the format
+    // string is the 2nd parameter and the variadic part (or the va_list) is the 3rd. le_emit is the
+    // `...` form (printf); le_vemit is the va_list form (vprintf).
     template <>
-    struct ProcFnDesc<::test_emit> {
+    struct ProcFnDesc<::le_emit> {
         _DESC pass::printf<2, 3> builder_pass = {};
+    };
+
+    template <>
+    struct ProcFnDesc<::le_vemit> {
+        _DESC pass::vprintf<2, 3> builder_pass = {};
     };
 
 }

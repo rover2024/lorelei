@@ -115,42 +115,55 @@ BOOST_AUTO_TEST_CASE(generated_guest_compiles) {
 
 BOOST_AUTO_TEST_CASE(stat_collects_requested_symbols) {
     auto content = readFile(runStat());
-    BOOST_VERIFY(content.find("test_add") != std::string::npos);
-    BOOST_VERIFY(content.find("test_printf") != std::string::npos);
-    BOOST_VERIFY(content.find("test_qsort") != std::string::npos);
-    BOOST_VERIFY(content.find("test_compare_fn") != std::string::npos);
+    BOOST_VERIFY(content.find("le_printf") != std::string::npos);
+    BOOST_VERIFY(content.find("le_qsort") != std::string::npos);
+    BOOST_VERIFY(content.find("le_mix") != std::string::npos);
+    BOOST_VERIFY(content.find("le_compare_fn") != std::string::npos);
 }
 
+// le_mix is an ordinary (non-variadic) function, so it is not marshalled through the adaptor.
 BOOST_AUTO_TEST_CASE(plain_function_is_not_variadic) {
     auto src = generate("host", "Manifest_host.cpp");
-    BOOST_VERIFY(!callerBody(src, "test_add").empty());
-    BOOST_VERIFY(!isVariadic(src, "test_add"));
+    BOOST_VERIFY(!callerBody(src, "le_mix").empty());
+    BOOST_VERIFY(!isVariadic(src, "le_mix"));
 }
 
-BOOST_AUTO_TEST_CASE(printf_detected_by_name) {
+// A printf/scanf function is recognised by its name ending in "printf" / "scanf".
+BOOST_AUTO_TEST_CASE(format_detected_by_name) {
     auto src = generate("host", "Manifest_host.cpp");
-    BOOST_VERIFY(isVariadic(src, "test_printf"));
+    BOOST_VERIFY(isVariadic(src, "le_printf"));
+    BOOST_VERIFY(isVariadic(src, "le_sscanf"));
 }
 
-// Regression: a printf function tagged only by a ProcFnDesc must be marshalled. This guards the
-// fix where the pass ID of an implicitly instantiated pass tag (pass::printf<>::ID) was read from
-// the template pattern rather than the empty instantiation.
-BOOST_AUTO_TEST_CASE(printf_detected_by_descriptor) {
+// Regression: a printf/vprintf function tagged only by a ProcFnDesc must be marshalled. This guards
+// the fix where the pass ID of an implicitly instantiated pass tag (pass::printf<>::ID) was read
+// from the template pattern rather than the empty instantiation.
+BOOST_AUTO_TEST_CASE(format_detected_by_descriptor) {
     auto src = generate("host", "Manifest_host.cpp");
-    BOOST_VERIFY(isVariadic(src, "test_emit"));
+    BOOST_VERIFY(isVariadic(src, "le_emit"));  // pass::printf  (...)
+    BOOST_VERIFY(isVariadic(src, "le_vemit")); // pass::vprintf (va_list)
 }
 
 // Regression: a printf function recognised only by its format attribute must be marshalled. This
-// guards the fix where the `...` case checked firstToCheck == 0 instead of > 0.
-BOOST_AUTO_TEST_CASE(printf_detected_by_format_attribute) {
+// guards the fix where the `...` case checked firstToCheck == 0 instead of > 0 (and the va_list
+// case lands in the vprintf pass).
+BOOST_AUTO_TEST_CASE(format_detected_by_attribute) {
     auto src = generate("host", "Manifest_host.cpp");
-    BOOST_VERIFY(isVariadic(src, "test_emit_attr"));
+    BOOST_VERIFY(isVariadic(src, "le_emit_attr"));  // format(printf, 2, 3), `...`
+    BOOST_VERIFY(isVariadic(src, "le_vemit_attr")); // format(printf, 2, 0), va_list
 }
 
 BOOST_AUTO_TEST_CASE(callback_is_substituted) {
     auto src = generate("host", "Manifest_host.cpp");
     // The comparator is wrapped in a trampoline via the callback context.
     BOOST_VERIFY(src.find("CallbackContext_init") != std::string::npos);
+}
+
+// le_mix takes a long double, so the type filter is injected for it.
+BOOST_AUTO_TEST_CASE(type_filter_is_applied) {
+    auto src = generate("host", "Manifest_host.cpp");
+    BOOST_VERIFY(src.find("ProcArgFilter<long double>::filter") != std::string::npos);
+    BOOST_VERIFY(src.find("ProcReturnFilter<long double>::filter") != std::string::npos);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
