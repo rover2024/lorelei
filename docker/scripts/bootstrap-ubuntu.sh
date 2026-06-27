@@ -8,6 +8,9 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 USE_USTC_MIRROR="${USE_USTC_MIRROR:-0}"
 
+# Retry transient fetch failures (e.g. a proxy returning 502) instead of aborting the whole build.
+echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
+
 if [ "$USE_USTC_MIRROR" = "1" ]; then
     sed -i 's@http://archive.ubuntu.com/ubuntu/@http://mirrors.ustc.edu.cn/ubuntu/@g' /etc/apt/sources.list
     sed -i 's@http://security.ubuntu.com/ubuntu/@http://mirrors.ustc.edu.cn/ubuntu/@g' /etc/apt/sources.list
