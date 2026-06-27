@@ -102,6 +102,30 @@ cmake -B build-guest -G Ninja \
 cmake --build build-guest --target install
 ```
 
+## Docker one-click test
+
+A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full end-to-end test. It targets an x86_64 host, where the guest and host ISA are the same and a single native toolchain builds everything.
+
+Build the image from the repository root:
+
+```bash
+docker build -f docker/Dockerfile -t lorelei-test .
+```
+
+In a PRC network, build with the USTC mirror:
+
+```bash
+docker build --build-arg USE_USTC_MIRROR=1 -f docker/Dockerfile -t lorelei-test .
+```
+
+Everything is pre-built in the image, so the test run just executes and exits:
+
+```bash
+docker run --rm lorelei-test bash docker/scripts/run-tests.sh
+```
+
+[`run-tests.sh`](docker/scripts/run-tests.sh) runs the auto tests (`ctest`), the in-tree `ThunkExample` end-to-end test, and a real workload over the zlib thunk: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the dlcall plugin). minizip itself stays in the guest; only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one. Override the input size with `-e ARCHIVE_SIZE=128M` if you want a longer run. For an interactive shell instead, run `docker run --rm -it lorelei-test`.
+
 ## Dependencies
 
 - llvm (https://github.com/llvm/llvm-project)

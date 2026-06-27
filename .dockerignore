@@ -1,0 +1,7 @@
+# Keep the build context small: drop local build trees, VCS and caches.
+.git
+build
+build-*
+**/build
+.cache
+**/.cache
