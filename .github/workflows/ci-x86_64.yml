@@ -1,10 +1,9 @@
 name: x86_64
 
-# Manual + on-push end-to-end test on the x86_64 self-hosted runner.
+# Manual-only end-to-end test on the x86_64 self-hosted runner. Never runs on
+# push; trigger it from the Actions tab ("Run workflow").
 on:
   workflow_dispatch:
-  push:
-    branches: [main, refactor-v3]
 
 jobs:
   e2e:
