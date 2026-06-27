@@ -43,6 +43,9 @@ namespace lore {
             tramp_gen_thunk(thunk->thunk_instr,
                             (intptr_t) thunk->thunk_instr - (intptr_t) trampoline);
         }
+        // Flush the instruction cache over the just-written code so it is visible to execution on
+        // architectures without a coherent I-cache (aarch64, riscv64); a no-op on x86_64.
+        __builtin___clear_cache((char *) trampoline, (char *) trampoline + table_size);
         return trampoline;
     }
 
