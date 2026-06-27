@@ -19,6 +19,8 @@ On top of that, the guest reaches the host through a single magic syscall (numbe
 
 This replaces the RPC-style client/server of the first version with an in-process jump, so a host call costs little more than the syscall itself.
 
+The per-library thunks themselves (zlib, SDL, ...) are not in this repository; they live in [lorelei-thunks](https://github.com/rover2024/lorelei-thunks), which builds against an installed Lorelei and uses its Thunk Library Compiler to generate the guest and host glue for each library.
+
 For a deeper look at how the Thunk Library Compiler generates the thunks and how the guest and host runtimes carry each call across the boundary, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
 The underlying pass-through mechanism is also demonstrated from scratch in the [QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test).
