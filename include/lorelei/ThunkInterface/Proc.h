@@ -13,32 +13,40 @@
 
 namespace lore::thunk {
 
-    /// ProcFnDesc - Thunk proc description block for functions.
+    /// ProcFnDesc - Per-function description block a manifest specializes to shape a proc's thunk.
+    ///
+    /// Specialize for a function \c F to attach passes: a \c builder_pass that picks the Caller
+    /// form (for example \c pass::printf for a variadic), and a \c passes list of guard / misc
+    /// passes. The empty primary template selects the default forwarding thunk.
+    ///
+    /// Supported fields:
+    ///     static constexpr const pass::printf<> builder_pass = {};
+    ///     static constexpr const pass::PassTagList<pass::GetProcAddress<>> passes = {};
     template <auto F>
-    struct ProcFnDesc {
-        /// \example Supported fields
-        ///
-        /// \code
-        ///     static constexpr const pass::printf<> builder_pass = {};
-        ///     static constexpr const pass::PassTagList<pass::GetProcAddress<>> passes = {};
-        /// \endcode
-    };
+    struct ProcFnDesc {};
 
-    /// ProcFnDesc - Thunk proc description block for callbacks.
+    /// ProcCbDesc - Per-callback description block, the \c ProcFnDesc analogue for callbacks.
+    ///
+    /// Same shape and fields as \c ProcFnDesc, specialized on a callback function-pointer type.
     template <class F>
-    struct ProcCbDesc {
-        /// \sa ProcFnDesc
-    };
+    struct ProcCbDesc {};
 
-    /// ProcFn - Thunk proc for functions.
+    /// ProcFn - One phase of a function's thunk, specialized per direction and phase.
+    ///
+    /// For a function \c F, a \c (Direction, Phase) pair names one layer of the
+    /// Entry -> Adapt -> Caller -> Exec chain (see \c ProcPhase). The generator emits a
+    /// specialization per phase, and a manifest may override a single one.
     template <auto F, ProcDirection Direction, ProcPhase Phase>
     struct ProcFn;
 
-    /// ProcCb - Thunk proc for callbacks.
+    /// ProcCb - One phase of a callback's thunk; the \c ProcFn analogue for callbacks.
     template <class F, ProcDirection Direction, ProcPhase Phase>
     struct ProcCb;
 
-    /// ProcArgContext - The thunk proc argument context, for \c TypeConverter passes.
+    /// ProcArgContext - A view over a call's live arguments, handed to \c TypeConverter passes.
+    ///
+    /// Wraps references to the marshalled arguments so a filter can reach them by position
+    /// (\c at) or by type (\c type / \c hasType, with an occurrence index when a type repeats).
     template <class... Args>
     struct ProcArgContext {
     private:
@@ -87,7 +95,10 @@ namespace lore::thunk {
         }
     };
 
-    /// ProcArgFilter - The thunk proc argument filter, for \c TypeConverter passes.
+    /// ProcArgFilter - Per-argument customization point for \c TypeConverter passes.
+    ///
+    /// Specialize for a type \c T to rewrite an argument of that type in place, given the
+    /// surrounding \c ProcArgContext. The primary template leaves the argument untouched.
     template <class T>
     struct ProcArgFilter {
         using type = T;
@@ -98,7 +109,10 @@ namespace lore::thunk {
         }
     };
 
-    /// ProcReturnFilter - The thunk proc return filter, for \c TypeConverter passes.
+    /// ProcReturnFilter - Return-value customization point for \c TypeConverter passes.
+    ///
+    /// The \c ProcArgFilter analogue for the return value: specialize for \c T to rewrite the
+    /// result in place. The primary template leaves it untouched.
     template <class T>
     struct ProcReturnFilter {
         using type = T;
