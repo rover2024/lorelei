@@ -76,9 +76,9 @@ __pycache__
 .DS_Store
 */.DS_Store
 
-build-*
+build-*/
 build/
-cmake-build*
+cmake-build*/
 *.user
 *.lnk
 _workingDir*
