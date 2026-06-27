@@ -78,20 +78,9 @@ cmake --build build --target install
 
 ### Build on AARCH64/RISC-V64
 
-The host ISA differs from the guest x86_64, so the two sides need two different compilers and two separate builds into the same prefix. The host runtime is built either way, so build the **guest** side first and the **host** side last, so the natively-built `LoreHostRT` is the one that ends up installed.
+The host ISA differs from the guest x86_64, so the two sides need two different compilers and two separate builds into separate prefixes: the host side (`LoreHostRT` + `LoreTLC`) into `$INSTALL_DIR`, the guest runtime (`LoreGuestRT`) into `$INSTALL_DIR/x86_64`. The two are independent; build the host side first.
 
 ```bash
-# Guest runtime (LoreGuestRT), built with an x86_64 toolchain.
-cmake -B build-guest -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-    -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc \
-    -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++ \
-    -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
-    -DLORE_BUILD_TOOLS=FALSE \
-    -DLORE_BUILD_GUEST_TARGETS=TRUE
-cmake --build build-guest --target install
-
 # Host side (LoreHostRT + LoreTLC), built with the native host toolchain.
 cmake -B build-host -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
@@ -100,6 +89,17 @@ cmake -B build-host -G Ninja \
     -DLORE_BUILD_TOOLS=TRUE \
     -DLORE_BUILD_GUEST_TARGETS=FALSE
 cmake --build build-host --target install
+
+# Guest runtime (LoreGuestRT), built with an x86_64 toolchain.
+cmake -B build-guest -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/x86_64 \
+    -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc \
+    -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++ \
+    -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
+    -DLORE_BUILD_TOOLS=FALSE \
+    -DLORE_BUILD_GUEST_TARGETS=TRUE
+cmake --build build-guest --target install
 ```
 
 ## Dependencies
