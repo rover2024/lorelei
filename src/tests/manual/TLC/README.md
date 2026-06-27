@@ -1,0 +1,41 @@
+# Manual end-to-end TLC test
+
+This drives a real thunk all the way through: it generates the thunk for the **ThunkExample**
+library (the fixture in [`src/tests/auto/TLC/TestData`](../../auto/TLC/TestData)), builds the guest
+and host thunk libraries and a guest program, and runs the program under the patched QEMU with the
+`dlcall` plugin. Every `le_*` call the program makes is carried across to the host implementation.
+
+It is not run by ctest; run it by hand with [`run.sh`](run.sh).
+
+## What it exercises
+
+[`Program.c`](Program.c) is an ordinary x86_64 program that calls the example API and checks the
+results, covering the same features as the unit test but for real:
+
+- `le_printf` / `le_sscanf` variadic argument marshalling;
+- `le_emit` / `le_emit_attr` (printf functions recognised by descriptor / format attribute);
+- `le_qsort` / `le_bsearch`, whose comparator the host calls **back into the guest** (reentry);
+- `le_mix`, which round-trips a `long double` through the type filter.
+
+## Prerequisites
+
+- A built lorelei (this repo): `out/bin/LoreTLC` and `out/lib/libLore{GuestRT,HostRT,DLCall}.so`.
+- The patched QEMU with the `dlcall` plugin (`qemu-x86_64` and `contrib/plugins/libdlcall.so`).
+
+## Running
+
+```sh
+LORELEI_BUILD=/path/to/lorelei/build/Debug \
+QEMU_DIR=/path/to/qemu/build/release \
+    ./run.sh
+```
+
+All paths have defaults relative to the repo (`build/Debug` and `../qemu2/build/release`), so on a
+standard checkout `./run.sh` alone may suffice. Other overrides: `QEMU_BIN`, `DLCALL_PLUGIN`,
+`WORK_DIR`. If QEMU is not found the script still builds everything and stops before the run.
+
+Expected output ends with:
+
+```
+ThunkExample guest test: OK
+```

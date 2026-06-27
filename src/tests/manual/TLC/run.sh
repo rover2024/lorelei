@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# End-to-end manual test for the ThunkExample thunk.
+#
+# It generates the thunk from the fixture in src/tests/auto/TLC/TestData, builds the guest thunk
+# library, the host thunk library (with the example host implementation), and the guest program,
+# then runs the program under the patched QEMU with the dlcall plugin. Every le_* call the program
+# makes is carried across to the host implementation.
+#
+# Configure with environment variables (all have defaults relative to the repo):
+#   LORELEI_BUILD   the lorelei build directory that holds out/bin/LoreTLC and out/lib/*.so
+#                   (default: <repo>/build/Debug)
+#   QEMU_DIR        a QEMU build directory holding qemu-x86_64 and contrib/plugins/libdlcall.so
+#                   (default: <repo>/../qemu2/build/release)
+#   QEMU_BIN        the qemu-x86_64 binary            (default: $QEMU_DIR/qemu-x86_64)
+#   DLCALL_PLUGIN   the dlcall plugin                 (default: $QEMU_DIR/contrib/plugins/libdlcall.so)
+#   WORK_DIR        where to put generated/built files (default: alongside this script, ./build)
+#
+# Usage:  LORELEI_BUILD=/path/to/build QEMU_DIR=/path/to/qemu/build  ./run.sh
+
+set -euo pipefail
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo=$(cd "$here/../../../.." && pwd)
+fixture="$repo/src/tests/auto/TLC/TestData"
+
+LORELEI_BUILD="${LORELEI_BUILD:-$repo/build/Debug}"
+QEMU_DIR="${QEMU_DIR:-$repo/../qemu2/build/release}"
+QEMU_BIN="${QEMU_BIN:-$QEMU_DIR/qemu-x86_64}"
+DLCALL_PLUGIN="${DLCALL_PLUGIN:-$QEMU_DIR/contrib/plugins/libdlcall.so}"
+WORK_DIR="${WORK_DIR:-$here/build}"
+
+tlc="$LORELEI_BUILD/out/bin/LoreTLC"
+libdir="$LORELEI_BUILD/out/lib"
+incdir="$repo/include"
+guest_triple="x86_64-pc-linux-gnu"
+
+[ -x "$tlc" ] || { echo "error: LoreTLC not found at $tlc (set LORELEI_BUILD)" >&2; exit 1; }
+
+mkdir -p "$WORK_DIR"
+
+# Flags matching how the thunk libraries are built: gnu++20, PIC, no exceptions/rtti, and the
+# guest's fixed register reserved. The libraries are linked WITHOUT -z,defs, so the DLCall symbols
+# stay undefined and are resolved at run time from the runtimes.
+cxxflags="-std=gnu++20 -fPIC -fno-exceptions -fno-rtti -ffixed-r11 -I$incdir -I$fixture"
+
+echo ">> stat"
+"$tlc" stat -o "$WORK_DIR/ThunkStat.json" -c "$fixture/Symbols.conf" "$fixture/Desc.h" \
+    -- -xc++ -I"$incdir" -I"$fixture"
+
+echo ">> generate guest and host sources"
+"$tlc" generate -o "$WORK_DIR/Thunk_guest.cpp" -s "$WORK_DIR/ThunkStat.json" -m guest \
+    "$fixture/Manifest_guest.cpp" -- -xc++ -target "$guest_triple" -I"$incdir" -I"$fixture"
+"$tlc" generate -o "$WORK_DIR/Thunk_host.cpp" -s "$WORK_DIR/ThunkStat.json" -m host \
+    "$fixture/Manifest_host.cpp" -- -xc++ -I"$incdir" -I"$fixture"
+
+echo ">> build the guest thunk (libThunkExample.so)"
+g++ $cxxflags -shared "$WORK_DIR/Thunk_guest.cpp" -o "$WORK_DIR/libThunkExample.so" \
+    -L"$libdir" -lLoreGuestRT -Wl,-rpath,"$libdir"
+
+echo ">> build the host thunk (libThunkExample_HTL.so, with the host implementation)"
+g++ $cxxflags -shared "$WORK_DIR/Thunk_host.cpp" "$fixture/ThunkExample.cpp" \
+    -o "$WORK_DIR/libThunkExample_HTL.so" -L"$libdir" -lLoreHostRT -Wl,-rpath,"$libdir"
+
+echo ">> build the guest program"
+gcc -I"$fixture" "$here/Program.c" -o "$WORK_DIR/Program" -L"$WORK_DIR" -lThunkExample \
+    -Wl,-rpath,"$WORK_DIR"
+
+echo ">> write the thunk database"
+cat > "$WORK_DIR/ThunkDB.json" <<JSON
+{
+    "forwardThunks": [
+        "libThunkExample"
+    ],
+    "reversedThunks": []
+}
+JSON
+
+if [ ! -x "$QEMU_BIN" ] || [ ! -f "$DLCALL_PLUGIN" ]; then
+    echo
+    echo "Built everything into $WORK_DIR, but QEMU was not found."
+    echo "  qemu:   $QEMU_BIN"
+    echo "  plugin: $DLCALL_PLUGIN"
+    echo "Set QEMU_DIR (or QEMU_BIN + DLCALL_PLUGIN) and rerun to execute the program."
+    exit 0
+fi
+
+echo ">> run under QEMU"
+# The host side (the QEMU process) loads LoreHostRT, LoreDLCall and the HTL from its own
+# LD_LIBRARY_PATH; the guest side loads the GTL, LoreGuestRT and LoreDLCall from the path passed
+# through with -E. LORELEI_THUNK_DATABASE points the host runtime at our database, and the GTL_DIR /
+# HTL_DIR config variables point the shorthand database entry at the work directory (the runtime
+# otherwise expects the lib/<arch>-Lore{G,H}TL install layout).
+LD_LIBRARY_PATH="$libdir:$WORK_DIR" \
+LORELEI_THUNK_DATABASE="$WORK_DIR/ThunkDB.json" \
+LORELEI_THUNKS_CONFIG_VARIABLES="GTL_DIR=$WORK_DIR;HTL_DIR=$WORK_DIR" \
+    "$QEMU_BIN" -plugin "$DLCALL_PLUGIN" \
+    -E LD_LIBRARY_PATH="$WORK_DIR:$libdir" \
+    "$WORK_DIR/Program"

@@ -1,8 +1,10 @@
 #ifndef LORE_TLC_TEST_THUNKEXAMPLE_H
 #define LORE_TLC_TEST_THUNKEXAMPLE_H
 
-#include <cstddef>
-#include <cstdarg>
+// Usable from both C++ (TLC parses Desc.h, the manifests compile it) and C (the manual guest
+// program in src/tests/manual/TLC includes it directly).
+#include <stddef.h>
+#include <stdarg.h>
 
 // ThunkExample is a small worked example of a thunk library, used both as the TLC test fixture and
 // as the manual end-to-end guest test (see src/tests/manual/TLC). Each function wraps a libc
@@ -17,7 +19,9 @@
 //                              full matrix of {`...`, va_list} x {has format attribute, none}
 //   le_mix                     a function that takes and returns long double
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 
     /// A comparator passed to le_qsort / le_bsearch. The host calls it back into guest code.
     typedef int (*le_compare_fn)(const void *a, const void *b);
@@ -64,6 +68,8 @@ extern "C" {
     /// a host whose long double differs, a type filter converts it on the way in and out.
     long double le_mix(long double a, long double b);
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif // LORE_TLC_TEST_THUNKEXAMPLE_H
