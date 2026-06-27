@@ -1,5 +1,8 @@
 # LORELEI
 
+[![x86_64](https://github.com/rover2024/lorelei/actions/workflows/ci-x86_64.yml/badge.svg)](https://github.com/rover2024/lorelei/actions/workflows/ci-x86_64.yml)
+[![aarch64](https://github.com/rover2024/lorelei/actions/workflows/ci-aarch64.yml/badge.svg)](https://github.com/rover2024/lorelei/actions/workflows/ci-aarch64.yml)
+
 Lorelei is a cross-ISA compatibility layer that lets an emulated guest program call the host's native libraries directly, so heavy work like graphics and compute runs at native speed instead of being emulated one instruction at a time.
 
 ## How It Works

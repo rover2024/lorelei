@@ -1,0 +1,13 @@
+name: x86_64
+
+# Manual + on-push end-to-end test on the x86_64 self-hosted runner.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, refactor-v3]
+
+jobs:
+  e2e:
+    uses: ./.github/workflows/_ci-shared.yml
+    with:
+      arch: x86_64
