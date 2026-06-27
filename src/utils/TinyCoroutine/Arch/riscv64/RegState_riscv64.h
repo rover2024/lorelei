@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 
+#pragma once
+
 #include <stdint.h>
 
+/// RegState - Callee-saved registers plus the stack and return pointers captured for a
+/// TinyCoroutine context switch.
 struct RegState {
     uintptr_t s0;
     uintptr_t s1;

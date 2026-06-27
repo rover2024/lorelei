@@ -8,6 +8,10 @@
 
 namespace lore::mod {
 
+    /// HostThunkContext - The host runtime's per-thunk-library context.
+    ///
+    /// Holds the library's \c StaticThunkContext and the real host library handle. \c initialize
+    /// resolves the library so the host-side procs can invoke it.
     class LOREHOSTRT_EXPORT HostThunkContext {
     public:
         inline HostThunkContext(thunk::StaticThunkContext *localContext)

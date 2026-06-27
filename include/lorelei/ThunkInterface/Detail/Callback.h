@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-#ifndef LORE_TOOLS_THUNKINTERFACE_CALLBACK_H
-#define LORE_TOOLS_THUNKINTERFACE_CALLBACK_H
+#ifndef LORE_THUNKINTERFACE_CALLBACK_H
+#define LORE_THUNKINTERFACE_CALLBACK_H
 
 #include <lorelei/DLCall/Tools/CallbackTrampoline.h>
 
@@ -44,6 +44,9 @@ namespace lore::thunk {
 
     static constexpr const size_t kMaxCallbackTrampolineCount = 16;
 
+    /// GlobalTrampolineContext - Empty default \c Context for \c allocCallbackTrampoline; it
+    /// selects a single shared (thread-local) trampoline table per callback signature rather than
+    /// a per-context one.
     struct GlobalTrampolineContext {};
 
     template <auto F, class Context = GlobalTrampolineContext,
@@ -69,6 +72,8 @@ namespace lore::thunk {
     }
 
     // TODO: make it more like C++ style
+    /// CallbackContext - Tracks one substituted callback: \c p_fp points at the slot holding the
+    /// (trampolined) pointer and \c org_fp keeps the original function pointer.
     struct CallbackContext {
         void **p_fp;
         void *org_fp;
@@ -102,4 +107,4 @@ namespace lore::thunk {
 
 }
 
-#endif // LORE_TOOLS_THUNKINTERFACE_CALLBACK_H
+#endif // LORE_THUNKINTERFACE_CALLBACK_H

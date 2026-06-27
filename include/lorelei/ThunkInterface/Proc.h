@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-#ifndef LORE_TOOLS_THUNKINTERFACE_PROC_H
-#define LORE_TOOLS_THUNKINTERFACE_PROC_H
+#ifndef LORE_THUNKINTERFACE_PROC_H
+#define LORE_THUNKINTERFACE_PROC_H
 
 #include <tuple>
 
@@ -124,4 +124,4 @@ namespace lore::thunk {
 
 }
 
-#endif // LORE_TOOLS_THUNKINTERFACE_PROC_H
+#endif // LORE_THUNKINTERFACE_PROC_H

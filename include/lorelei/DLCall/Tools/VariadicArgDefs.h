@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+/// CVargType - Type tag for the value carried by one marshalled variadic argument.
 enum CVargType {
     CVargType_Void,
     CVargType_Char,
@@ -28,6 +29,8 @@ enum CVargType {
     CVargType_Pointer,
 };
 
+/// CVargEntry - One variadic argument: a \c CVargType tag plus the value union. An entry whose
+/// type is 0 (\c CVargType_Void) terminates an argument array, as \c CVargEntryLength relies on.
 struct CVargEntry {
     int type;
     union {
@@ -60,6 +63,8 @@ static inline int CVargEntryLength(struct CVargEntry *argv) {
 #endif
 
 #ifdef __cplusplus
+/// _Enum2Underlying - Maps an enum to its underlying integer type, leaving non-enums unchanged, so
+/// an enum argument is classified and stored by its underlying type.
 template <typename T, class = std::void_t<>>
 struct _Enum2Underlying {
     using type = T;

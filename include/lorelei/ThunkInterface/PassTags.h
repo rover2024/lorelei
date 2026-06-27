@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-#ifndef LORE_TOOLS_THUNKINTERFACE_PASSTAGS_H
-#define LORE_TOOLS_THUNKINTERFACE_PASSTAGS_H
+#ifndef LORE_THUNKINTERFACE_PASSTAGS_H
+#define LORE_THUNKINTERFACE_PASSTAGS_H
 
 namespace lore::thunk::pass {
 
+    /// PassID - Stable identifier for each built-in pass, grouped by role (Builder, Guard, Misc),
+    /// with \c ID_User as the base for user-defined passes.
     enum PassID {
         /// Builder
         ID_DefaultBuilder = 0,
@@ -89,4 +91,4 @@ namespace lore::thunk::pass {
 
 }
 
-#endif // LORE_TOOLS_THUNKINTERFACE_PASSTAGS_H
+#endif // LORE_THUNKINTERFACE_PASSTAGS_H

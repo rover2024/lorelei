@@ -37,6 +37,7 @@ namespace lore {
         size_t thunksCount;
     };
 
+    /// CThunkInfo - A pointer to one thunk entry, either a forward or a reversed description.
     union CThunkInfo {
         const CForwardThunkInfo *forward;
         const CReversedThunkInfo *reversed;

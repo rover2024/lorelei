@@ -10,6 +10,11 @@
 
 namespace lore::mod {
 
+    /// GuestThunkContext - The guest runtime's per-thunk-library context.
+    ///
+    /// Holds the library's \c StaticThunkContext and the loaded host-thunk (HTL) handle.
+    /// \c initialize brings the host thunk up so the guest's generated procs can call across the
+    /// boundary.
     class LOREGUESTRT_EXPORT GuestThunkContext {
     public:
         inline GuestThunkContext(thunk::StaticThunkContext *localContext)
