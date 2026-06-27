@@ -75,6 +75,13 @@ namespace lore::tool::TLC {
     static std::optional<int> evalStaticPassID(const VarDecl &vd, ASTContext &ast) {
         const Expr *initExpr = vd.getInit();
         if (!initExpr) {
+            // An implicitly instantiated static data member (e.g. pass::printf<>::ID) carries no
+            // initializer of its own; it lives in the template it was instantiated from.
+            if (const VarDecl *pattern = vd.getInstantiatedFromStaticDataMember()) {
+                initExpr = pattern->getInit();
+            }
+        }
+        if (!initExpr) {
             return std::nullopt;
         }
 
