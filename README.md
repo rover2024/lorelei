@@ -102,7 +102,7 @@ cmake -B build-guest -G Ninja \
 cmake --build build-guest --target install
 ```
 
-## Docker one-click test
+## Docker One-Click Test
 
 A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full end-to-end test. The host side (this machine's arch) installs under `install/lorelei` and `install/lorethunks`, the x86_64 guest side under `install/x86_64`. On an x86_64 host both come from the native toolchain; on an aarch64 or riscv64 host the guest side is cross-compiled for x86_64 (the bootstrap pulls in the x86_64 cross-toolchain and an x86_64 minizip), so the same image works on all three host architectures.
 

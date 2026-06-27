@@ -1,10 +1,10 @@
-# Manual end-to-end TLC test
+# Manual End-to-End TLC Test
 
 This drives a real thunk all the way through. From the thunk sources CMake generates for the **ThunkExample** library (the fixture in [`src/tests/auto/TLC/TestData`](../../auto/TLC/TestData)), CMake also builds the guest thunk library, the host thunk library (with the example host implementation) and a guest program. The `run_manual_tlc` target then runs the program under the patched QEMU with the `dlcall` plugin. Every `le_*` call the program makes is carried across to the host implementation.
 
 It is not run by ctest; invoke the target by hand. It only works on an x86_64 host: the guest side reuses the local `LoreGuestRT`, which on an aarch64/riscv64 host is built native and so cannot serve the x86_64 guest. The build targets are skipped entirely on a non-x86_64 host.
 
-## What it exercises
+## What It Exercises
 
 [`Program.c`](Program.c) is an ordinary x86_64 program that calls the example API and checks the results, covering the same features as the unit test but for real:
 
