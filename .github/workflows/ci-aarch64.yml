@@ -1,6 +1,6 @@
 name: aarch64
 
-# Manual-only end-to-end test on the aarch64 self-hosted runner. Never runs on
+# Manual-only end-to-end test on a GitHub-hosted aarch64 runner. Never runs on
 # push; trigger it from the Actions tab ("Run workflow").
 on:
   workflow_dispatch:
@@ -10,3 +10,4 @@ jobs:
     uses: ./.github/workflows/_ci-shared.yml
     with:
       arch: aarch64
+      runs_on: ubuntu-24.04-arm

@@ -1,21 +1,26 @@
 name: ci-shared
 
 # Reusable end-to-end job shared by the per-architecture workflows
-# (ci-x86_64 / ci-aarch64). Each caller passes its own `arch`, which selects
-# the matching self-hosted runner. It mirrors the local "Docker One-Click
-# Test": build the image, run docker/scripts/run-tests.sh.
+# (ci-x86_64 / ci-aarch64 use GitHub-hosted runners; riscv64 a self-hosted one).
+# Each caller passes its own `arch` (for naming) and `runs_on` (the runner). It
+# mirrors the local "Docker One-Click Test": build the image, run
+# docker/scripts/run-tests.sh.
 
 on:
   workflow_call:
     inputs:
       arch:
-        description: Runner architecture label (x86_64 / aarch64 / riscv64)
+        description: Architecture name, for image tags and the summary (x86_64 / aarch64 / riscv64)
+        required: true
+        type: string
+      runs_on:
+        description: The runs-on runner label (e.g. ubuntu-latest, ubuntu-24.04-arm)
         required: true
         type: string
 
 jobs:
   e2e:
-    runs-on: [self-hosted, linux, "${{ inputs.arch }}"]
+    runs-on: ${{ inputs.runs_on }}
     timeout-minutes: 240
 
     steps:

@@ -1,6 +1,6 @@
 name: x86_64
 
-# Manual-only end-to-end test on the x86_64 self-hosted runner. Never runs on
+# Manual-only end-to-end test on a GitHub-hosted x86_64 runner. Never runs on
 # push; trigger it from the Actions tab ("Run workflow").
 on:
   workflow_dispatch:
@@ -10,3 +10,4 @@ jobs:
     uses: ./.github/workflows/_ci-shared.yml
     with:
       arch: x86_64
+      runs_on: ubuntu-latest
