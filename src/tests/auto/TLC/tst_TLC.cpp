@@ -131,6 +131,17 @@ BOOST_AUTO_TEST_CASE(va_list_form_uses_vcall) {
     BOOST_VERIFY(callerBody(hostSrc(), "le_vprintf").find("VariadicAdaptor::vcall(") != std::string::npos);
 }
 
+// Regression: a vprintf/vscanf Caller must still forward its fixed arguments (the format string and
+// anything before it) in argv1. Dropping them left the host calling the target with the format slot
+// taking the synthesised va_list and a null va_list, which crashed at run time. le_vprintf forwards
+// its single fixed arg (fmt); le_vemit forwards two (the channel and fmt).
+BOOST_AUTO_TEST_CASE(va_list_form_forwards_fixed_args) {
+    BOOST_VERIFY(callerBody(hostSrc(), "le_vprintf").find("CVargGet(arg1)") != std::string::npos);
+    auto vemit = callerBody(hostSrc(), "le_vemit");
+    BOOST_VERIFY(vemit.find("CVargGet(arg1)") != std::string::npos);
+    BOOST_VERIFY(vemit.find("CVargGet(arg2)") != std::string::npos);
+}
+
 // A scanf-family function selects the ScanF kind, a printf-family one PrintF, and the format index
 // follows the real parameter position: le_sscanf's format is its second argument, not the first.
 BOOST_AUTO_TEST_CASE(format_kind_and_index) {

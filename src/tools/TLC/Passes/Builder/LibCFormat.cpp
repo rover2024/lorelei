@@ -322,7 +322,10 @@ namespace lore::tool::TLC {
         };
 
         auto lastArgToken = FI.argumentName(vargIdx - 2);
-        int fixedArgCount = (m_hasVAList ? (vargIdx - 1) : vargIdx) - 1;
+        // The fixed arguments are everything before vargIdx (the `...` position for printf, or the
+        // va_list argument for vprintf), so there are vargIdx - 1 of them in both cases. The format
+        // string is one of them and must be forwarded, so it has to be included here.
+        int fixedArgCount = vargIdx - 1;
 
         if (proc.isFunction()) {
             XENT.functionInfo = FI;
