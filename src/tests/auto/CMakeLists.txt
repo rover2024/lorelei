@@ -21,3 +21,5 @@ endfunction()
 add_subdirectory(DLCall)
 
 add_subdirectory(Support)
+
+add_subdirectory(TLC)
