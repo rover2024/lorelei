@@ -75,18 +75,28 @@ namespace lore::tool::TLC {
 
         const char *styleName = m_scanf ? "scanf" : "printf";
 
-        // Check format attribute
-        if (!m_hasVAList && proc.isFunction() &&
-            !(proc.desc() && proc.desc()->overlayType.has_value())) {
+        // Check format attribute. A printf/scanf-style function is usually annotated with
+        // __attribute__((format(printf, fmtIdx, firstToCheck))). firstToCheck is the 1-based
+        // position of the first variadic argument, or 0 for a va_list function (which has no
+        // variadic arguments to type-check). This lets the builders recognise such functions
+        // (SDL_LogMessage, glibc printf / vprintf, ...) without a manifest descriptor. Note that
+        // some libraries (SDL) omit the attribute on their va_list forms, which then still need a
+        // name match or an explicit vprintf/vscanf tag.
+        if (proc.isFunction() && !(proc.desc() && proc.desc()->overlayType.has_value())) {
             auto FD = proc.functionDecl();
             if (FD) {
                 if (auto attr = FD->getAttr<clang::FormatAttr>(); attr) {
-                    auto attrType = attr->getType();
-                    if (attrType->getName() == styleName) {
+                    if (attr->getType()->getName() == styleName) {
                         auto fmtIdx = attr->getFormatIdx();
                         auto vargIdx = attr->getFirstArg();
-                        if (fmtIdx > 0 && vargIdx == 0) {
+                        if (!m_hasVAList && fmtIdx > 0 && vargIdx > 0) {
+                            // `...`: the attribute carries the variadic position directly.
                             msg = std::make_unique<LibCFormatMessage>(fmtIdx, vargIdx);
+                            return true;
+                        }
+                        if (m_hasVAList && fmtIdx > 0 && vargIdx == 0) {
+                            // va_list: the list immediately follows the format string.
+                            msg = std::make_unique<LibCFormatMessage>(fmtIdx, fmtIdx + 1);
                             return true;
                         }
                     }
