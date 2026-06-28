@@ -33,7 +33,7 @@ jobs:
             echo "| Memory | $mem |"
             echo "| Kernel | \`$(uname -sr)\` |"
             echo
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout (shell clone, no Node needed on riscv64)
         run: |
