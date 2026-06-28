@@ -76,7 +76,7 @@ The emitted code for each proc is split into four layers, the `ProcPhase` chain 
 | Layer | Role |
 |-------|------|
 | `Entry` | The wire boundary: converts the raw `args[]` buffer to and from typed arguments. |
-| `Adapt` | Typed adaptation injected by the Guard/Misc passes (callback substitution, filters); a plain pass-through by default. A manifest can override just this layer. |
+| `Adapt` | Typed adaptation injected by the Guard/Misc passes (callback substitution, filters). A plain pass-through by default. A manifest can override just this layer. |
 | `Caller` | Constructs the actual call (default forwarding, or the variadic wrapper). |
 | `Exec` | The real library call, or the cross-boundary invoke into the other side. |
 

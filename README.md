@@ -60,7 +60,7 @@ docker run --rm lorelei-test bash docker/scripts/run-tests.sh
 
 1. **Auto tests** (`ctest`) for the runtimes and the TLC.
 2. **The `ThunkExample` end-to-end test**, the in-tree manual test that drives a generated thunk under QEMU (x86_64 host only).
-3. **A real workload over the zlib thunk**: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the `dlcall` plugin). minizip itself stays in the guest; only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one.
+3. **A real workload over the zlib thunk**: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the `dlcall` plugin). minizip itself stays in the guest. Only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one.
 
 <!-- Override the input size with `-e ARCHIVE_SIZE=128M` for a longer run, or get an interactive shell with `docker run --rm -it lorelei-test`. -->
 
@@ -92,9 +92,6 @@ cd lorelei
 
 Lorelei has two kinds of targets that belong to different ISAs: the **host** side (the `LoreHostRT` runtime and the `LoreTLC` tool, built for the host ISA) and the **guest** side (the `LoreGuestRT` runtime, built for the guest ISA, x86_64). 
 
-- `LORE_BUILD_TOOLS` builds the host tools and the TLC.
-- `LORE_BUILD_GUEST_TARGETS` selects the guest runtime
-
 The active compiler must match whichever side is enabled. The host runtime builds either way.
 
 ### Build on X86_64
@@ -114,7 +111,7 @@ cmake --build build --target install
 
 ### Build on AARCH64/RISC-V64
 
-The host ISA differs from the guest x86_64, so the two sides need two different compilers and two separate builds into separate prefixes: the host side (`LoreHostRT` + `LoreTLC`) into `$INSTALL_DIR`, the guest runtime (`LoreGuestRT`) into `$INSTALL_DIR/x86_64`. The two are independent; build the host side first.
+The host ISA differs from the guest x86_64, so the two sides need two different compilers and two separate builds into separate prefixes: the host side (`LoreHostRT` + `LoreTLC`) into `$INSTALL_DIR`, the guest runtime (`LoreGuestRT`) into `$INSTALL_DIR/x86_64`. The two are independent. Build the host side first.
 
 ```bash
 # Host side (LoreHostRT + LoreTLC), built with the native host toolchain.
