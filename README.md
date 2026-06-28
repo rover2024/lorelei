@@ -2,6 +2,7 @@
 
 [![x86_64](https://github.com/rover2024/lorelei/actions/workflows/ci-x86_64.yml/badge.svg)](https://github.com/rover2024/lorelei/actions/workflows/ci-x86_64.yml)
 [![aarch64](https://github.com/rover2024/lorelei/actions/workflows/ci-aarch64.yml/badge.svg)](https://github.com/rover2024/lorelei/actions/workflows/ci-aarch64.yml)
+[![riscv64](https://github.com/rover2024/lorelei/actions/workflows/ci-riscv64.yml/badge.svg)](https://github.com/rover2024/lorelei/actions/workflows/ci-riscv64.yml)
 
 Lorelei is a cross-ISA compatibility layer that lets an emulated guest program call the host's native libraries directly, so heavy work like graphics and compute runs at native speed instead of being emulated one instruction at a time.
 
@@ -17,9 +18,9 @@ On top of that, the guest reaches the host through a single magic syscall (numbe
 4. The host runtime `dlopen`/`dlsym`s the real library and invokes the function with the guest's arguments, which are already valid host pointers.
 5. The return value (and any callbacks) flow back the same way.
 
-This replaces the RPC-style client/server of the first version with an in-process jump, so a host call costs little more than the syscall itself.
+Since this is an in-process jump rather than a round trip through an RPC server, a host call costs little more than the syscall itself.
 
-The per-library thunks themselves (zlib, SDL, ...) are not in this repository; they live in [lorelei-thunks](https://github.com/rover2024/lorelei-thunks), which builds against an installed Lorelei and uses its Thunk Library Compiler to generate the guest and host glue for each library.
+The per-library thunks themselves (zlib, SDL, ...) are in [lorelei-thunks](https://github.com/rover2024/lorelei-thunks), which builds against an installed Lorelei and uses its Thunk Library Compiler to generate the guest and host glue for each library.
 
 For a deeper look at how the Thunk Library Compiler generates the thunks and how the guest and host runtimes carry each call across the boundary, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
@@ -32,6 +33,36 @@ The underlying pass-through mechanism is also demonstrated from scratch in the [
 - **Generated glue, not hand-written.** The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and emits the thunk code for you, including the awkward cases of function-pointer callbacks and variadic functions.
 - **Calls in both directions.** The host can call back into guest code (for example a callback the guest registered), and nested reentry is handled with coroutines.
 - **Lean runtime.** The guest and host runtime libraries deliberately avoid heavyweight dependencies.
+
+## Docker One-Click Test
+
+The quickest way to see Lorelei end to end. A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full test. The host side (this machine's arch) installs under `install/lorelei` and `install/lorethunks`, the x86_64 guest side under `install/x86_64`. On an x86_64 host both come from the native toolchain; on an aarch64 or riscv64 host the guest side is cross-compiled for x86_64, so the same image works on all three host architectures.
+
+Build the image from the repository root:
+
+```bash
+docker build -f docker/Dockerfile -t lorelei-test .
+```
+
+In a PRC network, build with the USTC mirror:
+
+```bash
+docker build --build-arg USE_USTC_MIRROR=1 -f docker/Dockerfile -t lorelei-test .
+```
+
+Everything is pre-built in the image, so the test run just executes and exits:
+
+```bash
+docker run --rm lorelei-test bash docker/scripts/run-tests.sh
+```
+
+[`run-tests.sh`](docker/scripts/run-tests.sh) runs three things:
+
+1. **Auto tests** (`ctest`) for the runtimes and the TLC.
+2. **The `ThunkExample` end-to-end test**, the in-tree manual test that drives a generated thunk under QEMU (x86_64 host only).
+3. **A real workload over the zlib thunk**: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the `dlcall` plugin). minizip itself stays in the guest; only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one.
+
+<!-- Override the input size with `-e ARCHIVE_SIZE=128M` for a longer run, or get an interactive shell with `docker run --rm -it lorelei-test`. -->
 
 ## Build From Source
 
@@ -106,30 +137,6 @@ cmake -B build-guest -G Ninja \
     -DLORE_BUILD_GUEST_TARGETS=TRUE
 cmake --build build-guest --target install
 ```
-
-## Docker One-Click Test
-
-A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full end-to-end test. The host side (this machine's arch) installs under `install/lorelei` and `install/lorethunks`, the x86_64 guest side under `install/x86_64`. On an x86_64 host both come from the native toolchain; on an aarch64 or riscv64 host the guest side is cross-compiled for x86_64 (the bootstrap pulls in the x86_64 cross-toolchain and an x86_64 minizip), so the same image works on all three host architectures.
-
-Build the image from the repository root:
-
-```bash
-docker build -f docker/Dockerfile -t lorelei-test .
-```
-
-In a PRC network, build with the USTC mirror:
-
-```bash
-docker build --build-arg USE_USTC_MIRROR=1 -f docker/Dockerfile -t lorelei-test .
-```
-
-Everything is pre-built in the image, so the test run just executes and exits:
-
-```bash
-docker run --rm lorelei-test bash docker/scripts/run-tests.sh
-```
-
-[`run-tests.sh`](docker/scripts/run-tests.sh) runs the auto tests (`ctest`), the in-tree `ThunkExample` end-to-end test, and a real workload over the zlib thunk: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the dlcall plugin). minizip itself stays in the guest; only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one. Override the input size with `-e ARCHIVE_SIZE=128M` if you want a longer run. For an interactive shell instead, run `docker run --rm -it lorelei-test`.
 
 ## Dependencies
 
