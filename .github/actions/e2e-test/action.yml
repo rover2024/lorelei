@@ -33,9 +33,9 @@ runs:
 
     - name: Publish summary
       if: always()
-      # tee to stdout as well as $GITHUB_STEP_SUMMARY: the self-hosted github-act-runner (riscv64)
-      # writes the summary file but does not upload it to GitHub, so the job log is the only place it
-      # shows there. On the hosted runners it still renders on the run's Summary tab.
+      # On the hosted runners (x86_64/aarch64) this renders on the run's Summary tab. The riscv64
+      # self-hosted runner executes the job through nektos/act, which echoes the summary into the job
+      # log but does not upload it, so there it shows in this step's log instead of the Summary tab.
       shell: bash
       run: |
         arch="${{ inputs.arch }}"
@@ -90,4 +90,4 @@ runs:
           echo '```'
           echo
           echo "</details>"
-        } | tee -a "$GITHUB_STEP_SUMMARY"
+        } >> "$GITHUB_STEP_SUMMARY"
