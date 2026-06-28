@@ -13,6 +13,23 @@ On top of that, the guest reaches the host through one reserved syscall, number 
 3. The plugin's own surface is deliberately tiny, just enough to `dlopen` a library, `dlsym` a symbol, and "invoke this host function pointer".
 4. Everything richer (marshalling a real call's arguments, host-to-guest callbacks, logging) is built on top of those primitives by the runtimes and the generated thunks, so the plugin stays small and stable.
 
+The operations come in two id families. The syscall's first argument is a request id from `lore::DLCallRequestID`. The first five are served by the `dlcall` plugin itself, while `DR_InvokeProc` hands off to the host runtime:
+
+- `DR_GetHostAttribute`: query a host attribute by key.
+- `DR_LoadLibrary`: `dlopen` a host library.
+- `DR_GetProcAddress`: `dlsym` a symbol from a host library.
+- `DR_FreeLibrary`: `dlclose` a host library.
+- `DR_GetLibraryError`: fetch the last dynamic-linker error (`dlerror`).
+- `DR_InvokeProc`: invoke a host function pointer of the single fixed type `void (*)(void *, void *)`, with the request supplying that pointer and its two opaque arguments. A secondary id picks the exact operation.
+
+That secondary id is a `lore::DLCallSecondaryID`, dispatched by the host runtime:
+
+- `DS_InvokeFunction`: invoke a host function (starts the reentry loop).
+- `DS_ResumeFunction`: resume a host invocation after the guest serviced a reentry.
+- `DS_LogMessage`: forward a guest log record to the host's logging sink.
+- `DS_GetModulePath`: resolve the module path of a host handle or address.
+- `DS_GetThunkInfo`: look up a thunk-database entry for a library.
+
 See [`include/lorelei/DLCall/Protocol.h`](../include/lorelei/DLCall/Protocol.h) for the full wire protocol.
 
 ## Runtimes: Carrying Calls Across
@@ -21,7 +38,7 @@ The generated thunks sit on top of two small runtime libraries that own the actu
 
 ```
   ┌──────────────────────── guest (emulated, guest ISA) ───────────────────────────┐
-  │  app calls deflate()  ─►  GTL thunk (Entry: pack args[])  ─►  GuestClient      │
+  │  app calls deflate()   ─►   GTL thunk (packs args[])   ─►   GuestClient        │
   │                                                              (GuestRT)         │
   └───────────────────────────────────────────────┬────────────────────────────────┘
                                     syscall(4096, DR_InvokeProc, ...)
@@ -35,18 +52,18 @@ The generated thunks sit on top of two small runtime libraries that own the actu
   └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### GuestClient (GuestRT): the client
+### GuestClient (GuestRT): the Client
 
 `lore::mod::GuestClient` runs inside the guest and is the only thing that issues syscall `4096`. Its requests fall into two groups (`lore::DLCallRequestID`):
 
 - The **library-management** primitives (`loadLibrary`, `getProcAddress`, `freeLibrary`, `getLibraryError`, `getHostAttribute`) are served by the `dlcall` plugin directly.
 - Everything else (`invokeFunction`, `logMessage`, `getModulePath`, `getThunkInfo`) is sent as a single `DR_InvokeProc` request whose target is the host runtime's common entry. So the guest runtime must install that entry (`setCommonHostEntry`) at startup before any real call is made.
 
-For an actual library call, the GTL `Entry` packs the arguments into an `args[]` array and calls `GuestClient::invokeFunction`, which drives the call to completion (including any reentries, see below).
+For an actual library call, the GTL's generated body for that function packs the arguments into an `args[]` array and calls `GuestClient::invokeFunction`, which drives the call to completion (including any reentries, see below).
 
-### HostServer (HostRT): the server
+### HostServer (HostRT): the Server
 
-`lore::mod::HostServer` lives in the host process, loaded into QEMU next to the plugin. It exports the `LoreCommonHostEntry` symbol that every `DR_InvokeProc` request lands on. That entry dispatches on a secondary id (`lore::DLCallSecondaryID`): `DS_InvokeFunction` starts a call, `DS_ResumeFunction` resumes one after a reentry, plus `DS_LogMessage`, `DS_GetModulePath` and `DS_GetThunkInfo`.
+`lore::mod::HostServer` lives in the host process, loaded into QEMU next to the plugin. It exports the `LoreCommonHostEntry` symbol that every `DR_InvokeProc` request lands on, and dispatches on the `DLCallSecondaryID` the request carries.
 
 For a library call, `DS_InvokeFunction` hands control to the HTL thunk, which runs the `Entry -> Adapt -> Caller -> Exec` chain (the four-layer thunk structure TLC emits, see [HowToUseTLC.md](HowToUseTLC.md)) and finally calls the real host `deflate`.
 
@@ -58,7 +75,7 @@ Many libraries call back into code the caller supplied (zlib's `zalloc`/`zfree`,
 
 ## Putting it All Together: One `deflate` Call
 
-1. The guest app calls `deflate`. It is linked against the GTL (which stands in for `libz`), so it reaches the GTL's `deflate` `Entry`, which packs the arguments into `args[]` and calls `GuestClient::invokeFunction`.
+1. The guest app calls `deflate`. It is linked against the GTL (which stands in for `libz`), so it reaches the GTL's `deflate` body, which packs the arguments into `args[]` and calls `GuestClient::invokeFunction`.
 2. `GuestClient` issues `syscall(4096, DR_InvokeProc, ...)` aimed at `LoreCommonHostEntry`.
 3. The `dlcall` plugin consumes the syscall and natively calls `LoreCommonHostEntry`, which dispatches `DS_InvokeFunction` into `HostServer`.
 4. `HostServer` enters the HTL's `deflate` thunk: `Entry` unpacks `args[]`, `Adapt` swaps the guest `zalloc`/`zfree` pointers for host trampolines, `Caller` forwards, and `Exec` calls the real host `deflate`.
