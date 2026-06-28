@@ -28,9 +28,11 @@ elif [ "$arch" = "riscv64" ]; then
         "-DCMAKE_SHARED_LINKER_FLAGS=-L/usr/lib/x86_64-linux-gnu"
     )
     # The host build runs TLC, whose x86_64 guest generate cannot find x86_64 C++ headers natively;
-    # point that parse at the toolchain. stat and the host generate parse natively, so leave them.
+    # point that parse at the toolchain (--gcc-toolchain / --sysroot), and add -idirafter /usr/include
+    # so a thunk's own library header (e.g. zlib.h) is still found after the toolchain's own headers.
+    # stat and the host generate parse natively, so leave them.
     tc=/opt/x86_64-unknown-linux-gnu
-    host_extra=( "-DTHUNK_GTL_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot" )
+    host_extra=( "-DTHUNK_GTL_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot;-idirafter;/usr/include" )
 else
     GUEST_CC=x86_64-linux-gnu-gcc
     GUEST_CXX=x86_64-linux-gnu-g++

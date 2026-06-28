@@ -32,9 +32,10 @@ elif [ "$arch" = "riscv64" ]; then
         "-DCMAKE_SHARED_LINKER_FLAGS=-L/usr/lib/x86_64-linux-gnu"
     )
     # The host build's TLC generates the x86_64 guest test fixture; clang cannot find x86_64 C++
-    # headers natively here, so point its guest parse at the toolchain (--gcc-toolchain / --sysroot).
+    # headers natively here, so point its guest parse at the toolchain (--gcc-toolchain / --sysroot),
+    # with -idirafter /usr/include as the fallback for any non-toolchain header.
     tc=/opt/x86_64-unknown-linux-gnu
-    host_extra=( "-DLORE_TLC_GUEST_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot" )
+    host_extra=( "-DLORE_TLC_GUEST_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot;-idirafter;/usr/include" )
 else
     GUEST_CC=x86_64-linux-gnu-gcc
     GUEST_CXX=x86_64-linux-gnu-g++
