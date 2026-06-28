@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <lorelei/Support/ConfigFile.h>
@@ -10,17 +11,53 @@
 
 using namespace lore;
 
-// The INI fixtures are copied next to the test binary by qm_add_copy_command; the
-// directory is handed to us as a compile definition (see Support/CMakeLists.txt).
-static std::filesystem::path dataFile(const char *name) {
-    return std::filesystem::path(LORE_TEST_DATA_DIR) / name;
+namespace {
+
+    // Writes INI text to a uniquely named temporary file and removes it on destruction, so each
+    // case can feed ConfigFile::load() a real path without any CMake fixture plumbing.
+    struct TempIni {
+        std::filesystem::path path;
+
+        explicit TempIni(const std::string &content) {
+            static int counter = 0;
+            path = std::filesystem::temp_directory_path() /
+                   ("lore_cfg_" + std::to_string(counter++) + ".ini");
+            std::ofstream(path) << content;
+        }
+        ~TempIni() {
+            std::error_code ec;
+            std::filesystem::remove(path, ec);
+        }
+    };
+
+    // The shared fixture exercised by most cases: a global section plus [server] and [flags],
+    // covering quotes, inline comments, duplicate keys, bare keys and typed values.
+    const char *kBasicIni = R"INI(# Global settings (keys before any section header land in the global section).
+appname = "lorelei"
+debug   = on
+threads = 4
+ratio   = 1.5
+empty   =
+
+[server]
+host = localhost
+port = 8080
+port = 9090            # duplicate key: the last value wins
+note = "a # b"         # a '#' inside quotes is not an inline comment
+trailing = keep me     # the inline comment after the value is stripped
+
+[flags]
+verbose                # a bare key with no value
+)INI";
+
 }
 
 BOOST_AUTO_TEST_SUITE(test_ConfigFile)
 
 BOOST_AUTO_TEST_CASE(parses_global_and_sections) {
+    TempIni ini(kBasicIni);
     ConfigFile cf;
-    BOOST_TEST(cf.load(dataFile("basic.ini")).success);
+    BOOST_TEST(cf.load(ini.path).success);
 
     // Global section + [server] + [flags].
     BOOST_TEST(cf.count() == 3u);
@@ -40,8 +77,9 @@ BOOST_AUTO_TEST_CASE(parses_global_and_sections) {
 }
 
 BOOST_AUTO_TEST_CASE(typed_accessors_and_defaults) {
+    TempIni ini(kBasicIni);
     ConfigFile cf;
-    BOOST_TEST(cf.load(dataFile("basic.ini")).success);
+    BOOST_TEST(cf.load(ini.path).success);
     const auto &g = cf.global();
 
     BOOST_TEST(g.getInt("threads").value() == 4);
@@ -62,8 +100,9 @@ BOOST_AUTO_TEST_CASE(typed_accessors_and_defaults) {
 }
 
 BOOST_AUTO_TEST_CASE(duplicate_key_last_value_wins) {
+    TempIni ini(kBasicIni);
     ConfigFile cf;
-    BOOST_TEST(cf.load(dataFile("basic.ini")).success);
+    BOOST_TEST(cf.load(ini.path).success);
     auto server = cf.get("server");
     BOOST_TEST(server.has_value());
 
@@ -72,8 +111,9 @@ BOOST_AUTO_TEST_CASE(duplicate_key_last_value_wins) {
 }
 
 BOOST_AUTO_TEST_CASE(quotes_and_inline_comments) {
+    TempIni ini(kBasicIni);
     ConfigFile cf;
-    BOOST_TEST(cf.load(dataFile("basic.ini")).success);
+    BOOST_TEST(cf.load(ini.path).success);
     const auto &server = cf.get("server")->get();
 
     // A '#' inside quotes is part of the value, not a comment marker.
@@ -83,8 +123,12 @@ BOOST_AUTO_TEST_CASE(quotes_and_inline_comments) {
 }
 
 BOOST_AUTO_TEST_CASE(include_directive_merges_file) {
+    // The host file pulls in another by an absolute path, which the include resolver honors as-is.
+    TempIni sub("[sub]\ny = 2\n");
+    TempIni main("[main]\nx = 1\n\ninclude " + sub.path.string() + "\n");
+
     ConfigFile cf;
-    BOOST_TEST(cf.load(dataFile("main.ini")).success);
+    BOOST_TEST(cf.load(main.path).success);
 
     // Both the host file's section and the included file's section are present.
     BOOST_TEST(cf.contains("main"));
@@ -94,8 +138,9 @@ BOOST_AUTO_TEST_CASE(include_directive_merges_file) {
 }
 
 BOOST_AUTO_TEST_CASE(error_on_unclosed_quote_resets_config) {
+    TempIni ini("key = \"unterminated\n");
     ConfigFile cf;
-    auto r = cf.load(dataFile("unterminated.ini"));
+    auto r = cf.load(ini.path);
     BOOST_TEST(!r.success);
     BOOST_TEST(!r.errorMessage.empty());
     BOOST_TEST(r.line == 1);
@@ -107,7 +152,7 @@ BOOST_AUTO_TEST_CASE(error_on_unclosed_quote_resets_config) {
 
 BOOST_AUTO_TEST_CASE(error_on_missing_file) {
     ConfigFile cf;
-    auto r = cf.load(dataFile("does_not_exist.ini"));
+    auto r = cf.load(std::filesystem::temp_directory_path() / "lore_cfg_does_not_exist.ini");
     BOOST_TEST(!r.success);
     BOOST_TEST(!r.errorMessage.empty());
 }
