@@ -1,3 +1,9 @@
+# Boost.Test relies on exceptions (and RTTI), so drop the project-wide -fno-exceptions / -fno-rtti
+# that conf.cmake applies. This is scoped to the test tree; the libraries keep the global flags.
+string(REPLACE "-fno-exceptions" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REPLACE "-fno-exceptions" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost CONFIG QUIET COMPONENTS unit_test_framework)
 
