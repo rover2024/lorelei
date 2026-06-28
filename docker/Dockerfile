@@ -19,7 +19,8 @@ ENV USE_USTC_MIRROR=${USE_USTC_MIRROR}
 # are copied here, so this layer (the slow apt install) and the QEMU build below stay cached even
 # when the lorelei/thunks build scripts change; those are run from the repo copy further down.
 COPY docker/scripts/bootstrap-ubuntu.sh docker/scripts/build-qmsetup.sh docker/scripts/build-qemu.sh /tmp/scripts/
-RUN chmod +x /tmp/scripts/*.sh && /tmp/scripts/bootstrap-ubuntu.sh
+# Strip any CR line endings (a Windows checkout may carry CRLF), otherwise the shebang breaks.
+RUN sed -i 's/\r$//' /tmp/scripts/*.sh && chmod +x /tmp/scripts/*.sh && /tmp/scripts/bootstrap-ubuntu.sh
 
 ENV REPOS_DIR=/home/user
 ENV INSTALL_DIR=/home/user/install
@@ -37,7 +38,9 @@ RUN /tmp/scripts/build-qmsetup.sh && /tmp/scripts/build-qemu.sh
 # Copy this repository (lorelei v2) and build it from local source, then the thunks against it. These
 # scripts are run from the repo copy, so editing them only rebuilds from here on.
 COPY --chown=user:user . ${LORELEI_SRC}
-RUN bash ${LORELEI_SRC}/docker/scripts/build-lorelei.sh \
+# Same CRLF guard for the in-repo scripts (build-* here, and run-tests.sh at CMD time).
+RUN sed -i 's/\r$//' ${LORELEI_SRC}/docker/scripts/*.sh \
+    && bash ${LORELEI_SRC}/docker/scripts/build-lorelei.sh \
     && bash ${LORELEI_SRC}/docker/scripts/build-thunks.sh
 
 WORKDIR ${LORELEI_SRC}
