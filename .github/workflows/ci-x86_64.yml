@@ -1,13 +1,15 @@
 name: x86_64
 
-# Manual-only end-to-end test on a GitHub-hosted x86_64 runner. Never runs on
-# push; trigger it from the Actions tab ("Run workflow").
+# Manual-only end-to-end test on a GitHub-hosted x86_64 runner.
 on:
   workflow_dispatch:
 
 jobs:
   e2e:
-    uses: ./.github/workflows/_ci-shared.yml
-    with:
-      arch: x86_64
-      runs_on: ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/e2e-test
+        with:
+          arch: x86_64

@@ -1,0 +1,90 @@
+name: Lorelei end-to-end
+description: Build the Docker image, run the end-to-end test, and publish a result summary.
+
+inputs:
+  arch:
+    description: Architecture name (x86_64 / aarch64 / riscv64), for the image tag and the summary.
+    required: true
+  build_args:
+    description: Extra docker build arguments, e.g. --build-arg USE_USTC_MIRROR=1 for a domestic runner.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Build Docker image
+      shell: bash
+      # build_args carries per-runner extras (the USTC mirror on the domestic self-hosted runner);
+      # the proxy build-args forward the runner's own proxy, and are empty on the hosted runners.
+      run: |
+        docker build ${{ inputs.build_args }} \
+          --build-arg http_proxy="${http_proxy:-}" \
+          --build-arg https_proxy="${https_proxy:-}" \
+          --build-arg no_proxy="${no_proxy:-}" \
+          -f docker/Dockerfile -t "lorelei-test-${{ inputs.arch }}" .
+
+    - name: Run end-to-end tests
+      id: run
+      shell: bash
+      run: |
+        set -o pipefail
+        docker run --rm "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log
+
+    - name: Publish summary
+      if: always()
+      shell: bash
+      run: |
+        arch="${{ inputs.arch }}"
+        clean="$(sed -r 's/\x1b\[[0-9;]*m//g' run.log)"
+        if [ "${{ steps.run.outcome }}" = "success" ]; then
+          status="✅ **Passed** on \`$arch\`"
+        else
+          status="❌ **Failed** on \`$arch\` (see the log below)"
+        fi
+
+        rows="$(printf '%s\n' "$clean" | awk '
+          /^[[:space:]]+(native|emulated|lorelei)[^0-9]*[0-9]+\.[0-9]+s[[:space:]]*$/ {
+            t = $NF; label = $0
+            sub(/^[[:space:]]+/, "", label)
+            sub(/[[:space:]]+[0-9.]+s[[:space:]]*$/, "", label)
+            printf "| %s | %s |\n", label, t
+          }')"
+
+        {
+          echo "## Lorelei End-to-End — \`$arch\`"
+          echo
+          echo "$status"
+
+          if [ "${{ steps.run.outcome }}" = "success" ]; then
+            echo
+            echo "### Stages"
+            echo "- ✅ Auto tests (ctest)"
+            if printf '%s' "$clean" | grep -q 'skipped (x86_64-only)'; then
+              echo "- ⏭️ ThunkExample end-to-end (skipped, x86_64-only)"
+            else
+              echo "- ✅ ThunkExample end-to-end"
+            fi
+            echo "- ✅ minizip over the zlib thunk"
+          fi
+
+          if [ -n "$rows" ]; then
+            echo
+            echo "### minizip Over the zlib Thunk"
+            echo
+            echo "minizip stays emulated; only its zlib calls cross to the host, so the lorelei run lands near native."
+            echo
+            echo "| Run | Wall time |"
+            echo "| --- | --- |"
+            echo "$rows"
+          fi
+
+          echo
+          echo "<details><summary>Full build &amp; test log</summary>"
+          echo
+          echo '```text'
+          echo "$clean"
+          echo '```'
+          echo
+          echo "</details>"
+        } >> "$GITHUB_STEP_SUMMARY"

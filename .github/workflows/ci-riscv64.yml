@@ -1,16 +1,47 @@
 name: riscv64
 
-# Manual-only end-to-end test on the riscv64 self-hosted runner (ultrarisc). Never runs on push;
-# trigger it from the Actions tab ("Run workflow"). GitHub has no hosted riscv64 runner, so this is
-# the one architecture served by a self-hosted machine.
+# Manual-only end-to-end test on the riscv64 self-hosted runner (ultrarisc). riscv64 has no Node 20,
+# so JS actions (actions/checkout) cannot run: check out with a plain git clone. Start the runner
+# with its proxy in the environment so the build can reach the network and the USTC apt mirror:
+# `source ~/setup-proxy.sh && ./run.sh`.
 on:
   workflow_dispatch:
 
 jobs:
   e2e:
-    uses: ./.github/workflows/_ci-shared.yml
-    with:
-      arch: riscv64
-      runs_on: riscv64
-      # ultrarisc is a domestic self-hosted machine: build through the USTC apt mirror.
-      build_args: --build-arg USE_USTC_MIRROR=1
+    runs-on: [self-hosted, linux, riscv64]
+    timeout-minutes: 240
+    steps:
+      - name: Powered by UltraRISC
+        run: |
+          model="$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || true)"; : "${model:=RISC-V board}"
+          isa="$(awk -F': ' '/^isa/{print $2; exit}' /proc/cpuinfo)"
+          mem="$(awk '/MemTotal/{printf "%.0f GiB", $2/1048576}' /proc/meminfo)"
+          khz="$(cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq 2>/dev/null | sort -rn | head -1)"
+          ghz="?"; [ -n "$khz" ] && ghz="$(awk -v k="$khz" 'BEGIN{printf "%.1f GHz", k/1000000}')"
+          {
+            echo "### 🚀 riscv64 CI runs on real RISC-V silicon, powered by **UltraRISC**"
+            echo
+            echo "The host side is **not emulated**: the emulated x86_64 guest's library calls cross"
+            echo "straight through to the native libraries of a genuine UltraRISC board via the dlcall thunk."
+            echo
+            echo "| | |"
+            echo "|--|--|"
+            echo "| Board | \`$model\` |"
+            echo "| Cores | $(nproc) × RV64 @ $ghz |"
+            echo "| ISA | \`$isa\` |"
+            echo "| Memory | $mem |"
+            echo "| Kernel | \`$(uname -sr)\` |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout (shell clone, no Node needed on riscv64)
+        run: |
+          find . -mindepth 1 -delete 2>/dev/null || true
+          git clone --depth 1 -b "${{ github.ref_name }}" \
+            "${{ github.server_url }}/${{ github.repository }}.git" .
+
+      - uses: ./.github/actions/e2e-test
+        with:
+          arch: riscv64
+          build_args: --build-arg USE_USTC_MIRROR=1

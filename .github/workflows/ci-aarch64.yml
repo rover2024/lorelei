@@ -1,13 +1,15 @@
 name: aarch64
 
-# Manual-only end-to-end test on a GitHub-hosted aarch64 runner. Never runs on
-# push; trigger it from the Actions tab ("Run workflow").
+# Manual-only end-to-end test on a GitHub-hosted aarch64 runner.
 on:
   workflow_dispatch:
 
 jobs:
   e2e:
-    uses: ./.github/workflows/_ci-shared.yml
-    with:
-      arch: aarch64
-      runs_on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/e2e-test
+        with:
+          arch: aarch64
