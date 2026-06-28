@@ -7,6 +7,11 @@ endif()
 
 set(_fixture ${CMAKE_CURRENT_SOURCE_DIR}/TestData)
 set(_incs -I${LORE_SOURCE_DIR}/include -I${LORE_BUILD_INCLUDE_DIR} -I${_fixture})
+
+# Extra clang args for the x86_64 guest generate only. A cross host whose x86_64 toolchain is not in
+# clang's default search (e.g. our riscv64 Canadian-cross) points this at it with --gcc-toolchain /
+# --sysroot. The stat and host steps parse natively, so they do not take it.
+set(LORE_TLC_GUEST_EXTRA_ARGS "" CACHE STRING "Extra clang args for the x86_64 guest TLC generate")
 set(_stat ${CMAKE_CURRENT_BINARY_DIR}/ThunkStat.json)
 set(_host_src ${CMAKE_CURRENT_BINARY_DIR}/Thunk_host.cpp)
 set(_guest_src ${CMAKE_CURRENT_BINARY_DIR}/Thunk_guest.cpp)
@@ -27,6 +32,7 @@ add_custom_command(OUTPUT ${_host_src}
 add_custom_command(OUTPUT ${_guest_src}
     COMMAND $<TARGET_FILE:LoreTLC> generate -o ${_guest_src} -s ${_stat} -m guest
         ${_fixture}/Manifest_guest.cpp -- -xc++ -target x86_64-pc-linux-gnu ${_incs}
+        ${LORE_TLC_GUEST_EXTRA_ARGS}
     DEPENDS LoreTLC ${_stat} ${_fixture}/Manifest_guest.cpp ${_fixture}/Desc.h
     VERBATIM
 )

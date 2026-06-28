@@ -12,10 +12,29 @@ set -euo pipefail
 : "${INSTALL_DIR:?}"
 
 arch="$(uname -m)"
+guest_extra=()
+host_extra=()
 if [ "$arch" = "x86_64" ] || [ "$arch" = "amd64" ]; then
     GUEST_CC=gcc
     GUEST_CXX=g++
     HOST_BUILD_GUEST=TRUE
+elif [ "$arch" = "riscv64" ]; then
+    # Our Canadian-cross toolchain (gcc 11.4) carries its own sysroot. Point it at the amd64
+    # multiarch ffcall: -idirafter keeps avcall.h from shadowing the toolchain's own libc headers,
+    # and the extra -L finds libavcall.
+    GUEST_CC=x86_64-unknown-linux-gnu-gcc
+    GUEST_CXX=x86_64-unknown-linux-gnu-g++
+    HOST_BUILD_GUEST=FALSE
+    guest_extra=(
+        "-DCMAKE_C_FLAGS=-idirafter /usr/include"
+        "-DCMAKE_CXX_FLAGS=-idirafter /usr/include"
+        "-DCMAKE_EXE_LINKER_FLAGS=-L/usr/lib/x86_64-linux-gnu"
+        "-DCMAKE_SHARED_LINKER_FLAGS=-L/usr/lib/x86_64-linux-gnu"
+    )
+    # The host build's TLC generates the x86_64 guest test fixture; clang cannot find x86_64 C++
+    # headers natively here, so point its guest parse at the toolchain (--gcc-toolchain / --sysroot).
+    tc=/opt/x86_64-unknown-linux-gnu
+    host_extra=( "-DLORE_TLC_GUEST_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot" )
 else
     GUEST_CC=x86_64-linux-gnu-gcc
     GUEST_CXX=x86_64-linux-gnu-g++
@@ -31,7 +50,8 @@ cmake -B build -G Ninja \
     -Dqmsetup_DIR="$INSTALL_DIR/qmsetup/lib/cmake/qmsetup" \
     -DLORE_BUILD_TOOLS=TRUE \
     -DLORE_BUILD_GUEST_TARGETS=$HOST_BUILD_GUEST \
-    -DLORE_BUILD_TESTS=ON
+    -DLORE_BUILD_TESTS=ON \
+    "${host_extra[@]}"
 cmake --build build --target all
 cmake --build build --target install
 
@@ -43,5 +63,6 @@ cmake -B build-guest -G Ninja \
     -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/x86_64/lorelei" \
     -Dqmsetup_DIR="$INSTALL_DIR/qmsetup/lib/cmake/qmsetup" \
     -DLORE_BUILD_TOOLS=FALSE \
-    -DLORE_BUILD_GUEST_TARGETS=TRUE
+    -DLORE_BUILD_GUEST_TARGETS=TRUE \
+    "${guest_extra[@]}"
 cmake --build build-guest --target install

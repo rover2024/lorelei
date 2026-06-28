@@ -63,13 +63,24 @@ Architectures: amd64
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
     apt-get update
-    # The x86_64 cross-toolchain, plus the amd64 runtime/dev libraries the guest side links and runs
-    # against: libffcall (avcall, the VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/
-    # minizip for running the x86_64 guest binaries under qemu-x86_64.
+    # The amd64 runtime/dev libraries the guest side links and runs against: libffcall (avcall, the
+    # VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/minizip for running the x86_64
+    # guest binaries under qemu-x86_64.
     apt-get install -y --no-install-recommends \
-        gcc-x86-64-linux-gnu g++-x86-64-linux-gnu \
         libffcall-dev:amd64 \
         libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64
+
+    # The x86_64 cross-compiler that builds the guest side.
+    if [ "$host_arch" = "riscv64" ]; then
+        # The riscv64 archive has no x86_64 cross-gcc, so fetch our prebuilt Canadian-cross toolchain
+        # (runs on riscv64, targets x86_64, gcc 11.4) and expose it as x86_64-unknown-linux-gnu-*. It
+        # carries its own sysroot; the guest build points it at the amd64 multiarch ffcall with flags.
+        curl -fsSL https://github.com/rover2024/x86_64-riscv64-toolchain/releases/download/gcc-11.4.0-glibc-2.35/x86_64-unknown-linux-gnu-gcc11.4.0-glibc2.35-riscv64host.tar.xz \
+            | tar -xJ -C /opt
+        ln -sf /opt/x86_64-unknown-linux-gnu/bin/x86_64-unknown-linux-gnu-* /usr/local/bin/
+    else
+        apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu g++-x86-64-linux-gnu
+    fi
 
     # Unpack the amd64 minizip CLI and expose it as minizip-x86_64 (the guest binary the test runs).
     tmp="$(mktemp -d)"

@@ -17,6 +17,11 @@ on:
         description: The runs-on runner label (e.g. ubuntu-latest, ubuntu-24.04-arm)
         required: true
         type: string
+      build_args:
+        description: Extra docker build arguments, e.g. --build-arg USE_USTC_MIRROR=1 for a domestic self-hosted runner
+        required: false
+        default: ''
+        type: string
 
 jobs:
   e2e:
@@ -28,7 +33,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t lorelei-test-${{ inputs.arch }} .
+        # build_args carries per-runner extras (USTC mirror for the domestic self-hosted runner); the
+        # proxy build-args pass the runner's own proxy through, and are empty on the hosted runners.
+        run: |
+          docker build ${{ inputs.build_args }} \
+            --build-arg http_proxy="${http_proxy:-}" \
+            --build-arg https_proxy="${https_proxy:-}" \
+            --build-arg no_proxy="${no_proxy:-}" \
+            -f docker/Dockerfile -t "lorelei-test-${{ inputs.arch }}" .
 
       - name: Run end-to-end tests
         id: run
