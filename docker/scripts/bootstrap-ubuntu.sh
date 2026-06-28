@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Install the build toolchain and create the unprivileged build user. Targets an x86_64 (amd64)
-# Ubuntu 22.04 base image: the guest and host are both x86_64, so one native toolchain builds
+# Ubuntu 24.04 base image: the guest and host are both x86_64, so one native toolchain builds
 # everything.
 set -euo pipefail
 
@@ -11,9 +11,10 @@ USE_USTC_MIRROR="${USE_USTC_MIRROR:-0}"
 # Retry transient fetch failures (e.g. a proxy returning 502) instead of aborting the whole build.
 echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
 
+# Ubuntu 24.04 keeps its apt sources in the deb822 file /etc/apt/sources.list.d/ubuntu.sources.
 if [ "$USE_USTC_MIRROR" = "1" ]; then
-    sed -i 's@http://archive.ubuntu.com/ubuntu/@http://mirrors.ustc.edu.cn/ubuntu/@g' /etc/apt/sources.list
-    sed -i 's@http://security.ubuntu.com/ubuntu/@http://mirrors.ustc.edu.cn/ubuntu/@g' /etc/apt/sources.list
+    sed -i -E 's@https?://(archive|security)\.ubuntu\.com/ubuntu@http://mirrors.ustc.edu.cn/ubuntu@g; s@https?://ports\.ubuntu\.com/ubuntu-ports@http://mirrors.ustc.edu.cn/ubuntu-ports@g' \
+        /etc/apt/sources.list.d/ubuntu.sources
 fi
 
 apt-get update
@@ -24,13 +25,11 @@ apt-get install -y --no-install-recommends \
     build-essential gcc g++ gdb cmake ninja-build pkg-config \
     python3 python3-pip meson flex bison patchelf
 
-# Clang/LLVM 20: TLC (the thunk compiler) is built on Clang LibTooling. Installed from the official
-# apt.llvm.org script; libclang-20-dev provides the ClangConfig.cmake that find_package(Clang) needs.
-apt-get install -y --no-install-recommends lsb-release software-properties-common gnupg
-wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh
-chmod +x /tmp/llvm.sh
-/tmp/llvm.sh 20
-apt-get install -y --no-install-recommends libclang-20-dev
+# Clang/LLVM 20: TLC (the thunk compiler) is built on Clang LibTooling. Ubuntu 24.04 ships LLVM 20 in
+# its own repositories, so install it straight from apt. find_package(Clang) needs ClangConfig.cmake
+# (from clang-20) and LLVMConfig.cmake (from llvm-20-dev); libclang-20-dev provides the Clang
+# libraries and headers TLC links against.
+apt-get install -y --no-install-recommends clang-20 llvm-20-dev libclang-20-dev
 
 # Lorelei build/runtime dependencies: ffcall backs the VariadicAdaptor, Boost.Test backs the auto
 # tests, and zlib is what the example thunk wraps. minizip provides the unmodified guest binary the
@@ -50,13 +49,18 @@ host_arch="$(dpkg --print-architecture)"
 if [ "$host_arch" != "amd64" ]; then
     dpkg --add-architecture amd64
     codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-    # The non-amd64 base image serves packages from ubuntu-ports; pin those to the native arch and add
-    # the regular archive for amd64.
-    sed -i -E "/ubuntu-ports/ s/^deb /deb [arch=${host_arch}] /" /etc/apt/sources.list
-    cat >/etc/apt/sources.list.d/amd64.list <<EOF
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${codename} main restricted universe multiverse
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${codename}-updates main restricted universe multiverse
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${codename}-security main restricted universe multiverse
+    # The non-amd64 base serves packages from ports (deb822 ubuntu.sources); pin those entries to the
+    # native arch and add a separate amd64 archive. Not yet validated on the cross hosts.
+    sed -i "/^Types: deb/a Architectures: ${host_arch}" /etc/apt/sources.list.d/ubuntu.sources
+    amd64_mirror="http://archive.ubuntu.com/ubuntu"
+    [ "$USE_USTC_MIRROR" = "1" ] && amd64_mirror="http://mirrors.ustc.edu.cn/ubuntu"
+    cat >/etc/apt/sources.list.d/amd64.sources <<EOF
+Types: deb
+URIs: ${amd64_mirror}
+Suites: ${codename} ${codename}-updates ${codename}-security
+Components: main restricted universe multiverse
+Architectures: amd64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
     apt-get update
     # The x86_64 cross-toolchain, plus the amd64 runtime/dev libraries the guest side links and runs
@@ -83,6 +87,9 @@ fi
 
 # Unprivileged build user.
 if ! id -u user >/dev/null 2>&1; then
+    # Ubuntu 24.04 ships a default 'ubuntu' user at UID/GID 1000; remove it so 'user' can claim 1000.
+    userdel -r ubuntu 2>/dev/null || true
+    groupdel ubuntu 2>/dev/null || true
     groupadd --gid 1000 user || true
     useradd --uid 1000 --gid 1000 -m -s /bin/bash user
     echo "user:123456" | chpasswd

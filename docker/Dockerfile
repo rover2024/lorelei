@@ -2,7 +2,7 @@
 # this repository, and the lorelei-thunks zlib thunk, then runs the end-to-end test (see
 # docker/scripts/run-tests.sh). It targets an x86_64 host, where the guest and host ISA are the same
 # and a single native toolchain builds everything.
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ARG http_proxy
 ARG https_proxy
