@@ -3,6 +3,7 @@ add_auto_test(tst_ScopeGuard.cpp)
 add_auto_test(tst_ConfigFile.cpp LoreSupport)
 add_auto_test(tst_Logging.cpp LoreSupport)
 add_auto_test(tst_VarSizeArray.cpp)
+add_auto_test(tst_STLTraitExtras.cpp)
 
 # Ship the INI fixtures next to the test binary.
 qm_add_copy_command(tst_ConfigFile
