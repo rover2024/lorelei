@@ -140,10 +140,12 @@
         })
 #    define va_float(ap)                                                                          \
         ({                                                                                        \
-          double _tmp = va_arg(ap, double);                                                       \
-          float _val = (float) _tmp;                                                              \
-          struct CVargEntry entry = {.type = CVargType_Float};                                    \
-          entry.f = _val;                                                                         \
+          /* A float promotes to double in a variadic call, so %f consumes (and must be          \
+           * re-passed as) a full double; tagging it Float would pass a half-width slot and       \
+           * misalign every later argument on ABIs with a single varargs save area (riscv64). */  \
+          double _val = va_arg(ap, double);                                                       \
+          struct CVargEntry entry = {.type = CVargType_Double};                                   \
+          entry.d = _val;                                                                         \
           (*entries) = entry;                                                                     \
           entries++;                                                                              \
           _val;                                                                                   \

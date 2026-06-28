@@ -130,6 +130,23 @@ namespace lore {
         }
     }
 
+    // Add one variadic argument. On riscv64 a variadic callee reads floating-point varargs from the
+    // integer registers, but ffcall's av_double would place them in FP registers the callee never
+    // looks at (a crash or garbage downstream), so pass a (promoted) double by its bit pattern.
+    // Other ABIs read variadic FP from FP registers, so keep the normal path there.
+    static inline void avcall_vararg_helper(av_alist *list, CVargEntry *entry) {
+#if defined(__riscv) && __riscv_xlen == 64
+        if (entry->type == CVargType_Double || entry->type == CVargType_Float) {
+            double d = (entry->type == CVargType_Double) ? entry->d : (double) entry->f;
+            long long bits;
+            __builtin_memcpy(&bits, &d, sizeof(bits));
+            av_longlong(*list, bits);
+            return;
+        }
+#endif
+        avcall_arg_helper(list, entry);
+    }
+
     static void vcall_forward(void *func, int argc1, CVargEntry *argv1, CVargEntry *ret, ...) {
 
         va_list ap;
@@ -143,7 +160,9 @@ namespace lore {
             for (int i = 0; i < argc1; ++i) {
                 avcall_arg_helper(&alist, argv1 + i);
             }
-#ifdef __x86_64__
+#if defined(__x86_64__) || (defined(__riscv) && __riscv_xlen == 64)
+            // x86_64 and riscv64 have a pointer-like va_list, so forward it as a plain pointer; the
+            // by-value struct form is for ABIs (aarch64) whose va_list is a real multi-field struct.
             av_ptr(alist, void *, ap);
 #else
             av_struct(alist, va_list, ap);
@@ -170,7 +189,7 @@ namespace lore {
             avcall_arg_helper(&alist, argv1 + i);
         }
         for (int i = 0; i < argc2; ++i) {
-            avcall_arg_helper(&alist, argv2 + i);
+            avcall_vararg_helper(&alist, argv2 + i);
         }
 
         av_call(alist);
@@ -190,7 +209,7 @@ namespace lore {
         av_ptr(alist, void *, ret);
 
         for (int i = 0; i < argc2; ++i) {
-            avcall_arg_helper(&alist, argv2 + i);
+            avcall_vararg_helper(&alist, argv2 + i);
         }
 
         av_call(alist);
