@@ -145,3 +145,4 @@ cmake --build build-guest --target install
 - qmsetup (https://github.com/stdware/qmsetup)
 - json11 (https://github.com/dropbox/json11)
 - printf (https://github.com/mpaland/printf)
+- boost (https://www.boost.org): used by the unit tests only
