@@ -12,6 +12,12 @@
 
 #define LORE_THUNK_LAST_HCB lore::thread_last_callback
 
+// LORE_THUNK_GET_LAST_CALLBACK_*(NAME) read the host fixed register into NAME: it is where the
+// generated callback trampoline leaves the address of the callback being invoked. That register
+// (r11 on x86_64, x16 on aarch64, t1 on riscv64) is part of the trampoline ABI, so any translation
+// unit that uses these macros (or the trampoline / callback-substitution path that relies on them)
+// MUST reserve it with -ffixed-<reg>. Otherwise the compiler may reuse the register and overwrite
+// the callback address before the read, and NAME picks up garbage.
 #define LORE_THUNK_GET_LAST_CALLBACK_X86_64(NAME)                                                  \
     void *NAME;                                                                                    \
     asm volatile("mov %%r11, %0" : "=r"(NAME)::"memory");
