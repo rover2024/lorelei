@@ -8,21 +8,9 @@ Lorelei is a cross-ISA compatibility layer that lets an emulated guest program c
 
 ## How It Works
 
-Lorelei runs the guest under QEMU's user-mode emulation (the `linux-user` target, `qemu-<arch>`). The one thing it asks of QEMU is that the guest runs with `guest_base == 0`, so a guest pointer and a host pointer are the same number. There is no marshalling, no copying buffers across a boundary, and no pointer translation.
+Lorelei runs the guest under QEMU's user-mode emulation with `guest_base == 0`, so a guest pointer and a host pointer are the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
-On top of that, the guest reaches the host through a single magic syscall (number 4096):
-
-1. The guest calls a library function through a generated thunk.
-2. The thunk issues syscall 4096 with a small request that describes the call.
-3. A QEMU TCG plugin (`dlcall`) intercepts the syscall and hands control to the host runtime.
-4. The host runtime `dlopen`/`dlsym`s the real library and invokes the function with the guest's arguments, which are already valid host pointers.
-5. The return value (and any callbacks) flow back the same way.
-
-Since this is an in-process jump rather than a round trip through an RPC server, a host call costs little more than the syscall itself.
-
-The per-library thunks themselves (zlib, SDL, ...) are in [lorelei-thunks](https://github.com/rover2024/lorelei-thunks), which builds against an installed Lorelei and uses its Thunk Library Compiler to generate the guest and host glue for each library.
-
-For a deeper look at how the Thunk Library Compiler generates the thunks and how the guest and host runtimes carry each call across the boundary, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
+You do not write the per-library glue by hand. The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and generates the guest and host thunks for you, including the awkward cases of callbacks and variadic functions. See [docs/HowToUseTLC.md](docs/HowToUseTLC.md) for how to use it, and [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) for ready-made thunks (zlib, SDL, ...).
 
 The underlying pass-through mechanism is also demonstrated from scratch in the [QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test).
 
@@ -69,6 +57,7 @@ docker run --rm lorelei-test bash docker/scripts/run-tests.sh
 Lorelei requires `qmsetup` for configuration, you need to build it first.
 
 ```bash
+# change to your own install location
 export INSTALL_DIR=/home/user/install
 
 git clone --recursive https://github.com/stdware/qmsetup.git
