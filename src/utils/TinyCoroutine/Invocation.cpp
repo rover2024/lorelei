@@ -93,9 +93,13 @@ namespace lore::utils {
 
         stackSize = default_stack_size;
         stack = std::make_unique<char[]>(stackSize);
-        stackTop = (char *) (((uint64_t) (stack.get() + stackSize)) & ~0xFULL);
+        // Coroutine stacks grow downward, so the highest address is the top. Align it down to a
+        // 16-byte boundary as required by the SysV/AAPCS call ABIs.
+        stackTop = reinterpret_cast<char *>(
+            reinterpret_cast<uintptr_t>(stack.get() + stackSize) & ~uintptr_t(0xF));
 
-        // Use stack bottom as call info array.
+        // The invocation stack grows up from the buffer bottom while the coroutine call stack grows
+        // down from stackTop, so the two share one buffer from opposite ends.
         invocations = reinterpret_cast<InvocationInfo *>(stack.get());
         invocationCount = 0;
     }
@@ -106,17 +110,21 @@ namespace lore::utils {
 #ifdef LORE_USE_EMU_TASK_ENTRY
         return HostExecContext::invocationEntry(const_cast<InvocationArguments *>(ia), ra_ptr);
 #else
+        // A nested invocation must not clobber the suspended one below it: start fresh at stackTop
+        // only when nothing is live, otherwise carve out below the suspended invocation's saved SP.
         auto stack = thread_ctx.invocationCount == 0
-                         ? (uintptr_t) thread_ctx.stackTop
-                         : (RegStateGetSP(thread_ctx.lastInvocation().hostState) & ~0xFULL);
+                         ? reinterpret_cast<uintptr_t>(thread_ctx.stackTop)
+                         : (RegStateGetSP(thread_ctx.lastInvocation().hostState) & ~uintptr_t(0xF));
         return coroutine_start(const_cast<InvocationArguments *>(ia), ra_ptr,
-                               HostExecContext::invocationEntry, (void *) stack,
+                               HostExecContext::invocationEntry, reinterpret_cast<void *>(stack),
                                &thread_ctx.mainHostState);
 #endif
     }
 
     int64_t Invocation::resume() {
         assert(thread_ctx.invocationCount > 0);
+        // Switch into the suspended invocation. The value returned here is whatever the invocation
+        // hands back when it next yields: 1 if it suspended at another reentry, 0 if it finished.
         return coroutine_switch(&thread_ctx.mainHostState, thread_ctx.lastInvocation().hostState,
                                 0);
     }
@@ -137,11 +145,16 @@ namespace lore::utils {
         }();
         entry();
 #else
+        // Suspend this invocation and yield 1 to the driver to signal "stopped at a reentry". The
+        // saved hostState lets resume() switch back here once the reentry has been serviced.
         std::ignore = coroutine_switch(last.hostState, &thread_ctx.mainHostState, 1);
 #endif
     }
 
     int64_t HostExecContext::invocationEntry(void *arg1, void *arg2) {
+        // state lives on this coroutine's stack and is registered as the invocation's saved context.
+        // It stays valid for the whole call because the coroutine stack is never unwound while the
+        // invocation is merely suspended; it is only torn down once invokeByConv returns below.
         RegState state;
         thread_ctx.pushInvocation(reinterpret_cast<ReentryArguments **>(arg2), &state);
 

@@ -224,7 +224,9 @@ namespace lore::tool::TLC {
 
         std::string key = name();
         FunctionInfo FI = real;
-        FunctionInfo NFI = FI; // normalized FI
+        // Normalized FI: replace the variadic tail (`...` or the va_list parameter) with a single
+        // packed `CVargEntry *vargs`, so the cross-side signature is fixed and marshallable.
+        FunctionInfo NFI = FI;
         if (m_hasVAList) {
             NFI.argumentsRef().pop_back();
         } else {
@@ -233,7 +235,7 @@ namespace lore::tool::TLC {
         NFI.argumentsRef().push_back({{}, "vargs"});
         NFI.setMetaArgumentType("vargs", "CVargEntry *");
 
-        FunctionInfo CNFI = NFI; // callback normalized FI
+        FunctionInfo CNFI = NFI; // callback normalized FI: NFI with a leading `void *callback`
         CNFI.argumentsRef().insert(CNFI.argumentsRef().begin(), {pVoidType, "callback"});
 
         bool isHost = doc.mode() == DocumentContext::Host;
@@ -246,6 +248,8 @@ namespace lore::tool::TLC {
         ProcSnippet::ProcSource emptyADP;
         ProcSnippet::ProcSource emptyCAL;
 
+        // Route the live ProcSource to the side matching the document mode (the other side gets a
+        // throw-away `empty*`); X* is the sender side and Y* the receiver side. See DefaultBuilder.
         auto &GENT = isHost ? emptyENT : ENT;
         auto &GADP = isHost ? emptyADP : ADP;
         auto &GCAL = isHost ? emptyCAL : CAL;

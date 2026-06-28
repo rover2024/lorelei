@@ -2,6 +2,7 @@
 
 #include "DocumentContext.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <array>
 #include <vector>
@@ -458,27 +459,21 @@ namespace lore::tool::TLC {
             }
         }
         for (const auto &[signature, info] : std::as_const(namedCallbackBySignature)) {
-            auto it = m_requestedProcData.callbacks.find(signature);
-            if (it == m_requestedProcData.callbacks.end()) {
-                bool matchedByAlias = false;
-                for (const auto &[requestedSignature, requestedAlias] :
-                     std::as_const(m_requestedProcData.callbacks)) {
-                    (void) requestedSignature;
-                    if (!requestedAlias.empty() && requestedAlias == info.second) {
-                        matchedByAlias = true;
-                        break;
-                    }
-                }
-                if (!matchedByAlias) {
-                    continue;
-                }
+            // A callback is requested either by exact signature or, failing that, by matching its
+            // declared name against a requested alias.
+            const auto &alias = info.second;
+            bool requested = m_requestedProcData.callbacks.count(signature) != 0;
+            if (!requested && !alias.empty()) {
+                requested = std::any_of(
+                    m_requestedProcData.callbacks.begin(), m_requestedProcData.callbacks.end(),
+                    [&](const auto &entry) { return entry.second == alias; });
             }
-            m_callbackTypes[signature] = {info.first, info.second};
+            if (requested) {
+                m_callbackTypes[signature] = {info.first, alias};
+            }
         }
 
-        for (const auto &[name, vd] : std::as_const(varByName)) {
-            // TODO: Filter variables (Future work, not implemented now)
-        }
+        // TODO: Filter variables (future work). Collected into varByName above but not yet consumed.
 
         /// STEP: Add requested function ProcSnippet items.
         for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
@@ -490,6 +485,8 @@ namespace lore::tool::TLC {
                     desc = it->second.second;
                 }
 
+                // Collect the per-phase (Entry/Adapt/Caller) explicit specializations for this
+                // proc, leaving nullptr where the manifest provided none.
                 const auto &entryMap = procFnDeclByName[direction][ProcSnippet::Entry];
                 const auto &adaptMap = procFnDeclByName[direction][ProcSnippet::Adapt];
                 const auto &callerMap = procFnDeclByName[direction][ProcSnippet::Caller];
@@ -502,7 +499,6 @@ namespace lore::tool::TLC {
                         adaptIt != adaptMap.end() ? adaptIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
                     };
-
                 m_procs[ProcSnippet::Function][direction].emplace(
                     name, ProcSnippet(ProcSnippet::Function, direction, fd, name, std::move(desc),
                                       definitions, *this));
@@ -520,6 +516,7 @@ namespace lore::tool::TLC {
             auto key = callbackInfo.name.empty() ? signature : callbackInfo.name;
             for (int i = ProcSnippet::GuestToHost; i < ProcSnippet::NumProcDirection; ++i) {
                 auto direction = static_cast<ProcSnippet::Direction>(i);
+                // Specializations are keyed by signature, but the ProcSnippet is stored under key.
                 const auto &entryMap = procCbDeclBySignature[direction][ProcSnippet::Entry];
                 const auto &adaptMap = procCbDeclBySignature[direction][ProcSnippet::Adapt];
                 const auto &callerMap = procCbDeclBySignature[direction][ProcSnippet::Caller];
@@ -532,7 +529,6 @@ namespace lore::tool::TLC {
                         adaptIt != adaptMap.end() ? adaptIt->second.second : nullptr,
                         callerIt != callerMap.end() ? callerIt->second.second : nullptr,
                     };
-
                 m_procs[ProcSnippet::Callback][direction].emplace(
                     key, ProcSnippet(ProcSnippet::Callback, direction, callbackInfo.type,
                                      callbackInfo.name, desc, definitions, *this));
@@ -668,6 +664,7 @@ namespace lore::tool::TLC {
 
     static std::string legendLine(const std::string &name) {
         constexpr int kLegendWidth = 75;
+        // Pad both sides to center the name; assumes names are shorter than the banner width.
         int eqCount = (kLegendWidth - name.size()) / 2;
         return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
     }

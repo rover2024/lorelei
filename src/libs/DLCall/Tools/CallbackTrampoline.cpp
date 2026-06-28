@@ -29,14 +29,18 @@ namespace lore {
 #else
     CallbackTrampolineTable *CallbackTrampolineTable::create(size_t count, void *target) {
         size_t table_size = sizeof(CallbackTrampolineTable) + count * sizeof(CallbackTrampoline);
+        // RWX so the synthesized machine code is both writable here and executable when handed out.
         auto trampoline =
             (CallbackTrampolineTable *) mmap(NULL, table_size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        // Emit the one shared landing stub at the head of the table (jumps to target).
         tramp_gen_jump(trampoline->jump_instr, target);
         trampoline->count = count;
         for (int i = 0; i < count; i++) {
             auto thunk = &trampoline->trampoline[i];
             thunk->saved_callback = NULL;
+            // Pass this instance's distance from the table base; the emitted thunk uses it to form a
+            // RIP-relative jump back to the shared jump_instr at the table head.
             tramp_gen_thunk(thunk->thunk_instr,
                           (intptr_t) thunk->thunk_instr - (intptr_t) trampoline);
         }

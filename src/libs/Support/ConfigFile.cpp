@@ -33,7 +33,8 @@ namespace lore {
         return str;
     }
 
-    // Parse quoted string with escape sequences
+    // Parse quoted string with escape sequences. Unquoted input is returned verbatim, so callers
+    // can feed any token through and only quoted tokens get escape processing.
     static std::optional<std::string> parseQuotedString(const std::string &str) {
         if (str.empty())
             return str;
@@ -104,6 +105,9 @@ namespace lore {
             }
 
             if (c == '\\') {
+                // Keep the backslash and the escaped char verbatim here; escape sequences are
+                // decoded later by parseQuotedString. This pass only needs to avoid treating an
+                // escaped '#' as a comment start.
                 escaped = true;
                 result += c;
                 continue;
@@ -319,6 +323,8 @@ namespace lore {
             lineNum++;
             auto result = parseLine(line, filename, lineNum);
             if (!result.success) {
+                // Any parse error (including one from a nested include) aborts the whole load and
+                // discards everything parsed so far, leaving the config in its fresh empty state.
                 m_baseDirStack.pop_back();
                 clear();
                 return result;

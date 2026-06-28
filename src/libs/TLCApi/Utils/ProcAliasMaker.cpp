@@ -72,6 +72,8 @@ namespace lore::tool::TLC {
         m_procPhaseEnumDecl = procPhaseEnumDecl;
 
         /// STEP: Create mangle context.
+        // Itanium ABI specifically: the generated thunk symbols must match the names the compiler
+        // emits for the same template specialization so the `alias` attribute can bind to them.
         m_mangleContext.reset(clang::ItaniumMangleContext::create(ast, ast.getDiagnostics()));
         return llvm::Error::success();
     }
@@ -162,6 +164,8 @@ namespace lore::tool::TLC {
             invokeMethod->setAccess(clang::AccessSpecifier::AS_public);
             invokeMethod->setImplicit(true);
 
+            // Without an overlay the invoke signature is the function's own; with one we rebuild
+            // synthetic parameters (arg1, arg2, ...) from the overlay's argument types.
             if (!overlayType) {
                 invokeMethod->setParams(fd->parameters());
             } else {
@@ -182,6 +186,9 @@ namespace lore::tool::TLC {
             specDecl->addDecl(invokeMethod);
         }
 
+        // A synthesized (implicit) method would mangle differently from the real source-declared
+        // one, so the alias would point at a nonexistent symbol. Bail if it didn't get marked
+        // user-provided.
         if (!invokeMethod->isUserProvided()) {
             return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                            "failed to create user-provided `invoke` method");

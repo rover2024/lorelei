@@ -37,6 +37,7 @@ namespace lore::mod {
             const char *start = pathGetName(path);
             const char *end = nullptr;
 
+            // Strip the rightmost ".so" (case-insensitive) so e.g. "libfoo.so.1" yields "libfoo".
             const int len = std::strlen(path);
             for (const char *p = path + len - 3; p >= start; --p) {
                 if (strncasecmp(p, ".so", 3) == 0) {
@@ -73,13 +74,14 @@ namespace lore::mod {
         m_staticThunkContext->emuAddr = HostServer::emuAddr;
 
         /// STEP: get thunk name
-        const char *modulePath = nullptr;
+        // Derive this HTL's own module path from the static context's address; the thunk name keys
+        // its forward-thunk lookup in the database.
         Dl_info selfInfo = {};
         if (!dladdr(m_staticThunkContext, &selfInfo)) {
             loreCritical("[HTL] failed to get current thunk module path");
             std::abort();
         }
-        modulePath = selfInfo.dli_fname;
+        const char *modulePath = selfInfo.dli_fname;
 
         const auto *server = HostServer::instance();
         assert(server != nullptr);

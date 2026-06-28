@@ -27,6 +27,8 @@ namespace lore::tool::TLC {
             return false;
         }
 
+        // Parse into locals and commit only on success, so a malformed file never leaves this
+        // object half-populated.
         std::string loadedFileName;
         std::array<std::map<std::string, FunctionEntry>, NumProcDirection> loadedFunctions;
         std::array<std::set<std::string>, NumProcDirection> loadedMissingFunctions;
@@ -48,10 +50,10 @@ namespace lore::tool::TLC {
                         continue;
                     }
                     auto name = itemObj->getString("name");
-                    auto location = itemObj->getString("location");
                     if (!name) {
                         continue;
                     }
+                    auto location = itemObj->getString("location");
 
                     auto &info = loadedFunctions[dir][name->str()];
                     info.location = location ? location->str() : "";

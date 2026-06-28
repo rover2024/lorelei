@@ -159,6 +159,8 @@ namespace lore::tool::TLC {
                            getProcKind(), getProcDirection(), SRC_callList(FI));
         };
 
+        // Emit the filter on both sender (X) and receiver (Y) Adapt layers so the same translation
+        // applies regardless of call direction; only one side is non-empty per document mode.
         for (const auto &idx : message.filteredArgIndexes) {
             XADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
             YADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));

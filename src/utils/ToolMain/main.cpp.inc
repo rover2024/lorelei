@@ -40,7 +40,8 @@ namespace lore::tool::command {
     static std::string app_name(const char *argv0) {
         using llvm::sys::fs::getMainExecutable;
         using llvm::sys::path::stem;
-        return stem(getMainExecutable(argv0, (void *) app_name)).str();
+        // The address of any symbol in this binary lets getMainExecutable resolve its own path.
+        return stem(getMainExecutable(argv0, reinterpret_cast<void *>(app_name))).str();
     }
 
 }
@@ -59,7 +60,7 @@ namespace lore::tool::command::help {
         printf("%s\n", TOOL_MAIN_DESCRIPTION);
         printf("\n");
         printf("Commands:\n");
-        for (const auto command : commands) {
+        for (const auto &command : commands) {
             printf("    %-15s    %s\n", command.name, command.help);
         }
         printf("\n");
@@ -79,14 +80,16 @@ int main(int argc, char *argv[]) {
         printf("%s\n", TOOL_MAIN_VERSION);
         return 0;
     }
-    for (const auto command : lore::tool::command::commands) {
+    for (const auto &command : lore::tool::command::commands) {
         if (std::strcmp(argv[1], command.name) == 0) {
+            // Rebuild argv for the subcommand: argv[0] becomes "<tool> <command>" and the remaining
+            // arguments (argv[2..]) follow, so the subcommand sees a conventional argv.
             std::string commandName = lore::tool::command::app_name(argv[0]) + " " + command.name;
             std::vector<char *> args;
-            args.resize(argc - 1);
-            args[0] = commandName.data();
-            std::copy(argv + 2, argv + argc, args.begin() + 1);
-            return command.main(args.size(), args.data());
+            args.reserve(argc - 1);
+            args.push_back(commandName.data());
+            args.insert(args.end(), argv + 2, argv + argc);
+            return command.main(static_cast<int>(args.size()), args.data());
         }
     }
     printf("Unknown command: %s\n", argv[1]);

@@ -27,7 +27,7 @@ namespace lore::tool::TLC {
     };
 
     bool DefaultBuilderPass::testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
-        return true; // seleted automatically
+        return true; // selected automatically; the default builder handles every proc
     }
 
     llvm::Error DefaultBuilderPass::beginHandleProc(ProcSnippet &proc,
@@ -89,11 +89,10 @@ namespace lore::tool::TLC {
 
         QualType voidType = ast.VoidTy;
         QualType pVoidType = ast.getPointerType(voidType);
-        QualType ppVoidType = ast.getPointerType(pVoidType);
 
         std::string key = name();
         FunctionInfo FI = real;
-        FunctionInfo CFI = FI;
+        FunctionInfo CFI = FI; // callback FI: same signature with a leading `void *callback`
         CFI.argumentsRef().insert(CFI.argumentsRef().begin(), {pVoidType, "callback"});
 
         bool isHost = doc.mode() == DocumentContext::Host;
@@ -106,6 +105,9 @@ namespace lore::tool::TLC {
         ProcSnippet::ProcSource emptyADP;
         ProcSnippet::ProcSource emptyCAL;
 
+        // This pass only emits one side per run (guest or host). The G*/H* aliases route the live
+        // ProcSource to whichever side matches the document mode and discard the other into a throw-
+        // away `empty*`. X* is then the sender side and Y* the receiver side for this direction.
         auto &GENT = isHost ? emptyENT : ENT;
         auto &GADP = isHost ? emptyADP : ADP;
         auto &GCAL = isHost ? emptyCAL : CAL;

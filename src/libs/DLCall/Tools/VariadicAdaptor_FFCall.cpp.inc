@@ -51,6 +51,8 @@ namespace lore {
                 break;
             }
             case CVargType_ULongLong: {
+                // ffcall has no av_start_ulonglong; signedness of the return slot is irrelevant to
+                // the ABI (same width, same register), so reuse the signed longlong starter.
                 av_start_longlong(*list, func, &entry->ull);
                 break;
             }
@@ -94,6 +96,8 @@ namespace lore {
                 break;
             }
             case CVargType_UInt: {
+                // av_int and av_uint occupy the same register slot; the unsigned value rides in the
+                // signed int macro without ABI difference.
                 av_int(*list, entry->u);
                 break;
             }
@@ -185,9 +189,12 @@ namespace lore {
 
         avcall_start_helper(&alist, func, ret);
 
+        // argv1 are the fixed (named) parameters: pass them with the plain helper.
         for (int i = 0; i < argc1; ++i) {
             avcall_arg_helper(&alist, argv1 + i);
         }
+        // argv2 land in the variadic part, where FP varargs need the per-ABI handling (see
+        // avcall_vararg_helper for the riscv64 int-register quirk).
         for (int i = 0; i < argc2; ++i) {
             avcall_vararg_helper(&alist, argv2 + i);
         }

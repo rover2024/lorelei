@@ -173,6 +173,8 @@ namespace lore {
                                    const std::string_view &message) {
         (void) context;
 
+        // The default sink only emits Success and above. Lower levels (Trace/Debug/Information)
+        // are dropped here regardless of category filtering, so they need a custom callback to show.
         if (level < Logger::Success) {
             return;
         }
@@ -183,8 +185,6 @@ namespace lore {
                 out = stdout;
                 break;
             case Logger::Warning:
-                out = stderr;
-                break;
             case Logger::Critical:
             case Logger::Fatal:
                 out = stderr;
@@ -193,6 +193,8 @@ namespace lore {
                 assert(false);
                 return;
         }
+        // NOTE: %s assumes message.data() is null-terminated, which holds for the std::string-backed
+        // views the loggers pass in. A view over a non-terminated buffer would over-read.
         fprintf(out, "%s\n", message.data());
     }
 
@@ -243,6 +245,8 @@ namespace lore {
     }
 
     LogCategory::LogCategory(const char *name) : m_name(name) {
+        // Set all eight per-level bytes to 1 in one write (one 0x01 byte per levelEnabled[] slot),
+        // so every level starts enabled before the filter runs below.
         enabled = 0x0101010101010101ULL;
 
         auto &reg = *LogRegistry::instance();

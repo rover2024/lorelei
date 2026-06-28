@@ -22,6 +22,8 @@ namespace llvm {
 namespace lore::tool::TLC {
 
     bool Pass::testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
+        // Base default: a pass opts out of every proc. Concrete passes override this to match by
+        // pass ID. The commented block below sketches the planned desc-driven default selection.
         // if (m_phase == Builder) {
         //     if (auto &desc = proc.desc(); desc) {
         //         if (desc->builderPass.has_value()) {

@@ -33,10 +33,6 @@ namespace lore::tool::TLC {
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
         llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
         llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-
-    protected:
-        bool _scanf;
-        bool _hasVAList;
     };
 
     static inline bool isCharPointerType(const clang::QualType &type) {
@@ -61,8 +57,10 @@ namespace lore::tool::TLC {
             auto view = proc.realFunctionTypeView();
             auto argTypes = view.argTypes();
             if (!argTypes.empty()) {
-                auto MaybeNameType = argTypes.back();
-                if (isCharPointerType(MaybeNameType)) {
+                // The proc-name string is conventionally the last parameter (e.g. the `name` of
+                // *GetProcAddress); recognise it by its char-pointer type.
+                auto maybeNameType = argTypes.back();
+                if (isCharPointerType(maybeNameType)) {
                     msg = std::make_unique<GetProcAddressMessage>(argTypes.size());
                     return true;
                 }

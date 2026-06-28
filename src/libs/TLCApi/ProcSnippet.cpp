@@ -17,9 +17,10 @@ namespace lore::tool::TLC {
         }
 
         auto &ast = document().ast();
-        const auto &procTemplateName = isFunction() ? "ProcFn" : "ProcCb";
-        const auto &procName = isFunction() ? ("::" + m_name) : m_name;
-        const auto &directionName = (m_direction == GuestToHost) ? "GuestToHost" : "HostToGuest";
+        const char *procTemplateName = isFunction() ? "ProcFn" : "ProcCb";
+        // Functions are referenced by global-qualified name; callbacks by their plain alias name.
+        const std::string procName = isFunction() ? ("::" + m_name) : m_name;
+        const char *directionName = (m_direction == GuestToHost) ? "GuestToHost" : "HostToGuest";
         const char *phaseName = phase == Entry ? "Entry" : (phase == Adapt ? "Adapt" : "Caller");
 
         std::string out;
@@ -65,17 +66,14 @@ namespace lore::tool::TLC {
         if (isFunction()) {
             assert(m_functionDecl != nullptr);
 
-            if (!nameHint.empty()) {
-                m_name = nameHint;
-            } else {
-                m_name = m_functionDecl->getNameAsString();
-            }
+            m_name = nameHint.empty() ? m_functionDecl->getNameAsString() : nameHint;
 
-            auto fp = document().ast().getPointerType(m_functionDecl->getType().getCanonicalType());
-            m_functionPointerType = fp;
+            m_functionPointerType =
+                document().ast().getPointerType(m_functionDecl->getType().getCanonicalType());
         } else {
             assert(m_functionPointerType.has_value());
 
+            // Callbacks have no own name; fall back to the typedef name when no hint is given.
             if (!nameHint.empty()) {
                 m_name = nameHint;
             } else if (const auto *typedefType =

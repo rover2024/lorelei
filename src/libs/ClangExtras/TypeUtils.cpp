@@ -7,17 +7,20 @@
 namespace lore::tool {
 
     clang::QualType realCalleeType(const clang::CallExpr *E, clang::ASTContext &AST) {
+        // The callee expression has function-pointer type, so peel the pointer to reach the
+        // underlying function type.
         auto T = E->getCallee()->getType().getCanonicalType()->getPointeeType();
+        // A K&R-style declaration (no prototype) carries no parameter types, so recover them from
+        // the actual call-site argument expressions and rebuild a real prototype.
         if (T->isFunctionNoProtoType() && E->getNumArgs() > 0) {
             auto funcType = T->getAs<clang::FunctionNoProtoType>();
             llvm::SmallVector<clang::QualType, 4> argTypes;
             for (unsigned i = 0; i < E->getNumArgs(); ++i) {
                 argTypes.push_back(E->getArg(i)->getType());
             }
-            clang::QualType FT = AST.getFunctionType(funcType->getReturnType(),
-                                                     llvm::ArrayRef<clang::QualType>(argTypes), {})
-                                     .getCanonicalType();
-            T = FT;
+            T = AST.getFunctionType(funcType->getReturnType(),
+                                    llvm::ArrayRef<clang::QualType>(argTypes), {})
+                    .getCanonicalType();
         }
         return AST.getPointerType(T);
     }
@@ -61,6 +64,8 @@ namespace lore::tool {
         return false;
     }
 
+    // True when the type is (possibly through pointers) an array or function type, whose textual
+    // spelling cannot be used as a standalone type without a declarator wrapped around it.
     static inline bool isCompound(clang::QualType type) {
         while (type->isPointerType()) {
             type = type->getPointeeType();
@@ -69,17 +74,17 @@ namespace lore::tool {
     }
 
     std::string getTypeStringDecompound(const clang::QualType &type) {
-        std::string ret;
+        // Array/function spellings (e.g. "int [4]") aren't valid where a plain type name is
+        // expected, so wrap them in __typeof__(...) to get a usable type-id.
         if (isCompound(type)) {
-            ret = "__typeof__(" + getTypeString(type) + ")";
-        } else {
-            ret = getTypeString(type);
+            return "__typeof__(" + getTypeString(type) + ")";
         }
-        return ret;
+        return getTypeString(type);
     }
 
     std::string getTypeStringWithName(const clang::QualType &type, const std::string &name) {
         auto typeStr = getTypeStringDecompound(type);
+        // No separating space after a trailing '*' ("int *name"), otherwise insert one ("int name").
         if (!llvm::StringRef(typeStr).ends_with("*"))
             typeStr += " ";
         return typeStr + name;

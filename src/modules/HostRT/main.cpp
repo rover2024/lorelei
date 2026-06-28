@@ -35,6 +35,8 @@ namespace lore {
             return {};
         }
 
+        // Walk up from the runtime's directory to the install prefix: the first "lib"/"lib64"
+        // ancestor's parent is the root. Fall back to the runtime directory if none is found.
         auto runtimeDir = std::filesystem::path(info.dli_fname).parent_path();
         auto cursor = runtimeDir;
         while (!cursor.empty()) {
@@ -87,6 +89,7 @@ namespace lore {
         HostRuntime() {
             if (const char *levelStr = std::getenv("LORELEI_HOST_LOG_LEVEL")) {
                 level = std::atoi(levelStr);
+                // atoi returns 0 for non-numeric or empty input; treat that as "use the default".
                 if (level == 0) {
                     level = Logger::Information;
                 }
@@ -99,6 +102,8 @@ namespace lore {
             defaultLogCallback = Logger::logCallback();
             Logger::setLogCallback(logCallback);
 
+            // Probe a qemu plugin symbol in the default scope: its presence confirms we are loaded
+            // inside the patched qemu and gives the host a stable anchor address into the emulator.
             void *emuAddr = dlsym(RTLD_DEFAULT, "qemu_plugin_register_vcpu_syscall_filter_cb");
             if (!emuAddr) {
                 loreCritical("[HRT] Failed to find qemu_plugin_register_vcpu_syscall_filter_cb\n");

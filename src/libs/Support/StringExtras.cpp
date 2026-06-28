@@ -9,7 +9,7 @@
 
 namespace lore {
 
-    /*！
+    /*!
         \namespace str
         \brief Namespace of string algorithms.
     */
@@ -73,7 +73,7 @@ namespace lore::str {
                     result.push_back({
                         nested ? varexp_part_type::nested_variable : varexp_part_type::variable,
                         s.data() + start,
-                        j - 1 - start,
+                        j - 1 - start, // j points just past the closing '}', so drop that brace
                     });
                     buf.data = s.data() + j; // even if j == s.size(), it will be fine
                     buf.type = varexp_part_type::literal;
@@ -81,6 +81,9 @@ namespace lore::str {
                     continue;
                 }
                 if (s[i] == '$') {
+                    // A "$$" sequence: keep both chars in the literal run for now and flag it so
+                    // varexp_post() can later collapse "$$" back to a single '$'. This lets a
+                    // literal dollar precede a '{' without starting a variable expansion.
                     buf.type = varexp_part_type::literal_with_dollar;
                     buf.size += 2;
                     i += 2;
@@ -99,6 +102,8 @@ namespace lore::str {
 
     /*!
         \internal
+
+        Post-processing pass for varexp(): collapses each escaped "$$" back into a single '$'.
     */
     static std::string varexp_post(const std::string_view &s) {
         std::string result;
@@ -135,7 +140,8 @@ namespace lore::str {
 
         std::string res;
         res.reserve(length);
-        for (int i = 0; i < v.size() - 1; ++i) {
+        // v is non-empty here, so size() - 1 cannot underflow.
+        for (size_t i = 0; i < v.size() - 1; ++i) {
             res.append(v[i]);
             res.append(delimiter);
         }
@@ -155,7 +161,8 @@ namespace lore::str {
 
         std::string res;
         res.reserve(length);
-        for (int i = 0; i < v.size() - 1; ++i) {
+        // v is non-empty here, so size() - 1 cannot underflow.
+        for (size_t i = 0; i < v.size() - 1; ++i) {
             res.append(v[i]);
             res.append(delimiter);
         }
@@ -195,7 +202,7 @@ namespace lore::str {
 
     std::wstring conv<std::wstring>::from_utf8(const char *s, int size) {
         if (size < 0) {
-            size = int(std::strlen(s));
+            size = static_cast<int>(std::strlen(s));
         }
         if (size == 0) {
             return {};
@@ -245,7 +252,7 @@ namespace lore::str {
         auto segment_start = fmt.data();
         auto format_end = fmt.data() + fmt.size();
         const auto &is_end = [format_end](const char *p) {
-            return p == format_end; //
+            return p == format_end;
         };
 
         auto p = segment_start;
@@ -269,14 +276,14 @@ namespace lore::str {
                         q++;
                     }
                     index--; // %1 -> index 0
+                    // Out-of-range indices are left untouched: segment_start is not advanced, so
+                    // the "%N" text survives into the final segment as a literal.
                     if (index >= 0 && index < args.size()) {
                         if (p > segment_start) {
                             push_back(segment_start, p - segment_start);
                         }
                         push_back(args[index].data(), args[index].size());
                         segment_start = q;
-                    } else {
-                        // Invalid index, as literal
                     }
                     p = q;
                     continue;
@@ -289,8 +296,8 @@ namespace lore::str {
         }
 
         size_t total_length = 0;
-        for (int i = 0; i < parts.size(); i++) {
-            total_length += parts[i].size;
+        for (const auto &part : parts) {
+            total_length += part.size;
         }
 
         // Construct result
@@ -298,9 +305,9 @@ namespace lore::str {
         res.resize(total_length);
 
         auto dest = res.data();
-        for (int i = 0; i < parts.size(); i++) {
-            memcpy(dest, parts[i].data, parts[i].size);
-            dest += parts[i].size;
+        for (const auto &part : parts) {
+            memcpy(dest, part.data, part.size);
+            dest += part.size;
         }
         return res;
     }
@@ -361,6 +368,8 @@ namespace lore::str {
             return {};
         }
 
+        // vsnprintf returns the length excluding the terminating '\0', so len == STACK_BUFFER_SIZE
+        // already means the output was truncated and we must fall through to the heap path.
         if (len < STACK_BUFFER_SIZE) {
             return std::string(stack_buffer, len);
         }

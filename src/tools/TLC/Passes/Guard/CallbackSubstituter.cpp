@@ -14,6 +14,10 @@ using namespace clang;
 
 namespace lore::tool::TLC {
 
+    // Var - A node in the tree of struct fields reachable from a proc argument that carry function
+    // pointers (callbacks) needing substitution. `fields` are nested records, `fps` the function
+    // pointer members at this level. `type` records how this node is reached (by value vs through a
+    // pointer) or that the subtree is irrelevant / cannot be supported.
     struct Var {
         enum Type {
             Field,
@@ -47,8 +51,10 @@ namespace lore::tool::TLC {
                     break;
                 }
 
+                // Re-canonicalize: unwrapping a pointer/array pointee can yield a sugared type.
                 type = type.getCanonicalType();
                 auto Name = getTypeString(type);
+                // Guard against cyclic record types (self-referential structs) so the walk ends.
                 if (visitedTypes.count(Name)) {
                     continue;
                 }
@@ -72,15 +78,16 @@ namespace lore::tool::TLC {
         }
 
         static Var build(QualType T, std::set<std::string> &visitedTypes) {
-            bool is_ptr = false;
+            bool isPtr = false;
             if (T->isPointerType()) {
                 auto pointee = T->getPointeeType();
+                // A pointer-to-pointer-to-callback is not marshallable here; bail out.
                 if (pointee->isPointerType()) {
                     if (hasFunctionPointer(pointee->getPointeeType())) {
                         return {};
                     }
                 }
-                is_ptr = true;
+                isPtr = true;
                 T = pointee;
             }
             if (T->isArrayType()) {
@@ -95,7 +102,7 @@ namespace lore::tool::TLC {
             }
             if (T->isRecordType()) {
                 auto recType = T->getAs<RecordType>();
-                Var var(is_ptr ? Var::Pointer : Var::Field);
+                Var var(isPtr ? Var::Pointer : Var::Field);
                 for (const auto &fieldDecl : recType->getDecl()->fields()) {
                     auto type = fieldDecl->getType().getCanonicalType();
                     if (type->isFunctionPointerType()) {
@@ -162,6 +169,8 @@ namespace lore::tool::TLC {
         }
         for (const auto &fp : var.fps) {
             const auto &name = fp.first;
+            // `____`-joined ancestor path keeps each generated allocator name unique across nested
+            // fields without colliding with C identifiers from the source types.
             std::string allocatorName = ancestorName + "____" + name + "_xx_ThunkAlloc";
             ss << indent(level)
                << (isGuestCallback ? "CallbackContext_init<true>(" : "CallbackContext_init<false>(")

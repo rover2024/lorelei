@@ -141,31 +141,24 @@ namespace lore::tool::command::stat {
                     return;
                 }
 
-                if (const auto *decl = result.Nodes.getNodeAs<TypedefDecl>("typedefDecl")) {
-                    if (!isCDecl(decl)) {
-                        return;
-                    }
-
-                    auto type = decl->getUnderlyingType().getCanonicalType();
-                    if (!type->isFunctionPointerType()) {
-                        return;
-                    }
-                    m_functionPointerTypedefTypeMap[decl->getNameAsString()] = type;
-                    m_namedCallbackAliasMap[getTypeString(type)] = decl->getNameAsString();
-                    return;
+                // typedef and `using` alias declarations are handled identically; both derive
+                // from TypedefNameDecl, so share one path.
+                const TypedefNameDecl *aliasDecl =
+                    result.Nodes.getNodeAs<TypedefDecl>("typedefDecl");
+                if (!aliasDecl) {
+                    aliasDecl = result.Nodes.getNodeAs<TypeAliasDecl>("typeAliasDecl");
                 }
-
-                if (const auto *decl = result.Nodes.getNodeAs<TypeAliasDecl>("typeAliasDecl")) {
-                    if (!isCDecl(decl)) {
+                if (aliasDecl) {
+                    if (!isCDecl(aliasDecl)) {
                         return;
                     }
 
-                    auto type = decl->getUnderlyingType().getCanonicalType();
+                    auto type = aliasDecl->getUnderlyingType().getCanonicalType();
                     if (!type->isFunctionPointerType()) {
                         return;
                     }
-                    m_functionPointerTypedefTypeMap[decl->getNameAsString()] = type;
-                    m_namedCallbackAliasMap[getTypeString(type)] = decl->getNameAsString();
+                    m_functionPointerTypedefTypeMap[aliasDecl->getNameAsString()] = type;
+                    m_namedCallbackAliasMap[getTypeString(type)] = aliasDecl->getNameAsString();
                     return;
                 }
 
@@ -268,33 +261,35 @@ namespace lore::tool::command::stat {
             }
         }
 
+        // Walk a type graph (depth-first via an explicit stack) and record every reachable
+        // function-pointer type as a callback signature. When includeSeed is false the seed
+        // itself is a function being thunked, so we descend into its signature without recording
+        // the seed pointer as a callback.
         void collectCallbackSignatures(const QualType &seedType, const std::string &seedOrigin,
                                        const std::string &preferredAlias = {},
                                        bool includeSeed = true) {
             llvm::SmallVector<std::pair<QualType, std::string>, 32> stack;
             if (includeSeed) {
-                stack.push_back(std::make_pair(seedType, seedOrigin));
+                stack.emplace_back(seedType, seedOrigin);
             } else {
                 auto type = seedType.getCanonicalType();
                 if (type->isFunctionPointerType()) {
                     auto pointee = type->getPointeeType().getCanonicalType();
                     if (const auto *fpt = pointee->getAs<FunctionProtoType>()) {
                         if (!fpt->getReturnType()->isVoidType()) {
-                            stack.push_back(
-                                std::make_pair(fpt->getReturnType(), seedOrigin + "@ret"));
+                            stack.emplace_back(fpt->getReturnType(), seedOrigin + "@ret");
                         }
                         for (size_t i = 0; i < fpt->getNumParams(); ++i) {
-                            stack.push_back(std::make_pair(
-                                fpt->getParamType(i), seedOrigin + "@arg" + std::to_string(i + 1)));
+                            stack.emplace_back(fpt->getParamType(i),
+                                               seedOrigin + "@arg" + std::to_string(i + 1));
                         }
                     } else if (const auto *fnt = pointee->getAs<FunctionNoProtoType>()) {
                         if (!fnt->getReturnType()->isVoidType()) {
-                            stack.push_back(
-                                std::make_pair(fnt->getReturnType(), seedOrigin + "@ret"));
+                            stack.emplace_back(fnt->getReturnType(), seedOrigin + "@ret");
                         }
                     }
                 } else {
-                    stack.push_back(std::make_pair(type, seedOrigin));
+                    stack.emplace_back(type, seedOrigin);
                 }
             }
 
@@ -323,35 +318,35 @@ namespace lore::tool::command::stat {
                     auto pointee = type->getPointeeType().getCanonicalType();
                     if (const auto *fpt = pointee->getAs<FunctionProtoType>()) {
                         if (!fpt->getReturnType()->isVoidType()) {
-                            stack.push_back(std::make_pair(fpt->getReturnType(), origin + "@ret"));
+                            stack.emplace_back(fpt->getReturnType(), origin + "@ret");
                         }
                         for (size_t i = 0; i < fpt->getNumParams(); ++i) {
-                            stack.push_back(std::make_pair(
-                                fpt->getParamType(i), origin + "@arg" + std::to_string(i + 1)));
+                            stack.emplace_back(fpt->getParamType(i),
+                                               origin + "@arg" + std::to_string(i + 1));
                         }
                     } else if (const auto *fnt = pointee->getAs<FunctionNoProtoType>()) {
                         if (!fnt->getReturnType()->isVoidType()) {
-                            stack.push_back(std::make_pair(fnt->getReturnType(), origin + "@ret"));
+                            stack.emplace_back(fnt->getReturnType(), origin + "@ret");
                         }
                     }
                     continue;
                 }
 
                 if (type->isPointerType()) {
-                    stack.push_back(std::make_pair(type->getPointeeType(), origin + "@ptr"));
+                    stack.emplace_back(type->getPointeeType(), origin + "@ptr");
                     continue;
                 }
 
                 if (type->isArrayType()) {
-                    stack.push_back(std::make_pair(type->getAsArrayTypeUnsafe()->getElementType(),
-                                                   origin + "@array"));
+                    stack.emplace_back(type->getAsArrayTypeUnsafe()->getElementType(),
+                                       origin + "@array");
                     continue;
                 }
 
                 if (const auto *recType = type->getAs<RecordType>()) {
                     for (const auto *field : recType->getDecl()->fields()) {
-                        stack.push_back(std::make_pair(field->getType(),
-                                                       origin + "@" + field->getNameAsString()));
+                        stack.emplace_back(field->getType(),
+                                           origin + "@" + field->getNameAsString());
                     }
                     continue;
                 }

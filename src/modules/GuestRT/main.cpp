@@ -26,7 +26,7 @@ namespace lore {
 
             // Resolve the host runtime's common entry. Every InvokeProc-based request
             // (logMessage, invokeFunction, getModulePath, getThunkInfo, ...) is routed
-            // through it, so it must be set before any of those are issued -- including
+            // through it, so it must be set before any of those are issued, including
             // before the log callback below, which forwards through it.
             void *commonHostEntry =
                 mod::GuestClient::getProcAddress(hostRuntimeHandle, "LoreCommonHostEntry");

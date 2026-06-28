@@ -35,7 +35,8 @@ namespace lore::mod {
             const char *start = pathGetName(path);
             const char *end = nullptr;
 
-            int len = std::strlen(path);
+            // Strip the rightmost ".so" (case-insensitive) so e.g. "libfoo.so.1" yields "libfoo".
+            const int len = std::strlen(path);
             for (const char *p = path + len - 3; p >= start; --p) {
                 if (strncasecmp(p, ".so", 3) == 0) {
                     end = p;
@@ -118,9 +119,10 @@ namespace lore::mod {
     }
 
     bool HostServer::isHostAddressNaive(void *addr) {
+        // dladdr resolves addresses backed by a loaded module; guest addresses are not, so a
+        // failed lookup (return 0) means the address is host-side.
         Dl_info info;
-        bool isGuestAddr = dladdr(addr, &info);
-        return !isGuestAddr;
+        return dladdr(addr, &info) == 0;
     }
 
     void HostServer::reenter(ReentryArguments *ra) {
@@ -134,6 +136,8 @@ namespace lore::utils {
     // Call the host function described by `ia` according to its calling convention, unpacking the
     // boxed arguments/return slot. Returns 0 on success, -1 for an unknown convention.
     int Invocation::invokeByConv(const InvocationArguments *ia) {
+        // The coroutine layer hands us the opaque Invocation::InvocationArguments base; downcast to
+        // the concrete protocol layout that carries the per-convention argument boxes.
         const auto ia1 = static_cast<const lore::InvocationArguments *>(ia);
         switch (ia1->conv) {
             case CC_Standard: {
@@ -197,7 +201,7 @@ extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *p
             auto ra_ptr = reinterpret_cast<ReentryArguments **>(a[1]);
             auto ret = reinterpret_cast<int *>(a[2]);
             assert(ia && ra_ptr && ret);
-            *ret = static_cast<int>(Invocation::invoke(ia, (void **) ra_ptr));
+            *ret = static_cast<int>(Invocation::invoke(ia, reinterpret_cast<void **>(ra_ptr)));
             break;
         }
 

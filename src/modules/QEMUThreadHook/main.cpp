@@ -93,7 +93,7 @@ extern "C" LORE_DECL_EXPORT int pthread_create(pthread_t *thread, const pthread_
          * QEMU uses pthread_create when handling clone syscalls, and attr is always not NULL.
          */
         if (!attr) {
-            abort();
+            std::abort();
         }
 
         /*

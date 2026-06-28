@@ -113,18 +113,21 @@ namespace lore::tool::command::dump {
         return fsPath.lexically_normal().string();
     }
 
-    static bool isLikelyHeaderPath(llvm::StringRef path) {
+    static std::string lowerExtension(llvm::StringRef path) {
         std::string ext = llvm::sys::path::extension(path).str();
         std::transform(ext.begin(), ext.end(), ext.begin(),
                        [](unsigned char ch) { return std::tolower(ch); });
+        return ext;
+    }
+
+    static bool isLikelyHeaderPath(llvm::StringRef path) {
+        std::string ext = lowerExtension(path);
         return ext == ".h" || ext == ".hh" || ext == ".hpp" || ext == ".hxx" || ext == ".h++" ||
                ext == ".inc" || ext == ".inl" || ext == ".tcc";
     }
 
     static bool isSupportedSourcePath(llvm::StringRef path) {
-        std::string ext = llvm::sys::path::extension(path).str();
-        std::transform(ext.begin(), ext.end(), ext.begin(),
-                       [](unsigned char ch) { return std::tolower(ch); });
+        std::string ext = lowerExtension(path);
         return ext == ".c" || ext == ".cc" || ext == ".cpp" || ext == ".cxx" || ext == ".c++" ||
                ext == ".m" || ext == ".mm";
     }
@@ -208,6 +211,8 @@ namespace lore::tool::command::dump {
             return;
         }
 
+        // Peel off sugar that does not change which declarations the type depends on, so the
+        // checks below see the underlying typedef/enum/record/pointer.
         while (true) {
             if (const auto *adjustedType = type->getAs<AdjustedType>()) {
                 type = adjustedType->getOriginalType();
@@ -391,21 +396,6 @@ namespace lore::tool::command::dump {
         out << " */\n";
     }
 
-    static std::string describeFunction(const std::string &name) {
-        const auto &requested = g_ctx().requestedFunctions.at(name);
-        std::string result = name + " [";
-        bool first = true;
-        for (const auto &section : requested.sections) {
-            if (!first) {
-                result += ", ";
-            }
-            result += section;
-            first = false;
-        }
-        result += "]";
-        return result;
-    }
-
     static std::string joinSet(const std::set<std::string> &items) {
         std::string out;
         bool first = true;
@@ -417,6 +407,11 @@ namespace lore::tool::command::dump {
             first = false;
         }
         return out;
+    }
+
+    static std::string describeFunction(const std::string &name) {
+        const auto &requested = g_ctx().requestedFunctions.at(name);
+        return name + " [" + joinSet(requested.sections) + "]";
     }
 
     static std::string formatTypeTextWithName(llvm::StringRef typeText, llvm::StringRef name) {
@@ -508,6 +503,8 @@ namespace lore::tool::command::dump {
             appendReason(reason, "pointee type could not be resolved to an included header");
         }
 
+        // A pointer whose pointee we cannot reach is still emittable as an opaque `void *`:
+        // the value round-trips even if its declared type is unavailable here.
         if (type.pointerLike) {
             decision.allowed = true;
             decision.rewrittenToVoidPtr = true;
@@ -611,13 +608,8 @@ namespace lore::tool::command::dump {
             if (resolvedIt == g_ctx().resolvedFunctions.end() || resolvedIt->second.headerPaths.empty()) {
                 if (resolvedIt != g_ctx().resolvedFunctions.end() &&
                     !resolvedIt->second.nonHeaderPaths.empty()) {
-                    std::string line = describeFunction(name) + " found only in non-header files:";
-                    bool first = true;
-                    for (const auto &path : resolvedIt->second.nonHeaderPaths) {
-                        line += first ? " " : ", ";
-                        line += path;
-                        first = false;
-                    }
+                    std::string line = describeFunction(name) + " found only in non-header files: " +
+                                       joinSet(resolvedIt->second.nonHeaderPaths);
                     nonHeaderOnlyFunctions.push_back(std::move(line));
                 } else {
                     missingFunctions.push_back(describeFunction(name) + " missing");
@@ -760,7 +752,7 @@ namespace lore::tool::command::dump {
             return 1;
         }
 
-        if (std::error_code ec; (ec = llvm::sys::fs::current_path(g_ctx().initialCwd))) {
+        if (std::error_code ec = llvm::sys::fs::current_path(g_ctx().initialCwd)) {
             llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
             return 1;
         }
@@ -794,15 +786,15 @@ namespace lore::tool::command::dump {
         if (!sourcePathsOption.empty()) {
             sourcePathList.assign(sourcePathsOption.begin(), sourcePathsOption.end());
         } else {
+            // Key by normalized path so each source is scanned once; insert keeps the first
+            // (original) Filename seen for that path.
             std::map<std::string, std::string> uniqueSources;
             for (const auto &command : compilations->getAllCompileCommands()) {
                 std::string normalized = normalizeCompileCommandPath(command);
                 if (!isSupportedSourcePath(normalized)) {
                     continue;
                 }
-                if (!uniqueSources.count(normalized)) {
-                    uniqueSources[normalized] = command.Filename;
-                }
+                uniqueSources.emplace(normalized, command.Filename);
             }
             for (const auto &[_, sourcePath] : uniqueSources) {
                 sourcePathList.push_back(sourcePath);

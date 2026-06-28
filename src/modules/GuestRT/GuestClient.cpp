@@ -39,16 +39,17 @@ namespace lore::mod {
         };
 
         static void *newThreadEntry(void *arg) {
-            auto info = (struct NewThreadInfo *) arg;
+            auto info = static_cast<NewThreadInfo *>(arg);
 
+            // Copy out of `info` before signalling: once the parent wakes it is free to tear the
+            // NewThreadInfo (a stack local in invokeFunction) down.
             void *entry = info->hostEntry;
             void *hostArg = info->hostArg;
 
-            /* Signal to the parent that we're ready.  */
+            // Signal to the parent that we're ready.
             pthread_mutex_lock(&info->mutex);
             pthread_cond_broadcast(&info->cond);
             pthread_mutex_unlock(&info->mutex);
-            /* Wait until the parent has finished initializing the tls state.  */
 
             void *ret;
             GuestClient::invokeThreadEntry(entry, hostArg, &ret);
@@ -94,7 +95,8 @@ namespace lore::mod {
     static void *convertHostProcAddress_helper(const char *hostLibPath,
                                                const CForwardThunkInfo &thunkInfo,
                                                const char *name) {
-        const auto &path = thunkInfo.guestThunk;
+        const char *path = thunkInfo.guestThunk;
+        // Prefer the already-loaded copy (RTLD_NOLOAD); only actually dlopen it if it isn't mapped.
         void *handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
         if (!handle) {
             handle = dlopen(path, RTLD_NOW);
@@ -103,11 +105,7 @@ namespace lore::mod {
                 return nullptr;
             }
         }
-        void *func = dlsym(handle, name);
-        if (!func) {
-            return nullptr;
-        }
-        return func;
+        return dlsym(handle, name);
     }
 
     GuestClient *GuestClient::self = nullptr;
@@ -142,6 +140,8 @@ namespace lore::mod {
             return convertHostProcAddress_helper(hostLibPath, *thunkInfo.forward, name);
         }
 
+        // A reversed entry lists several candidate forward thunks; try each until one resolves the
+        // symbol.
         const auto *reversedThunks = thunkInfo.reversed->thunks;
         for (size_t i = 0; i < thunkInfo.reversed->thunksCount; ++i) {
             const char *thunk = reversedThunks[i];
@@ -150,11 +150,9 @@ namespace lore::mod {
                 loreWarning("[GRT] %1: failed to get forward thunk info for %2", hostLibPath, thunk);
                 continue;
             }
-            void *func = convertHostProcAddress_helper(hostLibPath, *subThunkInfo.forward, name);
-            if (!func) {
-                continue;
+            if (void *func = convertHostProcAddress_helper(hostLibPath, *subThunkInfo.forward, name)) {
+                return func;
             }
-            return func;
         }
         loreWarningF("[GRT] %s: failed to convert host function \"%s\" at %p to guest function",
                      hostLibPath, name, addr);
@@ -162,9 +160,10 @@ namespace lore::mod {
     }
 
     bool GuestClient::isHostAddressNaive(void *addr) {
+        // dladdr only resolves addresses in guest-mapped objects, so a failed lookup means the
+        // address belongs to the host.
         Dl_info info;
-        bool isGuestAddr = dladdr(addr, &info);
-        return !isGuestAddr;
+        return !dladdr(addr, &info);
     }
 
     const char *GuestClient::getHostAttribute(const char *key) {
@@ -206,7 +205,7 @@ namespace lore::mod {
 
     void GuestClient::logMessage(int level, const LogContext &context, const char *msg) {
         void *a[] = {
-            reinterpret_cast<void *>(uintptr_t(level)),
+            reinterpret_cast<void *>(static_cast<uintptr_t>(level)),
             const_cast<LogContext *>(&context),
             const_cast<char *>(msg),
         };
@@ -217,7 +216,7 @@ namespace lore::mod {
         char *ret = nullptr;
         void *a[] = {
             opaque,
-            reinterpret_cast<void *>(uintptr_t(isHandle)),
+            reinterpret_cast<void *>(static_cast<uintptr_t>(isHandle)),
             &ret,
         };
         std::ignore = invokeHost(DS_GetModulePath, a);
@@ -266,15 +265,16 @@ namespace lore::mod {
                 }
 
                 case SC_ThreadCreate: {
-                    struct NewThreadInfo info;
+                    NewThreadInfo info;
                     info.hostEntry = ra->threadCreate.start_routine;
                     info.hostArg = ra->threadCreate.arg;
 
-                    pthread_mutex_init(&info.mutex, NULL);
+                    pthread_mutex_init(&info.mutex, nullptr);
                     pthread_mutex_lock(&info.mutex);
-                    pthread_cond_init(&info.cond, NULL);
+                    pthread_cond_init(&info.cond, nullptr);
 
-                    // Create thread
+                    // Spawn the guest thread, then block until newThreadEntry signals that it has
+                    // copied `info` out; only then is it safe to let this stack frame unwind.
                     int rc = pthread_create(
                         &info.thread, reinterpret_cast<pthread_attr_t *>(ra->threadCreate.attr),
                         newThreadEntry, &info);
@@ -308,7 +308,7 @@ namespace lore::mod {
         CThunkInfo ret = {};
         void *a[] = {
             const_cast<char *>(path),
-            reinterpret_cast<void *>(uintptr_t(isReverse)),
+            reinterpret_cast<void *>(static_cast<uintptr_t>(isReverse)),
             &ret,
         };
         std::ignore = invokeHost(DS_GetThunkInfo, a);

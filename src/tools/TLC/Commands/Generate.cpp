@@ -3,7 +3,6 @@
 #include <string>
 #include <map>
 #include <filesystem>
-#include <string>
 #include <system_error>
 
 #include <llvm/Support/CommandLine.h>
@@ -136,12 +135,12 @@ namespace lore::tool::command::generate {
                 return;
             }
 
-            // Generate output
+            // Scoped so the stream flushes into outBuffer when it goes out of scope.
             {
                 llvm::raw_string_ostream out(g_ctx().outBuffer);
-                out << llvm::format<const char *, const char *>((const char *) res_Warning_txt_c,
-                                                                g_ctx().manifestStatPath.c_str(),
-                                                                TOOL_VERSION)
+                out << llvm::format<const char *, const char *>(
+                           reinterpret_cast<const char *>(res_Warning_txt_c),
+                           g_ctx().manifestStatPath.c_str(), TOOL_VERSION)
                     << "\n";
                 out << "\n";
                 if (auto err = g_ctx().doc.generateOutput(out)) {
@@ -179,7 +178,7 @@ namespace lore::tool::command::generate {
             return 1;
         }
         auto &parser = expectedParser.get();
-        if (std::error_code ec; (ec = llvm::sys::fs::current_path(g_ctx().initialCwd))) {
+        if (std::error_code ec = llvm::sys::fs::current_path(g_ctx().initialCwd)) {
             llvm::errs() << "Failed to get current path: " << ec.message() << "\n";
             return 1;
         }
@@ -236,6 +235,9 @@ namespace lore::tool::command::generate {
         const std::string bridgeText =
             buildBridgeTranslationUnitText(manifestIncludePath, g_ctx().stat);
 
+        // Parse a generated bridge TU (which #includes the manifest and adds callback aliases)
+        // in place of the manifest itself: map the virtual file, then rewrite any command-line
+        // argument naming the manifest to point at the bridge instead.
         ClangTool tool(parser.getCompilations(), {manifestPath});
         tool.mapVirtualFile(bridgePath, bridgeText);
         tool.appendArgumentsAdjuster(
