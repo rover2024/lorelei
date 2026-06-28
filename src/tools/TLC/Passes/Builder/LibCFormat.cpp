@@ -111,7 +111,20 @@ namespace lore::tool::TLC {
             if (m_hasVAList) {
                 if (!view.isVariadic() && argTypes.size() > 1) {
                     auto maybeVAListType = argTypes.back();
-                    if (getTypeString(maybeVAListType) == "va_list") {
+                    bool isVAList = getTypeString(maybeVAListType) == "va_list";
+                    // The view's argument types are canonical, so on riscv64 the va_list parameter
+                    // shows up as a plain void* and the string match above fails. Recover it from
+                    // the function declaration's sugared last parameter, where the va_list typedef
+                    // is still present. A callback proc has no FunctionDecl and keeps the old
+                    // behavior (a va_list-taking callback is unsupported).
+                    if (!isVAList && proc.functionDecl()) {
+                        auto params = proc.functionDecl()->parameters();
+                        if (params.size() == argTypes.size() && !params.empty()) {
+                            isVAList =
+                                isVaListType(proc.document().ast(), params.back()->getOriginalType());
+                        }
+                    }
+                    if (isVAList) {
                         auto maybeFmtParam = argTypes[argTypes.size() - 2];
                         if (isCharPointerType(maybeFmtParam)) {
                             msg = std::make_unique<LibCFormatMessage>(argTypes.size() - 1,

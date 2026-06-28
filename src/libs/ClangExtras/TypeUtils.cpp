@@ -33,6 +33,34 @@ namespace lore::tool {
         return res;
     }
 
+    bool isVaListType(const clang::ASTContext &ctx, const clang::QualType &type) {
+        clang::QualType t = type;
+
+        // Undo parameter array-to-pointer / function-to-pointer decay, keeping the written sugar
+        // (x86_64 va_list is an array, so a va_list parameter arrives decayed to a pointer).
+        if (const auto *adjusted = t->getAs<clang::AdjustedType>()) {
+            t = adjusted->getOriginalType();
+        }
+
+        // Walk the typedef chain to the builtin va_list. Matching the typedef rather than the
+        // canonical type is what makes this work on riscv64, where va_list is a typedef for void*
+        // and the canonical type is just a pointer.
+        const clang::TypedefDecl *vaListDecl = ctx.getBuiltinVaListDecl();
+        while (const auto *tdef = t->getAs<clang::TypedefType>()) {
+            const clang::TypedefNameDecl *decl = tdef->getDecl();
+            if (vaListDecl && decl->getCanonicalDecl() == vaListDecl->getCanonicalDecl()) {
+                return true;
+            }
+            const llvm::StringRef name = decl->getName();
+            if (name == "va_list" || name == "__builtin_va_list" || name == "__gnuc_va_list" ||
+                name == "__va_list") {
+                return true;
+            }
+            t = decl->getUnderlyingType();
+        }
+        return false;
+    }
+
     static inline bool isCompound(clang::QualType type) {
         while (type->isPointerType()) {
             type = type->getPointeeType();

@@ -19,6 +19,16 @@ namespace lore::tool {
     /// to \c T.getAsString().
     std::string getTypeString(const clang::QualType &T);
 
+    /// Whether \a type is the target's \c va_list, recognized from its typedef sugar rather than its
+    /// canonical form.
+    ///
+    /// On most targets \c va_list canonicalizes to a distinct aggregate (x86_64 \c __va_list_tag[1],
+    /// aarch64 \c __va_list), so a canonical comparison suffices. On riscv64 it is a typedef for
+    /// \c void*, whose canonical type is indistinguishable from any other pointer; this walks the
+    /// typedef chain (peeling parameter decay) to the builtin \c va_list so it is recognized there
+    /// too. Anything it cannot positively identify yields \c false.
+    bool isVaListType(const clang::ASTContext &ctx, const clang::QualType &type);
+
     /// Returns the type string.
     /// \example
     ///     int -> "int"
