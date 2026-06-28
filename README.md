@@ -8,7 +8,7 @@ Lorelei is a cross-ISA compatibility layer that lets an emulated guest program c
 
 ## How It Works
 
-Make sure that QEMU runs the guest with `guest_base == 0`, so a guest pointer and a host pointer are the same number. There is no marshalling, no copying buffers across a boundary, and no pointer translation.
+Lorelei runs the guest under QEMU's user-mode emulation (the `linux-user` target, `qemu-<arch>`). The one thing it asks of QEMU is that the guest runs with `guest_base == 0`, so a guest pointer and a host pointer are the same number. There is no marshalling, no copying buffers across a boundary, and no pointer translation.
 
 On top of that, the guest reaches the host through a single magic syscall (number 4096):
 
@@ -36,7 +36,7 @@ The underlying pass-through mechanism is also demonstrated from scratch in the [
 
 ## Docker One-Click Test
 
-The quickest way to see Lorelei end to end. A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full test. The host side (this machine's arch) installs under `install/lorelei` and `install/lorethunks`, the x86_64 guest side under `install/x86_64`. On an x86_64 host both come from the native toolchain; on an aarch64 or riscv64 host the guest side is cross-compiled for x86_64, so the same image works on all three host architectures.
+The quickest way to see Lorelei end to end. A self-contained Docker image builds everything (the patched QEMU and its `dlcall` plugin, qmsetup, this repository, and the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) zlib thunk) and runs the full test.
 
 Build the image from the repository root:
 
