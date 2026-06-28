@@ -10,7 +10,7 @@ Lorelei is a cross-ISA compatibility layer that lets an emulated guest program c
 
 Lorelei runs the guest under QEMU's user-mode emulation with `guest_base == 0`, so a guest pointer and a host pointer are the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
-You do not write the per-library glue by hand. The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and generates the guest and host thunks for you, including the awkward cases of callbacks and variadic functions. See [docs/HowToUseTLC.md](docs/HowToUseTLC.md) for how to use it, and [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) for ready-made thunks (zlib, SDL, ...).
+You do not write the per-library glue by hand. The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and generates the guest and host thunks, including the awkward cases of callbacks and variadic functions. See [docs/HowToUseTLC.md](docs/HowToUseTLC.md) for how to use it, and [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) for ready-made thunks (zlib, SDL, ...).
 
 The underlying pass-through mechanism is also demonstrated from scratch in the [QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test).
 
