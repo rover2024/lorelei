@@ -45,9 +45,11 @@ Standalone helpers:
 
 ## Generation Pipeline
 
-Every requested proc becomes a `ProcSnippet` that starts out empty: `generate` knows only its signature (from `ThunkStat.json`) and fills the body in by running passes in three phases, `Builder` then `Guard` then `Misc`. Each proc is emitted as four layers, the `ProcPhase` chain `Entry -> Adapt -> Caller -> Exec` (defined in [`include/lorelei/DLCall/ProcDefs.h`](../include/lorelei/DLCall/ProcDefs.h)), and every layer's body is laid out as ordered slots (`prolog`, `forward`, `center`, `backward`, `epilog`) so a later pass always has a well-defined place to inject into.
+Generation is driven by *passes*. A pass is a small code generator: handed one proc and what TLC knows about it (its name, its parameter and return types, any `format` attribute or manifest descriptor), it decides whether it applies and, if so, writes the matching C++ into the proc's body. Each proc starts as an empty `ProcSnippet` (TLC knows only its signature, from `ThunkStat.json`) and is built up by a fixed series of passes, each adding to what the ones before it left.
 
-This section follows the host side of two functions:
+Each proc is emitted as four layers, the `ProcPhase` chain `Entry -> Adapt -> Caller -> Exec` (defined in [`include/lorelei/DLCall/ProcDefs.h`](../include/lorelei/DLCall/ProcDefs.h)). Every layer's body is laid out as ordered slots (`prolog`, `forward`, `center`, `backward`, `epilog`), so a pass always has a well-defined place to inject into. The passes run in three phases: `Builder` lays the skeleton, `Guard` injects conversions, and `Misc` handles special cases.
+
+The walkthrough follows two functions:
 - `qsort`: an ordinary call whose comparator the host has to run back in the guest.
 - `printf`: a variadic one whose arguments need re-marshalling.
 
@@ -60,25 +62,27 @@ int  printf(const char *fmt, ...);
 
 The bodies below are what TLC generates for them, lightly cleaned up for readability (names shortened, and the comparator type pulled out into a `using` alias).
 
-**1. Builder lays the skeleton.** `DefaultBuilder` wires the four layers together: `Entry` unpacks the raw `args[]` buffer into typed locals and hands them on, `Caller` forwards to `Exec`, and `Adapt` is, for now, a plain pass-through. `Exec` is never emitted: it is fixed boilerplate that calls the real function. `Entry` has two faces: the host side shown here is the receiver that unpacks the wire buffer, while in the GTL the same layer is exported under the library's real name `qsort`, so the guest program links the GTL and its `qsort(...)` call lands straight in `Entry`, which packs the arguments and issues the syscall.
+**The host side (HTL).** The HTL is the receiver, assembled by the three phases in turn.
+
+**1. Builder lays the skeleton.** `DefaultBuilder` wires the four layers together: `Entry` unpacks the raw `args[]` buffer into typed locals and hands them on, `Caller` forwards to `Exec`, and `Adapt` is, for now, a plain pass-through. `Exec` is never emitted: it is fixed boilerplate that calls the real function. (This is the host, receiving, side. The guest side mirrors it and is shown below.)
 
 ```cpp
 // Entry: unpack the wire buffer, then hand off to Adapt
 void ProcFn<::qsort, GuestToHost, Entry>::invoke(void **args, void *ret, void *metadata) {
     auto &arg1 = *(void **) args[0];
-    auto &arg2 = *(unsigned long *) args[1];
-    auto &arg3 = *(unsigned long *) args[2];
+    auto &arg2 = *(size_t *) args[1];
+    auto &arg3 = *(size_t *) args[2];
     auto &arg4 = *(compare_fn *) args[3];
     ProcFn<qsort, GuestToHost, Adapt>::invoke(arg1, arg2, arg3, arg4);
 }
 
 // Adapt: nothing to adapt yet, forward unchanged
-void ProcFn<::qsort, GuestToHost, Adapt>::invoke(void *arg1, unsigned long arg2, unsigned long arg3, compare_fn arg4) {
+void ProcFn<::qsort, GuestToHost, Adapt>::invoke(void *arg1, size_t arg2, size_t arg3, compare_fn arg4) {
     ProcFn<qsort, GuestToHost, Caller>::invoke(arg1, arg2, arg3, arg4);
 }
 
 // Caller: forward to Exec, which calls the real qsort
-void ProcFn<::qsort, GuestToHost, Caller>::invoke(void *arg1, unsigned long arg2, unsigned long arg3, compare_fn arg4) {
+void ProcFn<::qsort, GuestToHost, Caller>::invoke(void *arg1, size_t arg2, size_t arg3, compare_fn arg4) {
     ProcFn<qsort, GuestToHost, Exec>::invoke(arg1, arg2, arg3, arg4);
 }
 ```
@@ -117,7 +121,7 @@ The `va_list` form (`vprintf`) is identical, except the `Caller` uses `VariadicA
 **2. Guard fills `Adapt` with conversions.** `arg4` is a guest function pointer the host cannot call directly, so the `CallbackSubstituter` pass rewrites `Adapt` alone: it drops trampoline setup into the `forward` slot (run before the call) and teardown into the `backward` slot (run after), leaving `Entry` and `Caller` exactly as Builder left them.
 
 ```cpp
-void ProcFn<::qsort, GuestToHost, Adapt>::invoke(void *arg1, unsigned long arg2, unsigned long arg3, compare_fn arg4) {
+void ProcFn<::qsort, GuestToHost, Adapt>::invoke(void *arg1, size_t arg2, size_t arg3, compare_fn arg4) {
     // forward: wrap the guest comparator in a trampoline the host can call
     qsort_xx_LocalContext ctx;   // holds the trampoline for the call's duration
     CallbackContext_init<true>(ctx.arg4, (void *&) arg4,
@@ -133,14 +137,52 @@ The other `Guard` pass, `TypeFilter`, injects value conversions into the same sl
 
 **3. Misc handles special cases.** A function that returns a host function pointer (a `dlsym` or `*GetProcAddress`-style API) needs that returned address turned into a guest-callable one, which the `GetProcAddress` pass injects. Most procs need nothing from this phase.
 
+**The guest side (GTL).** The GTL is the sender, the same procs compiled a second time into a mirror image (`generate -m guest`). It exports the real `qsort` symbol as a plain alias for the typed `Entry`, so the guest program's own `qsort(...)` call enters the chain directly:
+
+```cpp
+// the exported real symbol is an alias for Entry::invoke
+LORE_DECL_EXPORT void qsort(void *base, size_t n, size_t size, compare_fn cmp)
+    __attribute__((alias("<mangled ProcFn<qsort, GuestToHost, Entry>::invoke>")));
+```
+
+`Entry` and `Adapt` carry the typed arguments straight down. `Caller` is where the wire buffer is built, taking the address of each argument into an `args[]` array, and `Exec` (fixed boilerplate again) hands that array to `GuestClient::invokeFunction`, which issues the syscall:
+
+```cpp
+// Caller (guest side): pack the typed arguments into the args[] wire buffer
+void ProcFn<::qsort, GuestToHost, Caller>::invoke(void *arg1, size_t arg2, size_t arg3, compare_fn arg4) {
+    void *args[] = { (void *) &arg1, (void *) &arg2, (void *) &arg3, (void *) &arg4 };
+    ProcFn<qsort, GuestToHost, Exec>::invoke(args, nullptr, nullptr);   // Exec issues the syscall
+}
+```
+
+That `args[]` is exactly what the host `Entry` shown earlier unpacks.
+
+The variadic `printf` mirrors its host `Caller` instead. On the guest, `Entry` is the exported `int printf(const char *fmt, ...)`, and it uses the format string to extract the `...` pack into the same `CVargEntry[]` wire form the host rebuilds the call from:
+
+```cpp
+// Entry (guest side): the exported variadic symbol, extracts ... into a CVargEntry[] pack
+int ProcFn<::printf, GuestToHost, Entry>::invoke(const char *arg1, ...) {
+    int ret;
+    CVargEntry vargs[LORE_THUNK_VARG_MAX];
+    va_list ap;
+    va_start(ap, arg1);
+    VariadicAdaptor::extract(VariadicAdaptor::PrintF, arg1, ap, vargs);   // the format string drives the extraction
+    va_end(ap);
+    ret = ProcFn<printf, GuestToHost, Adapt>::invoke(arg1, vargs);
+    return ret;
+}
+```
+
+`Adapt` and `Caller` then carry `(arg1, vargs)` on to `Exec` as before. So a variadic pack is extracted once on the guest (`extract`, driven by the format string) and rebuilt once on the host (`VariadicAdaptor::call`).
+
 The four layers that come out stay separate, so a manifest can override exactly one of them (hand-write the `Adapt` for an awkward callback, say) without disturbing the marshalling Builder put in `Entry`:
 
 | Layer | Role |
 |-------|------|
-| `Entry` | The wire boundary. On the host it unpacks the `args[]` buffer into typed arguments. In the GTL it is exported under the library's real symbol name (`qsort`), packs them, and issues the syscall. |
+| `Entry` | The wire boundary. On the host it unpacks the `args[]` buffer into typed arguments. In the GTL it is the exported real symbol (`qsort`) that the guest program calls. |
 | `Adapt` | Typed adaptation injected by the `Guard` / `Misc` passes (callback substitution, filters). A plain pass-through by default, overridable from a manifest. |
-| `Caller` | Constructs the actual call (default forwarding, or the variadic wrapper). |
-| `Exec` | The real library call, or the cross-boundary invoke into the other side. Fixed boilerplate, not emitted per proc. |
+| `Caller` | Constructs the call: on the host it forwards to `Exec` or wraps a variadic call, and on the guest it packs the arguments into the `args[]` buffer. |
+| `Exec` | Fixed boilerplate, not emitted per proc: the real library call on the host, the syscall that crosses the boundary on the guest. |
 
 ## Descriptors and Auto-Detection
 
@@ -162,7 +204,8 @@ When a function has neither a telling name nor a `format` attribute (some librar
 ```cpp
 template <>
 struct ProcFnDesc<::SDL_LogMessageV> {
-    _DESC pass::vprintf<3, 4> builder_pass = {};   // format string at arg 3, va_list at arg 4
+    // format string at arg 3, va_list at arg 4
+    _DESC pass::vprintf<3, 4> builder_pass = {};
 };
 ```
 
@@ -170,6 +213,6 @@ The builder tags are `pass::printf`, `pass::vprintf`, `pass::scanf` and `pass::v
 
 ## See Also
 
-- [lorelei-thunks](https://github.com/rover2024/lorelei-thunks): ready-made thunks (zlib, SDL, ...) and the worked examples the inputs above are drawn from.
 - [`include/lorelei/DLCall/ProcDefs.h`](../include/lorelei/DLCall/ProcDefs.h): the `ProcPhase` layers and the cross-side `StaticThunkContext`.
+- [lorelei-thunks](https://github.com/rover2024/lorelei-thunks): ready-made thunks (zlib, SDL, ...) and the worked examples the inputs above are drawn from.
 - [HowLoreleiWorks.md](HowLoreleiWorks.md): the runtime call path the generated thunks run on.
