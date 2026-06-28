@@ -33,24 +33,24 @@ static int sub(int a, int b) {
 BOOST_AUTO_TEST_CASE(routes_to_saved_callback) {
     auto add_thunk = lore::thunk::allocCallbackTrampoline<operator_thunk>((void *) add);
     last_callback = nullptr;
-    BOOST_VERIFY(add_thunk(1, 2) == 3);
-    BOOST_VERIFY(last_callback == (void *) add);
+    BOOST_TEST(add_thunk(1, 2) == 3);
+    BOOST_TEST(last_callback == (void *) add);
 
     auto sub_thunk = lore::thunk::allocCallbackTrampoline<operator_thunk>((void *) sub);
     last_callback = nullptr;
-    BOOST_VERIFY(sub_thunk(1, 2) == -1);
-    BOOST_VERIFY(last_callback == (void *) sub);
+    BOOST_TEST(sub_thunk(1, 2) == -1);
+    BOOST_TEST(last_callback == (void *) sub);
 }
 
 BOOST_AUTO_TEST_CASE(dedups_by_callback) {
     // The same callback maps to the same trampoline instance.
     auto a = lore::thunk::allocCallbackTrampoline<operator_thunk>((void *) add);
     auto b = lore::thunk::allocCallbackTrampoline<operator_thunk>((void *) add);
-    BOOST_VERIFY((void *) a == (void *) b);
+    BOOST_TEST((void *) a == (void *) b);
 
     // A null callback yields a null trampoline.
     auto n = lore::thunk::allocCallbackTrampoline<operator_thunk>(nullptr);
-    BOOST_VERIFY((void *) n == (void *) nullptr);
+    BOOST_TEST((void *) n == (void *) nullptr);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -15,9 +15,9 @@ BOOST_AUTO_TEST_CASE(runs_action_on_scope_exit) {
     int n = 0;
     {
         auto guard = makeScopeGuard([&] { n++; });
-        BOOST_VERIFY(n == 0); // not yet
+        BOOST_TEST(n == 0); // not yet
     }
-    BOOST_VERIFY(n == 1); // fired on destruction
+    BOOST_TEST(n == 1); // fired on destruction
 }
 
 BOOST_AUTO_TEST_CASE(dismiss_cancels_the_action) {
@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(dismiss_cancels_the_action) {
         auto guard = makeScopeGuard([&] { n++; });
         guard.dismiss();
     }
-    BOOST_VERIFY(n == 0);
+    BOOST_TEST(n == 0);
 }
 
 BOOST_AUTO_TEST_CASE(move_transfers_ownership_once) {
@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(move_transfers_ownership_once) {
         auto guard = makeScopeGuard([&] { n++; });
         auto moved = std::move(guard); // the moved-from guard must not fire
     }
-    BOOST_VERIFY(n == 1);
+    BOOST_TEST(n == 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
