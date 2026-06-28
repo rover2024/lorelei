@@ -39,19 +39,53 @@ jobs:
       - name: Publish summary
         if: always()
         run: |
+          arch="${{ inputs.arch }}"
           # Strip any stray ANSI colour codes so the summary renders cleanly.
           clean="$(sed -r 's/\x1b\[[0-9;]*m//g' run.log)"
 
           if [ "${{ steps.run.outcome }}" = "success" ]; then
-            status="✅ Lorelei end-to-end tests passed on ${{ inputs.arch }}"
+            status="✅ **Passed** on \`$arch\`"
           else
-            status="❌ Tests failed on ${{ inputs.arch }} — see the log below"
+            status="❌ **Failed** on \`$arch\` (see the log below)"
           fi
 
+          # Turn the three minizip wall-clock lines into a table (native vs emulated vs lorelei).
+          rows="$(printf '%s\n' "$clean" | awk '
+            /^[[:space:]]+(native|emulated|lorelei)[^0-9]*[0-9]+\.[0-9]+s[[:space:]]*$/ {
+              t = $NF; label = $0
+              sub(/^[[:space:]]+/, "", label)
+              sub(/[[:space:]]+[0-9.]+s[[:space:]]*$/, "", label)
+              printf "| %s | %s |\n", label, t
+            }')"
+
           {
-            echo "## Lorelei end-to-end — ${{ inputs.arch }}"
+            echo "## Lorelei End-to-End — \`$arch\`"
             echo
             echo "$status"
+
+            if [ "${{ steps.run.outcome }}" = "success" ]; then
+              echo
+              echo "### Stages"
+              echo "- ✅ Auto tests (ctest)"
+              if printf '%s' "$clean" | grep -q 'skipped (x86_64-only)'; then
+                echo "- ⏭️ ThunkExample end-to-end (skipped, x86_64-only)"
+              else
+                echo "- ✅ ThunkExample end-to-end"
+              fi
+              echo "- ✅ minizip over the zlib thunk"
+            fi
+
+            if [ -n "$rows" ]; then
+              echo
+              echo "### minizip Over the zlib Thunk"
+              echo
+              echo "minizip stays emulated; only its zlib calls cross to the host, so the lorelei run lands near native."
+              echo
+              echo "| Run | Wall time |"
+              echo "| --- | --- |"
+              echo "$rows"
+            fi
+
             echo
             echo "<details><summary>Full build &amp; test log</summary>"
             echo
