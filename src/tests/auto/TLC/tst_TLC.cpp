@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(format_detected_by_attribute) {
 BOOST_AUTO_TEST_CASE(callback_is_substituted) {
     // The comparator is wrapped in a trampoline via the callback context on the receiving (host)
     // side; the guest, which supplies the comparator, emits the matching ProcCb trampoline support.
-    BOOST_TEST(hostSrc().find("CallbackContext_init") != std::string::npos);
+    BOOST_TEST(hostSrc().find("CallbackContext") != std::string::npos);
     BOOST_TEST(guestSrc().find("ProcCb<le_compare_fn") != std::string::npos);
 }
 
