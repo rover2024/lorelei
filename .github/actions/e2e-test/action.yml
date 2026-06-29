@@ -11,10 +11,17 @@ inputs:
     default: ''
   archive_size:
     description: >-
-      Compression-benchmark input size. The emulated (no-plugin) baseline runs the whole guest under
-      TCG, so on the slow riscv64 board it dominates the run; that runner passes a smaller size.
+      minizip (zlib) benchmark input size. The emulated (no-plugin) baseline runs the whole guest
+      under TCG, so on the slow riscv64 board it dominates the run; that runner passes a smaller size.
     required: false
     default: '256M'
+  xz_archive_size:
+    description: >-
+      xz (lzma) benchmark input size. Kept separate from archive_size and much smaller because xz -6
+      is far heavier than zlib under TCG: on the riscv64 board the emulated xz baseline runs at roughly
+      30 s per MB, so that runner uses a tiny input to stay well under a CI-reasonable time.
+    required: false
+    default: '64M'
 
 runs:
   using: composite
@@ -40,7 +47,10 @@ runs:
         # the riscv64 self-hosted runner's act backend does not implement that context and renders it as
         # the literal "undefined". The hosted runners support it, but a status file works on both.
         rc=0
-        docker run --rm -e ARCHIVE_SIZE="${{ inputs.archive_size }}" "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
+        docker run --rm \
+          -e ARCHIVE_SIZE="${{ inputs.archive_size }}" \
+          -e XZ_ARCHIVE_SIZE="${{ inputs.xz_archive_size }}" \
+          "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
         printf '%s' "$rc" > run.rc
         exit "$rc"
 
