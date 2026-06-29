@@ -32,10 +32,10 @@ apt-get install -y --no-install-recommends \
 apt-get install -y --no-install-recommends clang-20 llvm-20-dev libclang-20-dev
 
 # Lorelei build/runtime dependencies: ffcall backs the VariadicAdaptor, Boost.Test backs the auto
-# tests, and zlib is what the example thunk wraps. minizip provides the unmodified guest binary the
-# end-to-end test runs over the zlib thunk.
+# tests, and zlib / liblzma are what the example thunks wrap. minizip and xz provide the unmodified
+# guest binaries the end-to-end test runs over the zlib and lzma thunks.
 apt-get install -y --no-install-recommends \
-    libffcall-dev libboost-test-dev zlib1g-dev minizip
+    libffcall-dev libboost-test-dev zlib1g-dev minizip liblzma-dev xz-utils
 
 # QEMU build dependencies.
 apt-get install -y --no-install-recommends \
@@ -64,11 +64,11 @@ Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
     apt-get update
     # The amd64 runtime/dev libraries the guest side links and runs against: libffcall (avcall, the
-    # VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/minizip for running the x86_64
-    # guest binaries under qemu-x86_64.
+    # VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/minizip/liblzma for running the
+    # x86_64 guest binaries under qemu-x86_64.
     apt-get install -y --no-install-recommends \
         libffcall-dev:amd64 \
-        libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64
+        libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64 liblzma5:amd64
 
     # The x86_64 cross-compiler that builds the guest side.
     if [ "$host_arch" = "riscv64" ]; then
@@ -87,6 +87,13 @@ EOF
     ( cd "$tmp" && apt-get download minizip:amd64 )
     dpkg-deb -x "$tmp"/minizip_*_amd64.deb /opt/minizip-amd64
     ln -sf /opt/minizip-amd64/usr/bin/minizip /usr/local/bin/minizip-x86_64
+    rm -rf "$tmp"
+
+    # Likewise the amd64 xz CLI, exposed as xz-x86_64 (the guest binary for the lzma thunk test).
+    tmp="$(mktemp -d)"
+    ( cd "$tmp" && apt-get download xz-utils:amd64 )
+    dpkg-deb -x "$tmp"/xz-utils_*_amd64.deb /opt/xz-utils-amd64
+    ln -sf /opt/xz-utils-amd64/usr/bin/xz /usr/local/bin/xz-x86_64
     rm -rf "$tmp"
 
     # Make sure the x86_64 dynamic loader is found at its canonical path for running x64 binaries.

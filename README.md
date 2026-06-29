@@ -44,11 +44,12 @@ Everything is pre-built in the image, so the test run just executes and exits:
 docker run --rm lorelei-test bash docker/scripts/run-tests.sh
 ```
 
-[`run-tests.sh`](docker/scripts/run-tests.sh) runs three things:
+[`run-tests.sh`](docker/scripts/run-tests.sh) runs the following things:
 
 1. **Auto tests** (`ctest`) for the runtimes and the TLC.
 2. **The `ThunkExample` end-to-end test**, the in-tree manual test that drives a generated thunk under QEMU (x86_64 host only).
 3. **A real workload over the zlib thunk**: the distribution's unmodified `minizip` binary compressing a generated file, timed three ways (native, emulated under QEMU, and emulated under QEMU with the `dlcall` plugin). minizip itself stays in the guest. Only its zlib calls cross to the host through the thunk, so the lorelei run lands near the native time and well under the fully-emulated one.
+4. **The same over the lzma thunk**: the distribution's unmodified `xz` binary compressing a generated file, timed the same three ways. liblzma is buffer-based like zlib, so only xz's compression calls cross to the host, and the lorelei run again lands near native and well under the fully-emulated time.
 
 <!-- Override the input size with `-e ARCHIVE_SIZE=128M` for a longer run, or get an interactive shell with `docker run --rm -it lorelei-test`. -->
 
