@@ -29,7 +29,8 @@ runs:
       shell: bash
       run: |
         set -o pipefail
-        docker run --rm "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log
+        # Use a larger archive in CI (matching qemu-passthrough-test); the local one-click test keeps run-tests.sh's smaller default.
+        docker run --rm -e ARCHIVE_SIZE=512M "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log
 
     - name: Publish summary
       if: always()
