@@ -101,12 +101,37 @@ namespace lore::thunk {
         ; // implemented in 'ProcImpl.cpp.inc'
 #endif
 
+    // If \a fp is one of our own trampoline stubs, return the original function it stands in for;
+    // otherwise return \a fp unchanged. Lets a callback that has crossed back over the boundary (one
+    // we handed out earlier, now passed or returned to us again) be reverted to its real address
+    // instead of being wrapped in a second trampoline. \c magic_sign sits past the stub, so the read
+    // stays inside the trampoline page for a real stub and inside the function's own code otherwise.
+    static inline void *unwrapTrampoline(void *fp) {
+        if (!fp) {
+            return fp;
+        }
+        auto *t = reinterpret_cast<lore::FunctionTrampoline *>(
+            reinterpret_cast<char *>(fp) - offsetof(lore::FunctionTrampoline, thunk_instr));
+        if (t->magic_sign == kTrampolineMagic) {
+            return t->saved_function;
+        }
+        return fp;
+    }
+
     template <bool isGuest, class F>
     static inline void CallbackContext_init(CallbackContext &ctx, void *&fp, F allocator) {
-        if (isGuest != isHostAddress(fp)) {
+        // Resolve fp to the real callback first: a stub we handed out earlier carries its origin.
+        void *real = unwrapTrampoline(fp);
+        if (isGuest != isHostAddress(real)) {
+            // real is foreign to the receiver: hand over a receiver-callable trampoline for it.
             ctx.p_fp = &fp;
             ctx.org_fp = fp;
-            *(void **) (&fp) = (void *) allocator(fp);
+            fp = (void *) allocator(real);
+        } else if (real != fp) {
+            // fp was our stub but real is native to the receiver: pass the original through directly.
+            ctx.p_fp = &fp;
+            ctx.org_fp = fp;
+            fp = real;
         } else {
             ctx.org_fp = NULL;
         }

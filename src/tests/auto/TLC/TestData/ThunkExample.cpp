@@ -72,4 +72,48 @@ extern "C" {
         return (a + b) / 2.0L;
     }
 
+    static void le_visit_node3(struct le_node3 *n) {
+        if (n && n->cb) {
+            n->cb(n->tag);
+        }
+    }
+
+    static void le_visit_node2(struct le_node2 *n) {
+        if (!n) {
+            return;
+        }
+        if (n->cb) {
+            n->cb(n->tag);
+        }
+        le_visit_node3(&n->child);
+        le_visit_node3(n->child_ptr);
+    }
+
+    void le_visit(struct le_node1 *root) {
+        if (!root) {
+            return;
+        }
+        if (root->cb) {
+            root->cb(root->tag);
+        }
+        le_visit_node2(&root->child);
+        le_visit_node2(root->child_ptr);
+    }
+
+    static le_handler_fn le_stored_handler = nullptr;
+
+    void le_set_handler(le_handler_fn fn) {
+        le_stored_handler = fn;
+    }
+
+    void le_call_handler(int x) {
+        if (le_stored_handler) {
+            le_stored_handler(x);
+        }
+    }
+
+    void le_get_handler(le_handler_fn *out) {
+        *out = le_stored_handler;
+    }
+
 }

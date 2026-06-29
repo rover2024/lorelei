@@ -68,6 +68,55 @@ extern "C" {
     /// a host whose long double differs, a type filter converts it on the way in and out.
     long double le_mix(long double a, long double b);
 
+    /// A callback the host invokes for one node of the nested tree below, passing that node's tag so
+    /// the guest can verify exactly which nodes were reached.
+    typedef void (*le_visit_fn)(int tag);
+
+    /// Level 3 (innermost) node: just a tagged callback.
+    struct le_node3 {
+        int tag;
+        le_visit_fn cb;
+    };
+
+    /// Level 2 node: a tagged callback, plus a level-3 child reached both as a direct field and
+    /// through a pointer (null = absent).
+    struct le_node2 {
+        int tag;
+        le_visit_fn cb;
+        struct le_node3 child;
+        struct le_node3 *child_ptr;
+    };
+
+    /// Level 1 (outermost) node: the same shape one level up; the argument to le_visit.
+    struct le_node1 {
+        int tag;
+        le_visit_fn cb;
+        struct le_node2 child;
+        struct le_node2 *child_ptr;
+    };
+
+    /// Walks the three-level tree and calls every callback that is set, in each reachable node
+    /// (direct-field children always, pointer children when non-null), passing that node's tag. It
+    /// stresses callback substitution through nested structs, struct-pointer fields and null guards:
+    /// the thunk must wrap a guest callback at every depth and on both reach kinds.
+    void le_visit(struct le_node1 *root);
+
+    /// A handler the guest registers and the host hands back, so it crosses the boundary both ways.
+    typedef void (*le_handler_fn)(int x);
+
+    /// Stores \a fn host-side (a guest callback the host keeps for later).
+    void le_set_handler(le_handler_fn fn);
+
+    /// Host-side call of the stored handler, so the host calls back into the guest (forward
+    /// direction): the set callback is invoked from the host, not just handed back.
+    void le_call_handler(int x);
+
+    /// Writes the stored handler back through \a out, a pointer-to-callback out parameter. The thunk
+    /// must hand the guest a callable pointer for whatever the host returns, and undo its own
+    /// trampoline when the value is one it handed the host earlier (so a set then get round-trips to
+    /// the original guest function).
+    void le_get_handler(le_handler_fn *out);
+
 #ifdef __cplusplus
 }
 #endif

@@ -33,6 +33,22 @@ static int compare_int(const void *a, const void *b) {
     return (x > y) - (x < y);
 }
 
+// The nested-callback stress test. le_visit walks a three-level tree and calls a callback in every
+// set node; this records the node tags it saw, so we can check the thunk wrapped a guest callback at
+// every depth and on both reach kinds (direct field and pointer), and honored the null guards.
+static unsigned visited_mask;
+static void visit_cb(int tag) {
+    visited_mask |= 1u << tag;
+}
+
+// The set/get round-trip handler. le_set_handler registers it; le_call_handler has the host call it
+// (forward), and le_get_handler hands it back through a pointer-to-callback out parameter so the
+// guest can call it too. Both invocations must reach this one function.
+static int handler_total;
+static void my_handler(int x) {
+    handler_total += x;
+}
+
 // Wrappers that build a va_list for the va_list-form functions.
 static int call_vprintf(const char *fmt, ...) {
     va_list ap;
@@ -107,6 +123,48 @@ int main(void) {
     // long double: round-trips through the type filter.
     long double mixed = le_mix(1.0L, 3.0L);
     EXPECT("le_mix:", mixed == 2.0L);
+
+    // Nested callbacks: a three-level tree with a callback in every node, each level reached both as
+    // a direct struct field and through a pointer. Tags 1..7 identify the positions:
+    //   1 root              2 root.child            3 root.child.child     4 root.child.child_ptr
+    //   5 root.child_ptr    6 root.child_ptr.child  7 root.child_ptr.child_ptr
+    struct le_node3 vcc = {3, visit_cb};
+    struct le_node3 vcp = {4, visit_cb};
+    struct le_node3 pcc = {6, visit_cb};
+    struct le_node3 pcp = {7, visit_cb};
+    struct le_node2 v = {2, visit_cb, vcc, &vcp};
+    struct le_node2 p = {5, visit_cb, pcc, &pcp};
+    struct le_node1 root = {1, visit_cb, v, &p};
+
+    // Everything present: all seven callbacks fire.
+    visited_mask = 0;
+    le_visit(&root);
+    EXPECT("le_visit full:", visited_mask == 0xFEu);
+
+    // Null guards: drop both pointer children and one callback. Only the direct-field chain whose
+    // callbacks are set still fires (tag 1 root, tag 3 root.child.child); tag 2 is a null callback.
+    visited_mask = 0;
+    root.child_ptr = NULL;       // removes 5, 6, 7
+    root.child.child_ptr = NULL; // removes 4
+    root.child.cb = NULL;        // removes 2 (null callback, host skips it)
+    le_visit(&root);
+    EXPECT("le_visit nulls:", visited_mask == ((1u << 1) | (1u << 3)));
+
+    // set / get round-trip: register my_handler, have the host call it, then get it back through the
+    // out parameter and call it from the guest. Both directions must reach my_handler, and get must
+    // return the original guest function (the thunk undoes its own trampoline).
+    handler_total = 0;
+    le_set_handler(my_handler);
+    le_call_handler(3); // host calls the stored handler -> reenters the guest
+    EXPECT("le_call_handler:", handler_total == 3);
+
+    le_handler_fn handler = NULL;
+    le_get_handler(&handler); // host returns the handler through the pointer-to-callback out param
+    EXPECT("le_get_handler:", handler == my_handler);
+    if (handler) {
+        handler(5); // guest calls the retrieved handler directly
+    }
+    EXPECT("le_get_handler call:", handler_total == 8);
 
     if (failures == 0) {
         printf("ThunkExample guest test: OK\n");
