@@ -154,7 +154,7 @@ namespace lore::tool::TLC {
         // current node ("" / "ctx." at the top, "p_PATH->" / "p_PATH_ctx->" inside a child).
 
         // Emit the substitution that runs before the call: wrap each foreign callback pointer in a
-        // local-callable trampoline (CallbackContext_init records the original so it can be restored).
+        // local-callable trampoline (CallbackContext::init records the original so it can be restored).
         std::string emitInit(const CallbackTree &node, const std::string &valExpr,
                              const std::string &ctxExpr, const std::string &idPath, bool guestCallback,
                              std::map<std::string, QualType> &allocators, int level) {
@@ -174,9 +174,9 @@ namespace lore::tool::TLC {
             }
             for (const auto &[name, calleeType] : node.callbacks) {
                 const auto allocator = idPath + "____" + name + "_xx_ThunkAlloc";
-                out << pad << "CallbackContext_init<" << (guestCallback ? "true" : "false") << ">("
-                    << ctxExpr << name << ", (void *&) " << valExpr << name
-                    << ", allocCallbackTrampoline<" << allocator << "::invoke>);\n";
+                out << pad << ctxExpr << name << ".init<" << (guestCallback ? "true" : "false")
+                    << ">((void *&) " << valExpr << name << ", allocCallbackTrampoline<" << allocator
+                    << "::invoke>);\n";
                 allocators.emplace(allocator, calleeType);
             }
             return out.str();
@@ -200,7 +200,7 @@ namespace lore::tool::TLC {
                 out << pad << "}\n";
             }
             for (const auto &[name, calleeType] : node.callbacks) {
-                out << pad << "CallbackContext_fini(" << ctxExpr << name << ");\n";
+                out << pad << ctxExpr << name << ".fini();\n";
             }
             return out.str();
         }
@@ -392,7 +392,7 @@ namespace lore::tool::TLC {
 
         // Out callbacks: after the call the callee has filled *arg with a callback; hand the caller a
         // callable pointer for it in the opposite direction and keep that value (no restore). If it is
-        // a stub we handed the callee earlier, CallbackContext_init's unwrap reverts it to the
+        // a stub we handed the callee earlier, CallbackContext::init's unwrap reverts it to the
         // original, so a set then get round-trips to the caller's own function.
         if (!tree.outCallbacks.empty()) {
             std::ostringstream ss;
@@ -406,9 +406,9 @@ namespace lore::tool::TLC {
                 ss << "        using " << allocator << " = ProcCb<" << *alias << ", " << outDirection
                    << ", Entry>;\n";
                 ss << "        struct CallbackContext _xx_out_" << name << ";\n";
-                ss << "        CallbackContext_init<" << (outGuestCallback ? "true" : "false")
-                   << ">(_xx_out_" << name << ", (void *&) *" << name << ", allocCallbackTrampoline<"
-                   << allocator << "::invoke>);\n";
+                ss << "        _xx_out_" << name << ".init<" << (outGuestCallback ? "true" : "false")
+                   << ">((void *&) *" << name << ", allocCallbackTrampoline<" << allocator
+                   << "::invoke>);\n";
             }
             ss << "    }\n#endif\n";
             callerADP.body.backward.push_back(key, ss.str());
