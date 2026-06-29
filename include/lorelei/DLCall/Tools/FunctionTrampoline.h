@@ -13,12 +13,13 @@ namespace lore {
 
     /// FunctionTrampoline - A tiny executable stub handed out in place of a real function pointer.
     ///
-    /// Behaves like \c CallbackTrampoline -- calling \c thunk_instr loads this instance's address
-    /// into the platform scratch register and jumps to the table's shared \c jump_instr, which
-    /// recovers \c saved_function into that register and tail-jumps to the table's \a target. The
-    /// extra \c magic_sign tags the block so guard code holding only the stub address can recognize
-    /// it as one of ours and recover the original \c saved_function (e.g. to undo a decayed function
-    /// pointer back to its real address).
+    /// Calling \c thunk_instr loads this instance's address into the platform scratch register and
+    /// jumps to the table's shared \c jump_instr, which recovers \c saved_function into that register
+    /// and tail-jumps to the table's \a target, so the target learns which original function was
+    /// invoked from that register (\c %r11 on x86_64; see the per-arch \c Trampoline_codegen_*). The
+    /// \c magic_sign tags the block so guard code holding only the stub address can recognize it as
+    /// one of ours and recover the original \c saved_function (e.g. to undo a decayed function pointer
+    /// back to its real address, or to revert a callback that has crossed back over the boundary).
     struct FunctionTrampoline {
         /// The original function this stub stands in for. Restored into the scratch register just
         /// before control reaches the table's target.

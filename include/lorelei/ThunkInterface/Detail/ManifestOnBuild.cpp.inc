@@ -11,6 +11,8 @@
 #include <lorelei/ThunkInterface/Detail/Traits.h>
 #include <lorelei/ThunkInterface/Proc.h>
 
+#include <new>
+
 #include "ProcTable.cpp.inc"
 
 namespace lore::thunk::detail {
@@ -33,7 +35,17 @@ namespace lore::thunk::detail {
         void postInitialize();
     };
 
+#ifdef LORE_THUNK_PERSIST
+    // No-destroy singleton: built once in static storage and never destroyed, so its tables stay valid
+    // for the whole process. For a thunk that must keep working during teardown. Placement new keeps
+    // it off the heap so it never re-enters an interposed allocator before that allocator is ready.
+    alignas(LocalThunkContext) static unsigned char localContextStorage[sizeof(LocalThunkContext)];
+    static LocalThunkContext *localContext =
+        ::new (static_cast<void *>(localContextStorage)) LocalThunkContext();
+#else
     static LocalThunkContext localContext;
+#endif
+
 }
 
 namespace lore::thunk {

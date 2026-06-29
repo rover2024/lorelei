@@ -20,6 +20,13 @@ typedef unsigned long long __LORE_SIZE_T__;
 typedef unsigned long __LORE_SIZE_T__;
 #endif
 
+// WARNING: __LORE_MAGIC_SIGN__ must stay equal to lore::thunk::kTrampolineMagic in
+// include/lorelei/ThunkInterface/Detail/Callback.h. The runtime stamps every trampoline with that
+// value and HLR-emitted guard code recognizes ours by it; if the two differ, neither side detects the
+// other's stubs. They are currently out of sync (Callback.h became 0x0B0F0B0F0B0F0B0F when
+// CallbackTrampoline was folded into FunctionTrampoline; this is still the old 0x1234567890ABCDEF).
+// HLR is not built right now, so this is a tripwire: reconcile the two values, then delete the #error.
+#error "__LORE_MAGIC_SIGN__ is out of sync with kTrampolineMagic in Callback.h; reconcile, then remove this."
 #define __LORE_MAGIC_SIGN__ 0x1234567890ABCDEFULL
 
 /// \sa \c lore::FunctionTrampoline

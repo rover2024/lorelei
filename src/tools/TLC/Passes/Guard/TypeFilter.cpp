@@ -121,7 +121,20 @@ namespace lore::tool::TLC {
 
         const auto &real = proc.realFunctionTypeView();
         std::string key = name();
+
+        // The filter statements are emitted into the Adapt layer, so the argument names they
+        // reference must be the Adapt layer's, which a Builder pass (it runs before this Guard pass)
+        // may have reshaped: LibCFormat collapses a variadic / va_list tail into a single
+        // `CVargEntry *vargs`. Using the real signature's names would emit a stale `arg3` for that
+        // renamed parameter and fail to compile. Take the names from the Adapt source's functionInfo,
+        // which the builder filled in (== the real signature for an ordinary function); fall back to
+        // the real signature only if no builder populated it (a null return type marks a default,
+        // unset FunctionInfo, distinct from a populated one for a void / zero-argument function).
         FunctionInfo FI = real;
+        if (const auto &adaptFI = proc.source(ProcSnippet::Adapt).functionInfo;
+            !adaptFI.returnType().isNull()) {
+            FI = adaptFI;
+        }
 
         auto &doc = proc.document();
         bool isHost = doc.mode() == DocumentContext::Host;

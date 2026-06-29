@@ -3,7 +3,7 @@
 #ifndef LORE_THUNKINTERFACE_CALLBACK_H
 #define LORE_THUNKINTERFACE_CALLBACK_H
 
-#include <lorelei/DLCall/Tools/CallbackTrampoline.h>
+#include <lorelei/DLCall/Tools/FunctionTrampoline.h>
 
 // Now QEMU does not officially support address separation, use the fork QEMU instead.
 #define QEMU_SUPPORT_ADDRESS_SEPARATION
@@ -50,6 +50,13 @@ namespace lore::thunk {
 
     static constexpr const size_t kMaxCallbackTrampolineCount = 16;
 
+    /// Sentinel stamped into every trampoline block so guard code holding only a bare stub pointer can
+    /// recognize it as one of ours and recover the original function (e.g. to revert a callback that
+    /// has crossed back over the boundary). The value is UD2 (0F 0B) repeated: an invalid x86_64
+    /// instruction stream, so it can never be mistaken for real code in the executable trampoline page
+    /// and is extremely unlikely to collide with arbitrary data probed at the magic offset.
+    static constexpr const uintptr_t kTrampolineMagic = 0x0B0F0B0F0B0F0B0FULL;
+
     /// GlobalTrampolineContext - Empty default \c Context for \c allocCallbackTrampoline; it
     /// selects a single shared (thread-local) trampoline table per callback signature rather than
     /// a per-context one.
@@ -62,18 +69,18 @@ namespace lore::thunk {
         if (!input) {
             return (ReturnType) nullptr;
         }
-        static thread_local lore::CallbackTrampolineTable *trampoline = nullptr;
+        static thread_local lore::FunctionTrampolineTable *trampoline = nullptr;
         if (!trampoline) {
-            trampoline = lore::CallbackTrampolineTable::create(Count, (void *) F);
+            trampoline = lore::FunctionTrampolineTable::create(Count, (void *) F, kTrampolineMagic);
         }
         auto t = &trampoline->trampoline[0];
-        while (t->saved_callback) {
-            if (t->saved_callback == input) {
+        while (t->saved_function) {
+            if (t->saved_function == input) {
                 return (ReturnType) t->thunk_instr;
             }
             t++;
         }
-        t->saved_callback = input;
+        t->saved_function = input;
         return (ReturnType) t->thunk_instr;
     }
 
