@@ -45,3 +45,7 @@ jobs:
         with:
           arch: riscv64
           build_args: --build-arg USE_USTC_MIRROR=1
+          # The emulated (no-plugin) baseline runs the x86_64 guest entirely under TCG on real RISC-V
+          # silicon, so it is far slower here than on the x86_64/aarch64 hosted runners. Use a smaller
+          # input so that baseline finishes in a sane time; the three-way contrast still shows clearly.
+          archive_size: 64M

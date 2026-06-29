@@ -9,6 +9,12 @@ inputs:
     description: Extra docker build arguments, e.g. --build-arg USE_USTC_MIRROR=1 for a domestic runner.
     required: false
     default: ''
+  archive_size:
+    description: >-
+      Compression-benchmark input size. The emulated (no-plugin) baseline runs the whole guest under
+      TCG, so on the slow riscv64 board it dominates the run; that runner passes a smaller size.
+    required: false
+    default: '256M'
 
 runs:
   using: composite
@@ -29,8 +35,14 @@ runs:
       shell: bash
       run: |
         set -o pipefail
-        # Use a larger archive in CI (matching qemu-passthrough-test); the local one-click test keeps run-tests.sh's smaller default.
-        docker run --rm -e ARCHIVE_SIZE=512M "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log
+        # Use a larger archive in CI than the local one-click test, which keeps run-tests.sh's smaller default.
+        # Record the exit status to a file rather than reading steps.run.outcome in the summary step:
+        # the riscv64 self-hosted runner's act backend does not implement that context and renders it as
+        # the literal "undefined". The hosted runners support it, but a status file works on both.
+        rc=0
+        docker run --rm -e ARCHIVE_SIZE="${{ inputs.archive_size }}" "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
+        printf '%s' "$rc" > run.rc
+        exit "$rc"
 
     - name: Publish summary
       if: always()
@@ -41,26 +53,36 @@ runs:
       run: |
         arch="${{ inputs.arch }}"
         clean="$(sed -r 's/\x1b\[[0-9;]*m//g' run.log)"
-        if [ "${{ steps.run.outcome }}" = "success" ]; then
+        rc="$(cat run.rc 2>/dev/null || echo 1)"
+        if [ "$rc" = "0" ]; then
           status="✅ **Passed** on \`$arch\`"
         else
           status="❌ **Failed** on \`$arch\` (see the log below)"
         fi
 
-        rows="$(printf '%s\n' "$clean" | awk '
-          /^[[:space:]]+(native|emulated|lorelei)[^0-9]*[0-9]+\.[0-9]+s[[:space:]]*$/ {
-            t = $NF; label = $0
-            sub(/^[[:space:]]+/, "", label)
-            sub(/[[:space:]]+[0-9.]+s[[:space:]]*$/, "", label)
-            printf "| %s | %s |\n", label, t
-          }')"
+        # The two workload stages print timing lines with the same native/emulated/lorelei labels, so
+        # partition by the "== N/4 ... ==" stage banners: stage 3 is minizip, stage 4 is xz.
+        extract_rows() {
+          # $1 = banner that opens the section; $2 = banner that closes it ('' for end of log).
+          printf '%s\n' "$clean" | awk -v start="$1" -v end="$2" '
+            $0 ~ start { ingest = 1; next }
+            end != "" && $0 ~ end { ingest = 0 }
+            ingest && /^[[:space:]]+(native|emulated|lorelei)[^0-9]*[0-9]+\.[0-9]+s[[:space:]]*$/ {
+              t = $NF; label = $0
+              sub(/^[[:space:]]+/, "", label)
+              sub(/[[:space:]]+[0-9.]+s[[:space:]]*$/, "", label)
+              printf "| %s | %s |\n", label, t
+            }'
+        }
+        zlib_rows="$(extract_rows '== 3/4' '== 4/4')"
+        lzma_rows="$(extract_rows '== 4/4' '')"
 
         {
           echo "## Lorelei End-to-End — \`$arch\`"
           echo
           echo "$status"
 
-          if [ "${{ steps.run.outcome }}" = "success" ]; then
+          if [ "$rc" = "0" ]; then
             echo
             echo "### Stages"
             echo "- ✅ Auto tests (ctest)"
@@ -70,9 +92,10 @@ runs:
               echo "- ✅ ThunkExample end-to-end"
             fi
             echo "- ✅ minizip over the zlib thunk"
+            echo "- ✅ xz over the lzma thunk"
           fi
 
-          if [ -n "$rows" ]; then
+          if [ -n "$zlib_rows" ]; then
             echo
             echo "### minizip Over the zlib Thunk"
             echo
@@ -80,7 +103,18 @@ runs:
             echo
             echo "| Run | Wall time |"
             echo "| --- | --- |"
-            echo "$rows"
+            echo "$zlib_rows"
+          fi
+
+          if [ -n "$lzma_rows" ]; then
+            echo
+            echo "### xz Over the lzma Thunk"
+            echo
+            echo "xz stays emulated; only its liblzma calls cross to the host, so the lorelei run lands near native."
+            echo
+            echo "| Run | Wall time |"
+            echo "| --- | --- |"
+            echo "$lzma_rows"
           fi
 
           echo

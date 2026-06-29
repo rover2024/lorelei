@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 #
-# Generate a synthetic, highly compressible input file for the minizip benchmark: a small random
-# seed block repeated to the requested size. Repeating one seed keeps the data compressible and the
-# compression time stable. Usage: GenerateArchive.py <output> <size>, e.g. GenerateArchive.py a.bin 64M
+# Generate a synthetic, highly compressible input file for the compression benchmarks (minizip over
+# the zlib thunk, xz over the lzma thunk): a small random seed block repeated to the requested size.
+# Repeating one seed keeps the data compressible and the compression time stable.
+# Usage: GenerateArchive.py <output> <size>, e.g. GenerateArchive.py a.bin 64M
 
 import os
 import re
