@@ -13,7 +13,7 @@ On top of that, the guest reaches the host through one reserved syscall, number 
 3. The plugin's own surface is deliberately tiny, just enough to `dlopen` a library, `dlsym` a symbol, and "invoke this host function pointer".
 4. Everything richer (marshalling a real call's arguments, host-to-guest callbacks, logging) is built on top of those primitives by the runtimes and the generated thunks, so the plugin stays small and stable.
 
-The operations come in two id families. The syscall's first argument is a request id from `lore::DLCallRequestID`. The first five are served by the `dlcall` plugin itself, while `DR_InvokeProc` hands off to the host runtime:
+The operations come in two id families. The syscall's first argument is a request id from `lore::DLCallRequestID`. Every id except `DR_InvokeProc` is served by the `dlcall` plugin itself, while `DR_InvokeProc` hands off to the host runtime:
 
 - `DR_GetHostAttribute`: query a host attribute by key.
 - `DR_LoadLibrary`: `dlopen` a host library.
@@ -34,7 +34,7 @@ See [`include/lorelei/DLCall/Protocol.h`](../include/lorelei/DLCall/Protocol.h) 
 
 ## Runtimes: Carrying Calls Across
 
-The generated thunks sit on top of two small runtime libraries that own the actual syscall and its protocol:
+The generated thunks (a **guest thunk library**, GTL, and a **host thunk library**, HTL) sit on top of two small runtime libraries that own the actual syscall and its protocol:
 
 ```
   ┌──────────────────────── guest (emulated, guest ISA) ───────────────────────────┐
@@ -54,10 +54,7 @@ The generated thunks sit on top of two small runtime libraries that own the actu
 
 ### GuestClient (GuestRT): the Client
 
-`lore::mod::GuestClient` runs inside the guest and is the only thing that issues syscall `4096`. Its requests fall into two groups (`lore::DLCallRequestID`):
-
-- The **library-management** primitives (`loadLibrary`, `getProcAddress`, `freeLibrary`, `getLibraryError`, `getHostAttribute`) are served by the `dlcall` plugin directly.
-- Everything else (`invokeFunction`, `logMessage`, `getModulePath`, `getThunkInfo`) is sent as a single `DR_InvokeProc` request whose target is the host runtime's common entry. So the guest runtime must install that entry (`setCommonHostEntry`) at startup before any real call is made.
+`lore::mod::GuestClient` runs inside the guest and is the only thing that issues syscall `4096`. It exposes one method per request id. The library-management primitives (`loadLibrary`, `getProcAddress`, `freeLibrary`, `getLibraryError`, `getHostAttribute`) map to the plugin-served ids listed above, while the rest (`invokeFunction`, `logMessage`, `getModulePath`, `getThunkInfo`) all travel as a single `DR_InvokeProc` request aimed at the host runtime's common entry. Because of that second group, the guest runtime must install that entry (`setCommonHostEntry`) at startup before any real call is made.
 
 For an actual library call, the GTL's generated body for that function packs the arguments into an `args[]` array and calls `GuestClient::invokeFunction`, which drives the call to completion (including any reentries, see below).
 
@@ -65,13 +62,13 @@ For an actual library call, the GTL's generated body for that function packs the
 
 `lore::mod::HostServer` lives in the host process, loaded into QEMU next to the plugin. It exports the `LoreCommonHostEntry` symbol that every `DR_InvokeProc` request lands on, and dispatches on the `DLCallSecondaryID` the request carries.
 
-For a library call, `DS_InvokeFunction` hands control to the HTL thunk, which runs the `Entry -> Adapt -> Caller -> Exec` chain (the four-layer thunk structure TLC emits, see [HowToUseTLC.md](HowToUseTLC.md)) and finally calls the real host `deflate`.
+For a library call, `DS_InvokeFunction` hands control to the HTL thunk, which runs the `Entry -> Adapt -> Caller -> Exec` chain (the four-layer thunk structure TLC emits, see [HowToUseTLC.md](HowToUseTLC.md)) and finally calls the real host function.
 
 ### Both Directions: Callbacks and Reentry
 
 Many libraries call back into code the caller supplied (zlib's `zalloc`/`zfree`, a qsort comparator, an SDL event filter). When the real host function calls such a callback, it must run the guest's function, back across the boundary in the host-to-guest direction.
 
-`HostServer::reenter` handles this: it suspends the in-progress host call using coroutine-based invocation machinery, reenters the guest to run its callback (`DS_ResumeFunction` carries the result back), and then resumes the host call where it left off. Because the machinery is a coroutine stack, callbacks can nest arbitrarily. The `CallbackSubstituter` pass is what arranges, at generation time, for the guest's function pointers to arrive on the host as trampolines that trigger this reentry.
+`HostServer::reenter` handles this: it suspends the in-progress host call using coroutine-based invocation machinery, reenters the guest to run its callback (`DS_ResumeFunction` carries the result back), and then resumes the host call where it left off. Because the machinery is a coroutine stack, callbacks can nest arbitrarily. `CallbackSubstituter`, one of TLC's generation-time passes (see [HowToUseTLC.md](HowToUseTLC.md)), is what arranges for the guest's function pointers to arrive on the host as trampolines that trigger this reentry.
 
 ## Putting it All Together: One `deflate` Call
 

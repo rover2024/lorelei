@@ -37,7 +37,7 @@ The thunk pipeline runs in two stages. Each subcommand takes its inputs, then `-
 
 Standalone helpers:
 
-1. **`dump`**: given a symbol list (`-c`) and a compilation database (`-p`, the directory holding `compile_commands.json`), it emits a self-contained header that re-declares the requested functions and `#include`s exactly the headers their types come from (synthesizing fallback declarations for types that originate in non-header sources).
+1. **`dump`**: a setup aid, not part of the `stat`->`generate` pipeline. Reach for it when a library has no single clean header to point `Desc.h` at. Given a symbol list (`-c`) and a compilation database (`-p`, the directory holding `compile_commands.json`), it emits a self-contained header that re-declares the requested functions and `#include`s exactly the headers their types come from (synthesizing fallback declarations for types that originate in non-header sources). That generated header can then seed `Desc.h`.
 
    ```sh
    LoreTLC dump -c Symbols.conf -o Consolidated.h -p /path/to/build src/foo.c src/bar.c
@@ -61,6 +61,8 @@ int  printf(const char *fmt, ...);
 ```
 
 The bodies below are what TLC generates for them, lightly cleaned up for readability (names shortened, and the comparator type pulled out into a `using` alias).
+
+Each `ProcFn<...>` is keyed by the function, a **direction**, and a layer. The direction is `GuestToHost` for a normal call the guest makes into the host, and `HostToGuest` for a callback the host makes back into the guest (`qsort`'s comparator is one, so it shows up below as `ProcCb<compare_fn, HostToGuest, Entry>`).
 
 **The host side (HTL).** The HTL is the receiver, assembled by the three phases in turn.
 
@@ -87,7 +89,7 @@ void ProcFn<::qsort, GuestToHost, Caller>::invoke(void *arg1, size_t arg2, size_
 }
 ```
 
-A variadic function takes a different `Builder`. The `...` arguments of a `printf` or `scanf` family member (recognized by name, by a `format` attribute, or by an explicit `pass::printf` descriptor) cannot be forwarded blindly, because the variadic calling convention differs between the guest and host ISAs. For these, `LibCFormat` builds the `Caller` to collect the arguments into a typed `CVargEntry[]` array and hand them to `VariadicAdaptor`, which rebuilds the real call on the host. `Entry` still just unpacks the wire buffer (the variadic pack arrives as a ready-made `CVargEntry[]`, `vargs`), and `Adapt` stays an empty pass-through, because `printf` has no callbacks or type conversions for `Guard` to inject:
+A variadic function takes a different `Builder`. The `...` arguments of a `printf` or `scanf` family member (recognized by name, by a `format` attribute, or by an explicit `pass::printf` descriptor) cannot be forwarded blindly, because the variadic calling convention differs between the guest and host ISAs. For these, `LibCFormat` builds the `Caller` differently. It collects the arguments into a `CVargEntry[]` array, an ISA-independent encoding that tags each variadic argument with its type alongside its value, and hands them to `VariadicAdaptor`, which rebuilds the real call on the host. `Entry` still just unpacks the wire buffer (the variadic pack arrives as a ready-made `CVargEntry[]`, `vargs`), and `Adapt` stays an empty pass-through, because `printf` has no callbacks or type conversions for `Guard` to inject:
 
 ```cpp
 // Entry: unpack the format string and the variadic pack, hand to Adapt
@@ -123,13 +125,13 @@ The `va_list` form (`vprintf`) is identical, except the `Caller` uses `VariadicA
 ```cpp
 void ProcFn<::qsort, GuestToHost, Adapt>::invoke(void *arg1, size_t arg2, size_t arg3, compare_fn arg4) {
     // forward: wrap the guest comparator in a trampoline the host can call
-    qsort_xx_LocalContext ctx;   // holds the trampoline for the call's duration
-    CallbackContext_init<true>(ctx.arg4, (void *&) arg4,
+    qsort_LocalContext ctx;   // one CallbackContext per callback arg, held for the call's duration
+    ctx.arg4.init<true>((void *&) arg4,
         allocCallbackTrampoline<ProcCb<compare_fn, HostToGuest, Entry>::invoke>);
     // center: the real call now sees a host-callable arg4
     ProcFn<qsort, GuestToHost, Caller>::invoke(arg1, arg2, arg3, arg4);
-    // backward: release the trampoline
-    CallbackContext_fini(ctx.arg4);
+    // backward: restore the original pointer
+    ctx.arg4.fini();
 }
 ```
 
@@ -188,18 +190,23 @@ The four layers that come out stay separate, so a manifest can override exactly 
 
 Most procs need no descriptor at all: `generate` picks the right `Builder` from the function's signature, its name, or its GNU `format` attribute. A descriptor in `Desc.h` is only for the cases none of those cover.
 
-Take SDL's logging call:
+Take SDL's two logging calls, a `...` form and its `va_list` sibling:
 
 ```c
+// the ... form carries a printf format attribute (SDL spells it SDL_PRINTF_VARARG_FUNC(3))
+void SDL_LogMessage (int category, SDL_LogPriority priority, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+
+// the va_list form carries none
 void SDL_LogMessageV(int category, SDL_LogPriority priority, const char *fmt, va_list ap);
 ```
 
-It is a `vprintf`-style function (a format string followed by a `va_list`), so its `Caller` has to go through `VariadicAdaptor::vcall` rather than forward the `va_list` blindly. TLC works that out on its own, by one of two rules:
+Both are printf-style, so their `Caller` has to re-marshal the arguments rather than forward the call blindly (the `va_list` form going through `VariadicAdaptor::vcall`). TLC decides that on its own, by two rules:
 
-- **Name.** A function whose name ends in `printf` or `scanf` is routed to the matching pass: `printf` / `scanf` for the `...` form, `vprintf` / `vscanf` for the `va_list` form. `SDL_LogMessageV` ends in neither, so this rule does not fire for it.
-- **GNU `format` attribute.** A function carrying `__attribute__((format(printf, fmtIdx, firstVararg)))` is recognized even when its name reveals nothing. SDL annotates `SDL_LogMessageV` with `format(printf, 3, 0)`: the `3` marks the format string as the third parameter, and a `firstVararg` of `0` marks the `va_list` form (a `va_list` has no variadic arguments to type-check), so TLC emits the `vprintf` thunk with the `va_list` taken right after the format string. The `...` form `SDL_LogMessage` carries `format(printf, 3, 4)` instead, the non-zero `4` selecting the plain `printf` pass.
+- **Name.** A function whose name ends in `printf` or `scanf` is routed to the matching pass: `printf` / `scanf` for the `...` form, `vprintf` / `vscanf` for the `va_list` form. Neither `SDL_LogMessage` nor `SDL_LogMessageV` ends in either, so this rule fires for neither.
+- **GNU `format` attribute.** A function carrying `__attribute__((format(printf, fmtIdx, firstVararg)))` is recognized even when its name reveals nothing. SDL tags the `...` form `SDL_LogMessage` with `format(printf, 3, 4)`: the `3` marks the format string as the third parameter and the `4` its first variadic argument, so TLC picks the plain `printf` pass for it automatically, with no descriptor.
 
-When a function has neither a telling name nor a `format` attribute (some libraries drop the attribute on their `va_list` forms), spell it out in `Desc.h`:
+`SDL_LogMessageV` is the case that escapes both rules: its name ends in neither `vprintf` nor `vscanf`, and SDL puts no `format` attribute on the `va_list` form (a `va_list` has no `...` arguments for such an attribute to type-check). With nothing for TLC to detect, spell it out in `Desc.h`:
 
 ```cpp
 template <>
