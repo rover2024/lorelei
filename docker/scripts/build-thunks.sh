@@ -5,8 +5,9 @@
 #   install/x86_64/lorethunks  guest side: the GTL (x86_64)
 #
 # The host build also generates both thunk sources and installs them, so the guest build compiles the
-# guest source straight from THUNK_GEN_SOURCE_DIR without running TLC. Every thunk is built (their dev
-# headers are installed in bootstrap); the end-to-end test then only runs the minizip and xz ones.
+# guest source straight from THUNK_GEN_SOURCE_DIR without running TLC. Only the zlib (minizip) and lzma
+# thunks are enabled, which are the ones the end-to-end test runs; this also keeps the image building
+# on every CI arch (e.g. SDL2's multiarch headers do not resolve on arm64).
 set -euo pipefail
 : "${REPOS_DIR:?}"
 : "${INSTALL_DIR:?}"
@@ -53,6 +54,7 @@ cmake -B build -G Ninja \
     -Dlorelei_DIR="$INSTALL_DIR/lorelei/lib/cmake/lorelei" \
     -DTHUNK_BUILD_HOST_TARGETS=TRUE \
     -DTHUNK_BUILD_GUEST_TARGETS=FALSE \
+    -DTHUNK_ENABLE_LIBRARIES="zlib;lzma" \
     "${host_extra[@]}"
 cmake --build build --target install
 
@@ -68,5 +70,6 @@ cmake -B build-guest -G Ninja \
     -DTHUNK_GEN_SOURCE_DIR="$INSTALL_DIR/lorethunks/share/lorelei/thunks" \
     -DTHUNK_BUILD_HOST_TARGETS=FALSE \
     -DTHUNK_BUILD_GUEST_TARGETS=TRUE \
+    -DTHUNK_ENABLE_LIBRARIES="zlib;lzma" \
     "${guest_extra[@]}"
 cmake --build build-guest --target install
