@@ -32,10 +32,14 @@ apt-get install -y --no-install-recommends \
 apt-get install -y --no-install-recommends clang-20 llvm-20-dev libclang-20-dev
 
 # Lorelei build/runtime dependencies: ffcall backs the VariadicAdaptor, Boost.Test backs the auto
-# tests, and zlib / liblzma are what the example thunks wrap. minizip and xz provide the unmodified
-# guest binaries the end-to-end test runs over the zlib and lzma thunks.
+# tests. Every thunk and Midware library is compiled, so the dev headers of each wrapped library are
+# needed: zlib, lzma, SDL2, OpenSSL (libssl-dev, installed below with the QEMU deps), bzip2, and X11 /
+# xcb for the Midware. Only minizip and xz are run by the end-to-end test, over the zlib and lzma
+# thunks; the rest just have to build.
 apt-get install -y --no-install-recommends \
-    libffcall-dev libboost-test-dev zlib1g-dev minizip liblzma-dev xz-utils
+    libffcall-dev libboost-test-dev \
+    zlib1g-dev minizip liblzma-dev xz-utils libsdl2-dev libbz2-dev \
+    libx11-dev libxcb1-dev libxext-dev
 
 # QEMU build dependencies.
 apt-get install -y --no-install-recommends \
