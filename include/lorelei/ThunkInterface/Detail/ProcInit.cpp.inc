@@ -91,6 +91,7 @@ namespace lore::thunk::detail {
 
     void LocalThunkContext::postInitialize() {
     }
+
 }
 
 #undef _LORE_THUNK_THIS_ENTRY
