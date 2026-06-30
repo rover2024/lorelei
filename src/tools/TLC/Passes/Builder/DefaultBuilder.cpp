@@ -27,7 +27,7 @@ namespace lore::tool::TLC {
     };
 
     bool DefaultBuilderPass::testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
-        return true; // selected automatically; the default builder handles every proc
+        return true; // selected automatically, and the default builder handles every proc
     }
 
     void DefaultBuilderPass::beginHandleProc(ProcSnippet &proc,
@@ -144,7 +144,7 @@ namespace lore::tool::TLC {
                            proc.name(), procKindStr, isVoid ? "nullptr" : "&ret");
         };
 
-        // Adapt is a typed pass-through between Entry and Caller; non-Builder passes (callback
+        // Adapt is a typed pass-through between Entry and Caller. Non-Builder passes (callback
         // substitution, type/handle filtering, GetProcAddress) inject into its forward/backward so
         // that Entry stays pure (un)marshalling.
 

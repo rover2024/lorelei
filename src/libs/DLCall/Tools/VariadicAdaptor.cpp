@@ -121,14 +121,14 @@ namespace lore {
     }
 
     static int extractPrintFArgs(const char *format, va_list ap, CVargEntry *out) {
-        // We do not want any formatted output; the patched mp_vsnprintf is driven only to walk the
+        // We do not want any formatted output. The patched mp_vsnprintf is driven only to walk the
         // va_list per the format and box each consumed argument into out. _out_null discards the
         // formatted bytes, so the (size_t)-1 "unbounded" length and the dummy 1-byte buffer are
-        // inert; out is the real sink.
+        // inert, and out is the real sink.
         char buffer[1];
         (void) mp_vsnprintf(_out_null, buffer, (size_t) -1, format, ap, out);
 
-        // The boxing fills out[] with a trailing CVargType_Void (0) sentinel; count up to it.
+        // The boxing fills out[] with a trailing CVargType_Void (0) sentinel, so count up to it.
         CVargEntry *p = out;
         while (p->type) {
             p++;
@@ -138,7 +138,7 @@ namespace lore {
 
     static int extractScanFArgs(const char *format, va_list ap, CVargEntry *out) {
         // Same trick as extractPrintFArgs but with scanf semantics: the scanf variant of the parser
-        // walks ap and boxes the (pointer) arguments into out; buffer/length are inert sinks.
+        // walks ap and boxes the (pointer) arguments into out, and buffer/length are inert sinks.
         char buffer[1];
         (void) mp_vsnprintf_scanf(_out_null, buffer, (size_t) -1, format, ap, out);
 
@@ -178,7 +178,7 @@ namespace lore {
         vargs.resize(len - 2);
         for (size_t i = 0; i < len - 2; ++i) {
             const auto fmt_char = fmt[i + 2];
-            // args[i] points at the raw storage for argument i; the boxing reads it through the
+            // args[i] points at the raw storage for argument i. The boxing reads it through the
             // pointer type the format code names, so a mismatched code would misread the bytes.
             callFormatBox64_arg_entry(fmt_char, &vargs[i], args[i]);
         }

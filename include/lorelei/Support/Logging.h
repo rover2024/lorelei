@@ -93,14 +93,14 @@ namespace lore {
         /// Like print(), but builds the message with printf-style formatting.
         void printf(int level, const char *fmt, ...);
 
-        /// Terminates the process; used by the Fatal path.
+        /// Terminates the process. Used by the Fatal path.
         [[noreturn]] static void abort();
 
     public:
         /// The sink that receives every emitted record: (level, context, message).
         using LogCallback = void (*)(int, const LogContext &, const std::string_view &);
 
-        /// The process-wide sink; the default prints Success and above to stdout/stderr.
+        /// The process-wide sink. The default prints Success and above to stdout/stderr.
         static LogCallback logCallback();
         static void setLogCallback(LogCallback callback);
 
@@ -128,7 +128,7 @@ namespace lore {
         inline bool isLevelEnabled(int level) const {
             return levelEnabled[level];
         }
-        /// Enables or disables a single level; normally driven by the filter rules.
+        /// Enables or disables a single level, normally driven by the filter rules.
         inline void setLevelEnabled(int level, bool enabled) {
             levelEnabled[level] = enabled;
         }
@@ -152,8 +152,8 @@ namespace lore {
         /// Rules are separated by newlines or ';', and `#`-prefixed lines are comments. Each rule
         /// reads `category[.level] = true|false`, where:
         ///   - category may carry a single leading and/or trailing `*` wildcard
-        ///     (`lore.*`, `*.io`, `*`); otherwise it matches exactly.
-        ///   - level is one of trace/debug/success/info/warning/critical/fatal; omit it to affect
+        ///     (`lore.*`, `*.io`, `*`). Otherwise it matches exactly.
+        ///   - level is one of trace/debug/success/info/warning/critical/fatal. Omit it to affect
         ///     every level.
         /// Rules are applied in order over an all-enabled baseline, so a later matching rule
         /// overrides an earlier one. For example:
@@ -241,7 +241,7 @@ static inline const lore::LogCategory &__loreGetLogCategory() {
 
 // Per-category logging macros. Each resolves the in-scope category through __loreGetLogCategory()
 // (the member form for a user category, the free form for the default) and forwards the call site.
-// The plain macros use formatN() (%1, %2, ...); the *F variants use printf-style formatting.
+// The plain macros use formatN() (%1, %2, ...). The *F variants use printf-style formatting.
 #define loreLog(LEVEL, ...)                                                                        \
     __loreGetLogCategory().log<lore::Logger::LEVEL>(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define loreTrace(...)    loreLog(Trace, __VA_ARGS__)

@@ -105,7 +105,7 @@ namespace lore {
             }
 
             if (c == '\\') {
-                // Keep the backslash and the escaped char verbatim here; escape sequences are
+                // Keep the backslash and the escaped char verbatim here. Escape sequences are
                 // decoded later by parseQuotedString. This pass only needs to avoid treating an
                 // escaped '#' as a comment start.
                 escaped = true;

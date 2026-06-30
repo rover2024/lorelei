@@ -17,7 +17,7 @@ namespace lore {
     /// Forward thunk: maps a guest library to its guest/host thunk pair.
     ///
     /// Plain-old-data so it can be handed across the guest/host boundary directly. Strings are
-    /// NUL-terminated; \c alias is an array of \c aliasCount string pointers.
+    /// NUL-terminated. \c alias is an array of \c aliasCount string pointers.
     struct CForwardThunkInfo {
         const char *name;
         const char *const *alias;

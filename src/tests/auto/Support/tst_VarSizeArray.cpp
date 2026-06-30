@@ -111,7 +111,7 @@ namespace {
 
     template <std::size_t N>
     void checkSelfReference() {
-        // Each of these reads an element that the operation itself may relocate; the value must
+        // Each of these reads an element that the operation itself may relocate, so the value must
         // survive the reallocation. Fill to capacity so the next add reallocates.
         VarSizeArray<int, N> v;
         for (int i = 0; i < static_cast<int>(N) + 3; ++i)

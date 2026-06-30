@@ -9,7 +9,7 @@ namespace lore {
 
     /// function_info - Extracts a function's return type and argument tuple from its type.
     ///
-    /// Works for plain function types and function pointers, variadic or not; a trailing \c ... is
+    /// Works for plain function types and function pointers, variadic or not. A trailing \c ... is
     /// dropped from \c tuple_type.
     template <class F>
     struct function_info;

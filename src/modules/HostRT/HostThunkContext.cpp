@@ -74,7 +74,7 @@ namespace lore::mod {
         m_staticThunkContext->emuAddr = HostServer::emuAddr;
 
         /// STEP: get thunk name
-        // Derive this HTL's own module path from the static context's address; the thunk name keys
+        // Derive this HTL's own module path from the static context's address. The thunk name keys
         // its forward-thunk lookup in the database.
         Dl_info selfInfo = {};
         if (!dladdr(m_staticThunkContext, &selfInfo)) {

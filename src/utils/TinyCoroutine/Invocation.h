@@ -23,18 +23,18 @@ namespace lore::utils {
     ///   }
     /// \endcode
     ///
-    /// All members are static; the class is never instantiated.
+    /// All members are static. The class is never instantiated.
     ///
     /// \note invokeByConv() is NOT defined here. The main target must provide it (it performs the
-    /// actual ABI-specific native call); otherwise linking fails.
+    /// actual ABI-specific native call). Otherwise linking fails.
     class Invocation {
     public:
-        /// Opaque invocation arguments; the concrete layout is defined by the main target.
+        /// Opaque invocation arguments. The concrete layout is defined by the main target.
         using InvocationArguments = void;
         /// Opaque reentry arguments, surfaced to the driver between suspensions.
         using ReentryArguments = void;
 
-        // Static-only utility; not instantiable.
+        // Static-only utility, not instantiable.
         Invocation() = delete;
         ~Invocation() = delete;
 
@@ -43,16 +43,16 @@ namespace lore::utils {
         /// \returns 0 when the invocation finished, or 1 when it suspended at a reentry.
         static int64_t invoke(const InvocationArguments *ia, ReentryArguments **ra_ptr);
 
-        /// Resumes a suspended invocation after its reentry has been serviced; called by the guest.
+        /// Resumes a suspended invocation after its reentry has been serviced. Called by the guest.
         /// \returns 0 when finished, or 1 when it suspended at the next reentry.
         static int64_t resume();
 
-        /// Suspends the running invocation to reenter the other side; called by the host from within
+        /// Suspends the running invocation to reenter the other side. Called by the host from within
         /// the native call. \a ra is surfaced to the driver as the next reentry's arguments.
         static void reenter(ReentryArguments *ra);
 
         /// Performs the actual ABI-specific native call. Must be defined by the main target (see the
-        /// class note); not provided here.
+        /// class note). Not provided here.
         static int invokeByConv(const InvocationArguments *ia);
     };
 

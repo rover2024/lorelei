@@ -31,12 +31,12 @@ namespace lore {
         static int extract(FormatStyle style, const char *fmt, va_list ap, CVargEntry *out);
 
         /// Call \a func with \a argv1 (\a argc1 entries) followed by \a argv2 (\a argc2 entries),
-        /// all passed as ordinary positional arguments in order; the result is written to \a ret.
+        /// all passed as ordinary positional arguments in order. The result is written to \a ret.
         static void call(void *func, int argc1, CVargEntry *argv1, int argc2, CVargEntry *argv2,
                          CVargEntry *ret);
 
         /// Like \c call, but \a argv2 is forwarded as a single trailing \c va_list rather than as
-        /// individual positional arguments -- i.e. \a func is a variadic function and \a argv1 are
+        /// individual positional arguments, meaning \a func is a variadic function and \a argv1 are
         /// its fixed parameters.
         static void vcall(void *func, int argc1, CVargEntry *argv1, int argc2, CVargEntry *argv2,
                           CVargEntry *ret);

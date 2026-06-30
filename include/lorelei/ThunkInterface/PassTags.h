@@ -38,7 +38,7 @@ namespace lore::thunk::pass {
 
     /// printf - Builder tag for a printf-style variadic function (the variadic tail is marshalled
     /// according to the format string). \a FormatIndex is the parameter holding the format string
-    /// and \a VariadicIndex is where the variadic part begins; \c -1 lets TLC infer them.
+    /// and \a VariadicIndex is where the variadic part begins. \c -1 lets TLC infer them.
     template <int FormatIndex = -1, int VariadicIndex = -1>
     struct printf : public PassTagBase {
         static constexpr const PassID ID = ID_printf;
@@ -82,8 +82,8 @@ namespace lore::thunk::pass {
     // --- Misc -------------------------------------------------------------------
 
     /// GetProcAddress - Misc tag for a \c *GetProcAddress*-style function that returns a host proc
-    /// address; the pass rewrites the result into a guest-callable address. \a NameIndex is the
-    /// argument holding the symbol name; \c -1 lets TLC infer it.
+    /// address. The pass rewrites the result into a guest-callable address. \a NameIndex is the
+    /// argument holding the symbol name. \c -1 lets TLC infer it.
     template <int NameIndex = -1>
     struct GetProcAddress : public PassTagBase {
         static constexpr const PassID ID = ID_GetProcAddress;

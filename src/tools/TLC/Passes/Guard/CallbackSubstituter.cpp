@@ -42,7 +42,7 @@ namespace lore::tool::TLC {
             std::map<std::string, QualType> callbacks; // member name -> callee function type
             std::map<std::string, CallbackTree> children;
             // Out-parameter callbacks: an argument of type `callback (**)(...)` that the callee fills
-            // in. Only collected at the top (argument) level; the value is the callee function type.
+            // in. Only collected at the top (argument) level. The value is the callee function type.
             std::map<std::string, QualType> outCallbacks;
 
             CallbackTree() = default;
@@ -87,7 +87,7 @@ namespace lore::tool::TLC {
             }
 
             // Build the tree for the type \a T. A record contributes its function-pointer fields as
-            // callbacks and recurses into the rest; a callback reached through more than one level of
+            // callbacks and recurses into the rest. A callback reached through more than one level of
             // indirection (a double pointer, an array or union of function pointers) is unsupported.
             static CallbackTree build(QualType T, std::set<std::string> &visited) {
                 bool throughPointer = false;
@@ -314,16 +314,16 @@ namespace lore::tool::TLC {
 
         // Substitution is built in the Adapt layer (where Entry has already unpacked the arguments
         // into typed form). In callbacks (passed in, possibly nested in structs) are wrapped on the
-        // receiver side; out callbacks (filled in through a pointer-to-callback) on the caller side.
-        // For a guest-to-host call the receiver is the host and the caller the guest. Only the side
-        // matching this document is the real source; the other's writes are discarded.
+        // receiver side, and out callbacks (filled in through a pointer-to-callback) on the caller
+        // side. For a guest-to-host call the receiver is the host and the caller the guest. Only the
+        // side matching this document is the real source. The other's writes are discarded.
         auto &ADP = proc.source(ProcSnippet::Adapt);
         ProcSnippet::ProcSource discard;
         auto &receiverADP = (isG2H == isHost) ? ADP : discard;
         auto &callerADP = (isG2H == isHost) ? discard : ADP;
 
         // A guest-to-host call carries guest callbacks in (the host calls back into the guest) and
-        // host callbacks out (the guest calls what the host hands back); host-to-guest is the mirror.
+        // host callbacks out (the guest calls what the host hands back). Host-to-guest is the mirror.
         const char *inDirection = isG2H ? "HostToGuest" : "GuestToHost";
         const char *outDirection = isG2H ? "GuestToHost" : "HostToGuest";
         const bool inGuestCallback = isG2H;
@@ -349,7 +349,7 @@ namespace lore::tool::TLC {
         };
 
         // In callbacks: wrap before the call and restore after (the trampoline persists, so the
-        // receiver can still call it later; only the caller's argument is left untouched).
+        // receiver can still call it later, and only the caller's argument is left untouched).
         if (!tree.callbacks.empty() || !tree.children.empty()) {
             const auto ctxStructName = proc.name() + "_xx_LocalContext";
             std::map<std::string, QualType> allocators;
@@ -393,8 +393,8 @@ namespace lore::tool::TLC {
             receiverADP.head.push_back(key, llvm::join(sources, "\n"));
         }
 
-        // Out callbacks: after the call the callee has filled *arg with a callback; hand the caller a
-        // callable pointer for it in the opposite direction and keep that value (no restore). If it is
+        // Out callbacks: after the call the callee has filled *arg with a callback, so hand the caller
+        // a callable pointer for it in the opposite direction and keep that value (no restore). If it is
         // a stub we handed the callee earlier, CallbackContext::init's unwrap reverts it to the
         // original, so a set then get round-trips to the caller's own function.
         if (!tree.outCallbacks.empty()) {

@@ -46,7 +46,7 @@ namespace lore::mod {
         /// Query a host attribute by key (e.g. \c "emu"). Served by the dlcall plugin.
         static const char *getHostAttribute(const char *key);
 
-        /// Load a host library; returns an opaque host handle, or \c nullptr on failure. Wraps the
+        /// Load a host library. Returns an opaque host handle, or \c nullptr on failure. Wraps the
         /// host's \c dlopen with the given \a flags.
         static void *loadLibrary(const char *path, int flags);
 

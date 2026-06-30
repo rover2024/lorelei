@@ -10,7 +10,7 @@
 using namespace lore;
 
 // The filter state (rules + installed filter + callback) lives in a process-global registry, so
-// every case sets up its own state and a guard restores the defaults on the way out -- even if an
+// every case sets up its own state and a guard restores the defaults on the way out, even if an
 // assertion throws mid-case.
 namespace {
     void setRules(const std::string &rules) {
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(every_level_token_is_recognized) {
         setRules(std::string("lore.tok.") + tc.token + "=false");
 
         BOOST_TEST(!c.isLevelEnabled(tc.level));
-        // Only the named level is affected; a different one stays enabled.
+        // Only the named level is affected, and a different one stays enabled.
         int other = (tc.level == Logger::Warning) ? Logger::Trace : Logger::Warning;
         BOOST_TEST(c.isLevelEnabled(other));
 
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(later_rule_overrides_earlier) {
 BOOST_AUTO_TEST_CASE(semicolons_and_comments_are_handled) {
     LoggingGuard guard;
     LogCategory c("anything.at.all");
-    // '#' lines are comments; ';' separates rules just like a newline.
+    // '#' lines are comments, and ';' separates rules just like a newline.
     setRules("# turn everything off\n*=false ; anything.at.all.info=true");
 
     BOOST_TEST(c.isLevelEnabled(Logger::Information));

@@ -786,7 +786,7 @@ namespace lore::tool::command::dump {
         if (!sourcePathsOption.empty()) {
             sourcePathList.assign(sourcePathsOption.begin(), sourcePathsOption.end());
         } else {
-            // Key by normalized path so each source is scanned once; insert keeps the first
+            // Key by normalized path so each source is scanned once, and insert keeps the first
             // (original) Filename seen for that path.
             std::map<std::string, std::string> uniqueSources;
             for (const auto &command : compilations->getAllCompileCommands()) {

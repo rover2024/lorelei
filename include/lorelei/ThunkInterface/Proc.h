@@ -39,7 +39,7 @@ namespace lore::thunk {
     template <auto F, ProcDirection Direction, ProcPhase Phase>
     struct ProcFn;
 
-    /// ProcCb - One phase of a callback's thunk; the \c ProcFn analogue for callbacks.
+    /// ProcCb - One phase of a callback's thunk, the \c ProcFn analogue for callbacks.
     template <class F, ProcDirection Direction, ProcPhase Phase>
     struct ProcCb;
 

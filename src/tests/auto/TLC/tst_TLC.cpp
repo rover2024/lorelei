@@ -8,7 +8,7 @@
 #include <boost/test/unit_test.hpp>
 
 // CMake generates the thunk for the ThunkExample fixture and compiles it (so a malformed emission
-// fails the build); this test inspects the generated host and guest sources. The paths are handed
+// fails the build). This test inspects the generated host and guest sources. The paths are handed
 // to us as compile definitions (see CMakeLists.txt).
 
 static std::string readFile(const char *path) {
@@ -46,8 +46,8 @@ static std::string callerBody(const std::string &src, const std::string &name) {
 }
 
 // Whether function \a name is marshalled through the variadic adaptor (i.e. the format builder
-// picked it up). The host emits the adaptor call in the Caller; the guest emits it in the Entry that
-// packs the varargs before forwarding. Look in both.
+// picked it up). The host emits the adaptor call in the Caller, and the guest emits it in the Entry
+// that packs the varargs before forwarding. Look in both.
 static bool isVariadic(const std::string &src, const std::string &name) {
     return phaseBody(src, name, "Entry").find("VariadicAdaptor") != std::string::npos
         || phaseBody(src, name, "Caller").find("VariadicAdaptor") != std::string::npos;
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(format_detected_by_attribute) {
 
 BOOST_AUTO_TEST_CASE(callback_is_substituted) {
     // The comparator is wrapped in a trampoline via the callback context on the receiving (host)
-    // side; the guest, which supplies the comparator, emits the matching ProcCb trampoline support.
+    // side. The guest, which supplies the comparator, emits the matching ProcCb trampoline support.
     BOOST_TEST(hostSrc().find("CallbackContext") != std::string::npos);
     BOOST_TEST(guestSrc().find("ProcCb<le_compare_fn") != std::string::npos);
 }
@@ -115,15 +115,15 @@ BOOST_AUTO_TEST_CASE(type_filter_is_applied) {
 }
 
 // The GTL's Entry is the real exported symbol the guest links against (aliased to ProcFn<...,Entry>
-// ::invoke); the HTL emits none of these real-name exports, since the host side is reached through
+// ::invoke). The HTL emits none of these real-name exports, since the host side is reached through
 // its registered dispatch entry rather than by symbol.
 BOOST_AUTO_TEST_CASE(guest_exports_real_symbol_names) {
     BOOST_TEST(guestSrc().find("LORE_DECL_EXPORT int le_printf(") != std::string::npos);
     BOOST_TEST(hostSrc().find("LORE_DECL_EXPORT") == std::string::npos);
 }
 
-// The `...` printf/scanf functions are marshalled with VariadicAdaptor::call; the va_list forms (the
-// vprintf / vscanf passes) use ::vcall instead. This distinguishes the two builder families.
+// The `...` printf/scanf functions are marshalled with VariadicAdaptor::call, while the va_list forms
+// (the vprintf / vscanf passes) use ::vcall instead. This distinguishes the two builder families.
 BOOST_AUTO_TEST_CASE(va_list_form_uses_vcall) {
     BOOST_TEST(callerBody(hostSrc(), "le_emit").find("VariadicAdaptor::call(") != std::string::npos);
     BOOST_TEST(callerBody(hostSrc(), "le_printf").find("VariadicAdaptor::call(") != std::string::npos);
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(va_list_form_uses_vcall) {
 // Regression: a vprintf/vscanf Caller must still forward its fixed arguments (the format string and
 // anything before it) in argv1. Dropping them left the host calling the target with the format slot
 // taking the synthesised va_list and a null va_list, which crashed at run time. le_vprintf forwards
-// its single fixed arg (fmt); le_vemit forwards two (the channel and fmt).
+// its single fixed arg (fmt), and le_vemit forwards two (the channel and fmt).
 BOOST_AUTO_TEST_CASE(va_list_form_forwards_fixed_args) {
     BOOST_TEST(callerBody(hostSrc(), "le_vprintf").find("CVargGet(arg1)") != std::string::npos);
     auto vemit = callerBody(hostSrc(), "le_vemit");

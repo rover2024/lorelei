@@ -141,7 +141,7 @@ namespace lore::tool::command::stat {
                     return;
                 }
 
-                // typedef and `using` alias declarations are handled identically; both derive
+                // typedef and `using` alias declarations are handled identically. Both derive
                 // from TypedefNameDecl, so share one path.
                 const TypedefNameDecl *aliasDecl =
                     result.Nodes.getNodeAs<TypedefDecl>("typedefDecl");

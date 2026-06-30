@@ -22,7 +22,7 @@ namespace lore {
     ///
     /// Mirrors the `category[.level] = bool` grammar of Qt's QLoggingCategory rules. The category
     /// pattern may carry a single leading and/or trailing `*` wildcard, which is folded into a
-    /// match mode; `level == 0` means the rule applies to every level.
+    /// match mode. `level == 0` means the rule applies to every level.
     struct LoggingRule {
         enum MatchMode {
             Exact,    // "foo"   -> name == text
@@ -121,7 +121,7 @@ namespace lore {
         else
             rule.mode = LoggingRule::Exact;
 
-        // Wildcards are only supported at the ends; a leftover '*' is an unsupported pattern.
+        // Wildcards are only supported at the ends. A leftover '*' is an unsupported pattern.
         if (str::contains(pattern, '*'))
             return std::nullopt;
         if (rule.mode == LoggingRule::Exact && pattern.empty())
@@ -199,7 +199,7 @@ namespace lore {
     }
 
     static void defaultLogCategoryFilter(LogCategory *category) {
-        // Called by the registry with its lock held; reads LogRegistry::rules without re-locking.
+        // Called by the registry with its lock held. Reads LogRegistry::rules without re-locking.
         auto &reg = *LogRegistry::instance();
         std::string_view name = category->name() ? category->name() : "";
 

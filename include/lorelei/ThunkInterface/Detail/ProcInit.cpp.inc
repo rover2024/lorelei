@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 // Side aliases: "THIS" is the local side (its entry tables receive real invoke addresses),
-// "PEER" is the opposite side (only names now; addresses filled later by LoreExchangeContext).
+// "PEER" is the opposite side (only names now, with addresses filled later by LoreExchangeContext).
 #ifdef LORE_THUNK_HOST
 #  define _LORE_THUNK_THIS_ENTRY(x) x##_hostEntries
 #  define _LORE_THUNK_PEER_ENTRY(x) x##_guestEntries

@@ -164,7 +164,7 @@ namespace lore::tool::TLC {
             invokeMethod->setAccess(clang::AccessSpecifier::AS_public);
             invokeMethod->setImplicit(true);
 
-            // Without an overlay the invoke signature is the function's own; with one we rebuild
+            // Without an overlay the invoke signature is the function's own. With one we rebuild
             // synthetic parameters (arg1, arg2, ...) from the overlay's argument types.
             if (!overlayType) {
                 invokeMethod->setParams(fd->parameters());

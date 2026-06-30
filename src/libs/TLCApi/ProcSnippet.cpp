@@ -18,7 +18,7 @@ namespace lore::tool::TLC {
 
         auto &ast = document().ast();
         const char *procTemplateName = isFunction() ? "ProcFn" : "ProcCb";
-        // Functions are referenced by global-qualified name; callbacks by their plain alias name.
+        // Functions are referenced by global-qualified name, callbacks by their plain alias name.
         const std::string procName = isFunction() ? ("::" + m_name) : m_name;
         const char *directionName = (m_direction == GuestToHost) ? "GuestToHost" : "HostToGuest";
         const char *phaseName = phase == Entry ? "Entry" : (phase == Adapt ? "Adapt" : "Caller");
@@ -73,7 +73,7 @@ namespace lore::tool::TLC {
         } else {
             assert(m_functionPointerType.has_value());
 
-            // Callbacks have no own name; fall back to the typedef name when no hint is given.
+            // Callbacks have no own name, so fall back to the typedef name when no hint is given.
             if (!nameHint.empty()) {
                 m_name = nameHint;
             } else if (const auto *typedefType =

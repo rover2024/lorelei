@@ -16,7 +16,7 @@ namespace lore {
     /// Calling \c thunk_instr loads this instance's address into the platform scratch register and
     /// jumps to the table's shared \c jump_instr, which recovers \c saved_function into that register
     /// and tail-jumps to the table's \a target, so the target learns which original function was
-    /// invoked from that register (\c %r11 on x86_64; see the per-arch \c Trampoline_codegen_*). The
+    /// invoked from that register (\c %r11 on x86_64, see the per-arch \c Trampoline_codegen_*). The
     /// \c magic_sign tags the block so guard code holding only the stub address can recognize it as
     /// one of ours and recover the original \c saved_function (e.g. to undo a decayed function pointer
     /// back to its real address, or to revert a callback that has crossed back over the boundary).
@@ -24,7 +24,7 @@ namespace lore {
         /// The original function this stub stands in for. Restored into the scratch register just
         /// before control reaches the table's target.
         void *saved_function;
-        /// Per-instance executable stub; its address is the surrogate function pointer handed out.
+        /// Per-instance executable stub. Its address is the surrogate function pointer handed out.
         char thunk_instr[16]; // lea -7(%rip), %r11; jmp jump_instr
         /// Sentinel identifying this block as one of our trampolines, so the stub address can be
         /// detected and reverted to \c saved_function.
@@ -44,7 +44,7 @@ namespace lore {
         struct FunctionTrampoline trampoline[];
 
         /// Allocate an executable table of \a count trampolines that all route to \a target, each
-        /// stamped with \a magic_sign. Every instance starts with a null \c saved_function; fill it
+        /// stamped with \a magic_sign. Every instance starts with a null \c saved_function. Fill it
         /// in before handing out the stub.
         static FunctionTrampolineTable *create(size_t count, void *target, uintptr_t magic_sign);
 

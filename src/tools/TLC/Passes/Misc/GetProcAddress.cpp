@@ -58,7 +58,7 @@ namespace lore::tool::TLC {
             auto argTypes = view.argTypes();
             if (!argTypes.empty()) {
                 // The proc-name string is conventionally the last parameter (e.g. the `name` of
-                // *GetProcAddress); recognise it by its char-pointer type.
+                // *GetProcAddress). Recognise it by its char-pointer type.
                 auto maybeNameType = argTypes.back();
                 if (isCharPointerType(maybeNameType)) {
                     msg = std::make_unique<GetProcAddressMessage>(argTypes.size());

@@ -28,11 +28,11 @@ namespace lore::thunk {
     enum ProcPhase {
         Entry,  ///< Wire boundary: converts the raw \c args[] buffer to and from typed arguments.
         Adapt,  ///< Typed adaptation injected by the non-Builder passes (callback substitution,
-                ///< type/handle filtering, GetProcAddress); a pass-through skeleton by default.
+                ///< type/handle filtering, GetProcAddress), a pass-through skeleton by default.
         Caller, ///< Constructs the actual call (default forwarding, or the printf wrapper).
         Exec,   ///< The real library call, or the cross-boundary invoke into the other side.
         NumProcPhase,
-        /// \note The generator emits only Entry, Adapt and Caller; \c Exec is fixed boilerplate,
+        /// \note The generator emits only Entry, Adapt and Caller. \c Exec is fixed boilerplate,
         /// so its value (3) also serves as the count of generated phases (the per-phase arrays are
         /// sized to \c Exec).
     };
@@ -51,13 +51,13 @@ namespace lore::thunk {
 
     /// StaticThunkContext - The per-manifest cross-side contract shared by the guest and host.
     ///
-    /// Each side fills its own entries; at exchange time the guest and host copy each other's
+    /// Each side fills its own entries, and at exchange time the guest and host copy each other's
     /// tables so both can resolve the other side's proc addresses.
     struct StaticThunkContext {
-        /// The guest-side entries, indexed by [kind][direction]; populated in the generated guest
+        /// The guest-side entries, indexed by [kind][direction], populated in the generated guest
         /// code.
         ProcArrayRef guestProcs[NumProcKind][NumProcDirection];
-        /// The host-side entries, indexed by [kind][direction]; assigned in the initializer.
+        /// The host-side entries, indexed by [kind][direction], assigned in the initializer.
         ProcArrayRef hostProcs[NumProcKind][NumProcDirection];
         /// This side's real library functions, resolved via \c dlsym from the host library when
         /// \c autoLink is false (used by \c ProcFn<GuestToHost, Exec>).

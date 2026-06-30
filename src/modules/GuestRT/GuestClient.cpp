@@ -96,7 +96,8 @@ namespace lore::mod {
                                                const CForwardThunkInfo &thunkInfo,
                                                const char *name) {
         const char *path = thunkInfo.guestThunk;
-        // Prefer the already-loaded copy (RTLD_NOLOAD); only actually dlopen it if it isn't mapped.
+        // Prefer the already-loaded copy (RTLD_NOLOAD), and only actually dlopen it if it isn't
+        // mapped.
         void *handle = dlopen(path, RTLD_NOW | RTLD_NOLOAD);
         if (!handle) {
             handle = dlopen(path, RTLD_NOW);
@@ -140,8 +141,8 @@ namespace lore::mod {
             return convertHostProcAddress_helper(hostLibPath, *thunkInfo.forward, name);
         }
 
-        // A reversed entry lists several candidate forward thunks; try each until one resolves the
-        // symbol.
+        // A reversed entry lists several candidate forward thunks, so try each until one resolves
+        // the symbol.
         const auto *reversedThunks = thunkInfo.reversed->thunks;
         for (size_t i = 0; i < thunkInfo.reversed->thunksCount; ++i) {
             const char *thunk = reversedThunks[i];
@@ -235,7 +236,7 @@ namespace lore::mod {
         std::ignore = invokeHost(DS_InvokeFunction, opaque);
         // The host returns 1 whenever it needs the guest to run a reentry (a host-to-guest callback,
         // thread create/exit, ...) before the original call can finish. We execute the reentry
-        // described by `ra`, then resume the host; this repeats for nested reentries until it
+        // described by `ra`, then resume the host. This repeats for nested reentries until it
         // returns 0, meaning the original invocation is complete.
         while (ret != 0) {
             assert(ret == 1 && ra != nullptr);
@@ -274,7 +275,7 @@ namespace lore::mod {
                     pthread_cond_init(&info.cond, nullptr);
 
                     // Spawn the guest thread, then block until newThreadEntry signals that it has
-                    // copied `info` out; only then is it safe to let this stack frame unwind.
+                    // copied `info` out. Only then is it safe to let this stack frame unwind.
                     int rc = pthread_create(
                         &info.thread, reinterpret_cast<pthread_attr_t *>(ra->threadCreate.attr),
                         newThreadEntry, &info);

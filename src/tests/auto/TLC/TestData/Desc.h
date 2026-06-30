@@ -16,7 +16,7 @@ namespace lore::thunk {
     // Only the two functions that have neither a telling name nor a format attribute need a
     // descriptor. The pass parameters are <FormatIndex, VariadicIndex>, counted from 1: the format
     // string is the 2nd parameter and the variadic part (or the va_list) is the 3rd. le_emit is the
-    // `...` form (printf); le_vemit is the va_list form (vprintf).
+    // `...` form (printf), and le_vemit is the va_list form (vprintf).
     template <>
     struct ProcFnDesc<::le_emit> {
         _DESC pass::printf<2, 3> builder_pass = {};

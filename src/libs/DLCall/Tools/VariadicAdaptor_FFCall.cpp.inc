@@ -51,8 +51,8 @@ namespace lore {
                 break;
             }
             case CVargType_ULongLong: {
-                // ffcall has no av_start_ulonglong; signedness of the return slot is irrelevant to
-                // the ABI (same width, same register), so reuse the signed longlong starter.
+                // ffcall has no av_start_ulonglong, and signedness of the return slot is irrelevant
+                // to the ABI (same width, same register), so reuse the signed longlong starter.
                 av_start_longlong(*list, func, &entry->ull);
                 break;
             }
@@ -96,8 +96,8 @@ namespace lore {
                 break;
             }
             case CVargType_UInt: {
-                // av_int and av_uint occupy the same register slot; the unsigned value rides in the
-                // signed int macro without ABI difference.
+                // av_int and av_uint occupy the same register slot, so the unsigned value rides in
+                // the signed int macro without ABI difference.
                 av_int(*list, entry->u);
                 break;
             }
@@ -165,7 +165,7 @@ namespace lore {
                 avcall_arg_helper(&alist, argv1 + i);
             }
 #if defined(__x86_64__) || (defined(__riscv) && __riscv_xlen == 64)
-            // x86_64 and riscv64 have a pointer-like va_list, so forward it as a plain pointer; the
+            // x86_64 and riscv64 have a pointer-like va_list, so forward it as a plain pointer. The
             // by-value struct form is for ABIs (aarch64) whose va_list is a real multi-field struct.
             av_ptr(alist, void *, ap);
 #else

@@ -127,7 +127,7 @@ namespace lore::tool::TLC {
         // may have reshaped: LibCFormat collapses a variadic / va_list tail into a single
         // `CVargEntry *vargs`. Using the real signature's names would emit a stale `arg3` for that
         // renamed parameter and fail to compile. Take the names from the Adapt source's functionInfo,
-        // which the builder filled in (== the real signature for an ordinary function); fall back to
+        // which the builder filled in (== the real signature for an ordinary function). Fall back to
         // the real signature only if no builder populated it (a null return type marks a default,
         // unset FunctionInfo, distinct from a populated one for a void / zero-argument function).
         FunctionInfo FI = real;
@@ -173,7 +173,7 @@ namespace lore::tool::TLC {
         };
 
         // Emit the filter on both sender (X) and receiver (Y) Adapt layers so the same translation
-        // applies regardless of call direction; only one side is non-empty per document mode.
+        // applies regardless of call direction. Only one side is non-empty per document mode.
         for (const auto &idx : message.filteredArgIndexes) {
             XADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));
             YADP.body.forward.push_back(key, SRC_asIs(getArgFilterStatement(idx)));

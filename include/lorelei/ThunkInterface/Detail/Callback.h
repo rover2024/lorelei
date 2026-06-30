@@ -58,7 +58,7 @@ namespace lore::thunk {
     /// offset.
     static constexpr const uintptr_t kTrampolineMagic = 0x0B0F0B0F0B0F0B0FULL;
 
-    /// GlobalTrampolineContext - Empty default \c Context for \c allocCallbackTrampoline; it
+    /// GlobalTrampolineContext - Empty default \c Context for \c allocCallbackTrampoline. It
     /// selects a single shared (thread-local) trampoline table per callback signature rather than
     /// a per-context one.
     struct GlobalTrampolineContext {};
@@ -114,7 +114,7 @@ namespace lore::thunk {
 
     /// CallbackContext - Tracks one substituted callback so it can be wrapped before a call and
     /// restored after. \c init wraps a foreign callback in a receiver-callable trampoline and records
-    /// the original at \c p_fp / \c org_fp; \c fini restores it. A default-constructed context (no
+    /// the original at \c p_fp / \c org_fp, and \c fini restores it. A default-constructed context (no
     /// init, or init that found nothing to wrap) carries a null \c org_fp and fini() is then a no-op.
     struct CallbackContext {
         void **p_fp = nullptr;
@@ -144,7 +144,7 @@ namespace lore::thunk {
         }
 
         /// Restore the caller's original pointer into the slot \c init wrapped. In callbacks call
-        /// this after the call; out callbacks keep the wrapped value and never call it.
+        /// this after the call. Out callbacks keep the wrapped value and never call it.
         void fini() {
             if (org_fp) {
                 *p_fp = org_fp;

@@ -49,7 +49,7 @@ namespace lore::mod {
 
     public:
         /// Reenter the guest with a specific reentry convention. Called by host-side thunk code
-        /// when a host function needs to call back into guest code mid-invocation; delegates to the
+        /// when a host function needs to call back into guest code mid-invocation. Delegates to the
         /// runtime's coroutine-based invocation machinery. The \c reenter* helpers below build the
         /// \c ReentryArguments for each convention and forward here.
         static void reenter(ReentryArguments *ra);

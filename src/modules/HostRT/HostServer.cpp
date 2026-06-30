@@ -119,7 +119,7 @@ namespace lore::mod {
     }
 
     bool HostServer::isHostAddressNaive(void *addr) {
-        // dladdr resolves addresses backed by a loaded module; guest addresses are not, so a
+        // dladdr resolves addresses backed by a loaded module, and guest addresses are not, so a
         // failed lookup (return 0) means the address is host-side.
         Dl_info info;
         return dladdr(addr, &info) == 0;
@@ -136,7 +136,7 @@ namespace lore::utils {
     // Call the host function described by `ia` according to its calling convention, unpacking the
     // boxed arguments/return slot. Returns 0 on success, -1 for an unknown convention.
     int Invocation::invokeByConv(const InvocationArguments *ia) {
-        // The coroutine layer hands us the opaque Invocation::InvocationArguments base; downcast to
+        // The coroutine layer hands us the opaque Invocation::InvocationArguments base. Downcast to
         // the concrete protocol layout that carries the per-convention argument boxes.
         const auto ia1 = static_cast<const lore::InvocationArguments *>(ia);
         switch (ia1->conv) {
@@ -184,7 +184,7 @@ namespace lore::utils {
 /// here by the dlcall plugin, which calls \c LoreCommonHostEntry(secondaryId, payload):
 /// \a secondaryId is a \c lore::DLCallSecondaryID selecting the operation, and \a payload is that
 /// operation's argument block. Each block layout below mirrors how \c lore::mod::GuestClient packs
-/// it; results are written back through the out-pointers it contains.
+/// it. Results are written back through the out-pointers it contains.
 extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *payload) {
     using namespace lore;
     using namespace lore::mod;
@@ -205,7 +205,7 @@ extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *p
             break;
         }
 
-        // payload: int *outRet -- resume the invocation the guest just serviced a reentry for, and
+        // payload: int *outRet. Resume the invocation the guest just serviced a reentry for, and
         // report its new status (1 = another reentry pending, 0 = complete), like DS_InvokeFunction.
         case DS_ResumeFunction: {
             auto ret = reinterpret_cast<int *>(payload);

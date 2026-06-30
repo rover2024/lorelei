@@ -27,7 +27,7 @@ namespace lore::tool {
             }
         }
 
-        /// Builds from a FunctionTypeView; argument names are left empty.
+        /// Builds from a FunctionTypeView. Argument names are left empty.
         FunctionInfo(const FunctionTypeView &view);
 
         /// Builds from an explicit return type, (type, name) argument list, and variadic flag.

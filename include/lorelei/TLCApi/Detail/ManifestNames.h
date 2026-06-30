@@ -16,7 +16,7 @@ namespace lore::tool::TLC::names {
     inline constexpr const char *ProcReturnFilter = "ProcReturnFilter";
     inline constexpr const char *PassTagList = "PassTagList";
 
-    // Namespace TLC generates callback type aliases into; matched as a qualified-name prefix.
+    // Namespace TLC generates callback type aliases into, matched as a qualified-name prefix.
     inline constexpr const char *BridgeNamespacePrefix = "lore::thunk::__bridge__::";
 
     // Static members of a ProcFnDesc / ProcCbDesc specialization.

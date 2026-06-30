@@ -52,8 +52,8 @@ namespace {
 
 BOOST_AUTO_TEST_SUITE(test_STLTraitExtras)
 
-// All of the checks above are static_asserts evaluated at compile time; this case exists so the
-// test binary registers and runs. Reaching it means every trait expectation held.
+// All of the checks above are static_asserts evaluated at compile time, so this case exists only so
+// the test binary registers and runs. Reaching it means every trait expectation held.
 BOOST_AUTO_TEST_CASE(compile_time_traits_hold) {
     BOOST_TEST(true);
 }

@@ -64,7 +64,7 @@ extern "C" {
     /// glibc does for vprintf): auto-detected, no descriptor.
     void le_vemit_attr(int channel, const char *fmt, va_list ap) __attribute__((format(printf, 2, 0)));
 
-    /// Takes and returns long double. The guest passes the x86 80-bit extended representation; on
+    /// Takes and returns long double. The guest passes the x86 80-bit extended representation. On
     /// a host whose long double differs, a type filter converts it on the way in and out.
     long double le_mix(long double a, long double b);
 
@@ -87,7 +87,7 @@ extern "C" {
         struct le_node3 *child_ptr;
     };
 
-    /// Level 1 (outermost) node: the same shape one level up; the argument to le_visit.
+    /// Level 1 (outermost) node: the same shape one level up, the argument to le_visit.
     struct le_node1 {
         int tag;
         le_visit_fn cb;

@@ -238,7 +238,7 @@ namespace lore {
 
         // --- Swap -----------------------------------------------------------------------------
 
-        /// Swaps contents with \c RHS. Two heap-backed arrays just trade buffers; otherwise the
+        /// Swaps contents with \c RHS. Two heap-backed arrays just trade buffers. Otherwise the
         /// shared elements are swapped and the longer one's tail is moved over, since neither can
         /// trade away its own inline buffer.
         void swap(VarSizeArrayBase &RHS) {
@@ -274,7 +274,7 @@ namespace lore {
         explicit VarSizeArrayBase(const Alloc &alloc) : m_alloc(alloc) {
         }
 
-        // Frees the heap buffer (if any) on the way out; derived adds no owning members.
+        // Frees the heap buffer (if any) on the way out. Derived adds no owning members.
         ~VarSizeArrayBase() {
             destroyRange(0, m_size);
             if (!isInline())
@@ -303,7 +303,7 @@ namespace lore {
                 return;
             resetToInline();
             if (!RHS.isInline()) {
-                // Steal the heap buffer outright; its elements come along with it.
+                // Steal the heap buffer outright. Its elements come along with it.
                 m_begin = RHS.m_begin;
                 m_size = RHS.m_size;
                 m_capacity = RHS.m_capacity;
@@ -400,7 +400,7 @@ namespace lore {
     /// VarSizeArray - A dynamic array with N elements of inline (pre-allocated) storage.
     ///
     /// Behaves like a small \c std::vector that stays off the heap until it holds more than N
-    /// elements. All the behavior lives in \c VarSizeArrayBase<T, Alloc>; this layer only adds the
+    /// elements. All the behavior lives in \c VarSizeArrayBase<T, Alloc>. This layer only adds the
     /// inline buffer, so a \c VarSizeArray<T, N> binds to \c VarSizeArrayBase<T> & regardless of N.
     template <class T, std::size_t N = 4, class Alloc = std::allocator<T>>
     class VarSizeArray : public VarSizeArrayBase<T, Alloc> {

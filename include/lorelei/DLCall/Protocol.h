@@ -7,7 +7,7 @@
 /// \brief Wire protocol shared by both ends of the DLCall bridge.
 ///
 /// The guest (\c lore::mod::GuestClient) encodes requests this way and issues them through the
-/// magic syscall; the host (\c LoreCommonHostEntry) decodes and serves them. Everything here is
+/// magic syscall, and the host (\c LoreCommonHostEntry) decodes and serves them. Everything here is
 /// plain-old-data so it can cross the guest/host boundary unchanged.
 
 namespace lore {
@@ -17,7 +17,7 @@ namespace lore {
     static constexpr int DLCallSyscallNumber = 4096;
 
     /// DLCallRequestID - Selects the operation for a DLCall syscall (its first argument). The
-    /// library-management IDs are served by the \c dlcall plugin itself; \c DR_InvokeProc calls a
+    /// library-management IDs are served by the \c dlcall plugin itself. \c DR_InvokeProc calls a
     /// host function pointer, which the runtime aims at the host common entry to reach the
     /// operations in \c DLCallSecondaryID.
     enum DLCallRequestID {
@@ -26,11 +26,11 @@ namespace lore {
         DR_GetProcAddress,   ///< dlsym a symbol from a host library.
         DR_FreeLibrary,      ///< dlclose a host library.
         DR_GetLibraryError,  ///< Fetch the last dynamic-linker error (dlerror).
-        DR_InvokeProc,       ///< Call a host function pointer; secondary op selected per below.
+        DR_InvokeProc,       ///< Call a host function pointer, secondary op selected per below.
     };
 
     /// DLCallSecondaryID - Selects the host-runtime operation carried inside a \c DR_InvokeProc
-    /// request whose target is the host common entry (\c LoreCommonHostEntry); passed as that
+    /// request whose target is the host common entry (\c LoreCommonHostEntry), passed as that
     /// call's first operand.
     enum DLCallSecondaryID {
         DS_InvokeFunction, ///< Invoke a host function (starts the reentry loop).

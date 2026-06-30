@@ -31,7 +31,7 @@ namespace {
         }
     };
 
-    // A throwaway directory for the auto-discovery tests; creates empty marker files on demand.
+    // A throwaway directory for the auto-discovery tests. Creates empty marker files on demand.
     struct TempDir {
         std::filesystem::path path;
 
@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_CASE(reversed_basic_fields_and_lookup) {
 }
 
 BOOST_AUTO_TEST_CASE(reversed_skips_invalid_entries) {
-    // A reversed entry needs both name and fileName; otherwise it is dropped.
+    // A reversed entry needs both name and fileName, otherwise it is dropped.
     TempJson j(R"({
         "reversedThunks": [
             { "fileName": "noname.so" },
@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE(autodiscovery_does_not_duplicate_explicit_entry) {
     gtl.touch("foo.so");
     htl.touch("foo_HTL.so");
 
-    // foo is also declared explicitly; the scan must not add a second copy.
+    // foo is also declared explicitly, so the scan must not add a second copy.
     TempJson j(R"({ "forwardThunks": [
         { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
 
@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE(autodiscovery_does_not_duplicate_explicit_entry) {
     BOOST_TEST(db.forwardThunks().size() == 1u);
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
-    // The explicit paths win; the discovered ones are not appended.
+    // The explicit paths win, and the discovered ones are not appended.
     BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
 }
 

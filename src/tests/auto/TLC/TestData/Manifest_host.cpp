@@ -12,7 +12,7 @@
 namespace lore::thunk {
 
     // le_mix takes and returns long double, which the guest passes as the x86 80-bit extended
-    // representation. These type filters convert it to and from the host's native long double; the
+    // representation. These type filters convert it to and from the host's native long double. The
     // TypeFilter pass discovers them and injects them into the Adapt layer of every proc that has a
     // long double argument or return. A plain pass-through manifest cannot express this, because the
     // conversion has to happen after Entry has unpacked the raw bytes but before the real call.

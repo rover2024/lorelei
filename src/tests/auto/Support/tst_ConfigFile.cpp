@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(parses_global_and_sections) {
     BOOST_TEST(cf.contains("flags"));
     BOOST_TEST(!cf.contains("missing"));
 
-    // Keys before the first header live in the global section; quotes are stripped.
+    // Keys before the first header live in the global section, and quotes are stripped.
     BOOST_TEST(cf.global().getString("appname").value() == "lorelei");
 
     // A bare key (no '=') is present with an empty value.
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(duplicate_key_last_value_wins) {
     auto server = cf.get("server");
     BOOST_TEST(server.has_value());
 
-    // 'port' is assigned twice; the later assignment overwrites, in place.
+    // 'port' is assigned twice, and the later assignment overwrites, in place.
     BOOST_TEST(server->get().getInt("port").value() == 9090);
 }
 

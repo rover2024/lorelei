@@ -89,7 +89,7 @@ namespace lore {
         HostRuntime() {
             if (const char *levelStr = std::getenv("LORELEI_HOST_LOG_LEVEL")) {
                 level = std::atoi(levelStr);
-                // atoi returns 0 for non-numeric or empty input; treat that as "use the default".
+                // atoi returns 0 for non-numeric or empty input, so treat that as "use the default".
                 if (level == 0) {
                     level = Logger::Information;
                 }

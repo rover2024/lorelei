@@ -154,7 +154,7 @@ namespace lore::utils {
     int64_t HostExecContext::invocationEntry(void *arg1, void *arg2) {
         // state lives on this coroutine's stack and is registered as the invocation's saved context.
         // It stays valid for the whole call because the coroutine stack is never unwound while the
-        // invocation is merely suspended; it is only torn down once invokeByConv returns below.
+        // invocation is merely suspended. It is only torn down once invokeByConv returns below.
         RegState state;
         thread_ctx.pushInvocation(reinterpret_cast<ReentryArguments **>(arg2), &state);
 

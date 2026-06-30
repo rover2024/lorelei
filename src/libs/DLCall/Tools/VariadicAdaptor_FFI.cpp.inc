@@ -32,7 +32,7 @@ namespace lore {
             case CVargType_UInt:
                 return &ffi_type_uint32;
             case CVargType_Long:
-                // long is 32-bit on LLP64 (Windows) and 64-bit on LP64 (Linux/macOS); pick the ffi
+                // long is 32-bit on LLP64 (Windows) and 64-bit on LP64 (Linux/macOS). Pick the ffi
                 // type by the host's actual width so the register/stack slot size matches the ABI.
                 return sizeof(long) == 4 ? &ffi_type_sint32 : &ffi_type_sint64;
             case CVargType_ULong:
@@ -143,7 +143,7 @@ namespace lore {
         }
 
         // Prepare va_list argument. On the supported LP64 targets va_list decays to a pointer when
-        // passed by value, so describe it as ffi_type_pointer; arg_values wants the address of the
+        // passed by value, so describe it as ffi_type_pointer. arg_values wants the address of the
         // value, hence &ap (a pointer to the va_list, i.e. the pointer-sized argument slot).
         arg_types[argc1] = &ffi_type_pointer;
         arg_values[argc1] = &ap;
