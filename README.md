@@ -6,6 +6,8 @@
 
 Lorelei is a cross-ISA compatibility layer that lets an emulated guest program call the host's native libraries directly, so heavy work like graphics and compute runs at native speed instead of being emulated one instruction at a time.
 
+Box64 and FEX pioneered this kind of native-library pass-through, building the thunks into their own dynamic binary translators. Lorelei carries the approach further: it decouples the mechanism from any specific DBT, generates the thunks automatically from a library's headers instead of writing them by hand, and ports it to QEMU.
+
 ## How It Works
 
 Lorelei runs the guest under a patched build of QEMU's user-mode emulation, forced to `guest_base == 0` so a guest pointer and a host pointer are the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
