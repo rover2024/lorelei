@@ -32,7 +32,7 @@ namespace lore::tool::TLC {
     /// source paths, and the set of requested procs), the AST data collected from the translation
     /// unit, the ProcSnippet models the passes operate on, and the document-level source fragments
     /// the pipeline emits. The begin/handle/end hooks carry one translation unit through collection
-    /// and the pass pipeline; generateOutput() then serializes the result.
+    /// and the pass pipeline. generateOutput() then serializes the result.
     class LORETLCAPI_EXPORT DocumentContext {
     public:
         /// The side a manifest is generated for.
@@ -41,7 +41,7 @@ namespace lore::tool::TLC {
             Host,
         };
 
-        /// The procs the caller asked TLC to generate; used to filter AST collection.
+        /// The procs the caller asked TLC to generate, used to filter AST collection.
         struct RequestedProcData {
             std::array<std::set<std::string>, ProcSnippet::NumProcKind> functions;
             std::map<std::string /* signature */, std::string /* name */> callbacks;
@@ -72,13 +72,29 @@ namespace lore::tool::TLC {
             m_requestedProcData = std::move(interestedProcData);
         }
 
-        /// Instantiates the pass pipeline for this source file; a returned error aborts the action.
+        /// Instantiates the pass pipeline for this source file. Mapped to the frontend action's
+        /// \c BeginSourceFileAction (before the parse). A reported error aborts the action.
         void beginSourceFileAction(clang::CompilerInstance &CI);
 
-        /// Collects the requested procs and their metadata from the parsed AST.
+        /// Opens document processing: collects the requested procs and their metadata from the
+        /// parsed AST, then runs each pass's \c beginProcessDocument hook.
+        void beginProcessDocument(clang::ASTContext &ast);
+
+        /// Runs each pass's \c handleTranslationUnit hook over the collected procs, before any
+        /// per-proc work.
         void handleTranslationUnit(clang::ASTContext &ast);
 
-        /// Runs the Builder/Guard/Misc passes over the collected procs.
+        /// Closes document processing: runs the Builder/Guard/Misc passes over the collected procs,
+        /// then each pass's \c endProcessDocument hook. This trio (\c beginProcessDocument,
+        /// \c handleTranslationUnit, this) all runs from the AST consumer, not the action's
+        /// \c EndSourceFileAction, so the AST and the diagnostic renderer are still alive while the
+        /// passes run and any error they report can carry a source location. \c generateOutput
+        /// follows.
+        void endProcessDocument();
+
+        /// Closes the source file. Mapped to the frontend action's \c EndSourceFileAction. The
+        /// document work is already done by this point (see \c endProcessDocument). Kept as the
+        /// lifecycle counterpart of \c beginSourceFileAction.
         void endSourceFileAction();
 
         /// Serializes the generated thunk translation unit into \c os.
@@ -127,7 +143,7 @@ namespace lore::tool::TLC {
         }
 
     protected:
-        // generateOutput helpers; each appends one section of the generated TU to `os`.
+        // generateOutput helpers. Each appends one section of the generated TU to `os`.
         void emitManifestPrologue(llvm::raw_ostream &os) const;
         void emitExportedAliases(llvm::raw_ostream &os) const;
         void emitForeachMacros(llvm::raw_ostream &os) const;
@@ -141,7 +157,8 @@ namespace lore::tool::TLC {
 
         // AST data
         clang::ASTContext *m_ast = nullptr;
-        std::array<std::map<std::string, const clang::FunctionDecl *>, ProcSnippet::NumProcDirection>
+        std::array<std::map<std::string, const clang::FunctionDecl *>,
+                   ProcSnippet::NumProcDirection>
             m_functionDecls;
         std::map<std::string, FunctionPointerTypeInfo> m_callbackTypes;
 

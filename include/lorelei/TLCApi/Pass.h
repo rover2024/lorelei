@@ -29,9 +29,9 @@ namespace lore::tool::TLC {
     /// Pass - Base class of a TLC generate pass.
     ///
     /// A pass transforms one document's procs during \c generate. The pipeline drives each pass
-    /// through this lifecycle:
-    /// 1. \c handleTranslationUnit
-    /// 2. \c beginProcessDocument
+    /// through this lifecycle. \c beginProcessDocument and \c endProcessDocument bracket the work:
+    /// 1. \c beginProcessDocument
+    /// 2. \c handleTranslationUnit
     /// 3. per proc: \c testProc -> \c beginHandleProc -> \c endHandleProc
     /// 4. \c endProcessDocument
     ///
@@ -39,7 +39,7 @@ namespace lore::tool::TLC {
     ///
     /// Error reporting. A pass does not return errors. It reports them through the Clang
     /// \c DiagnosticsEngine, reached via \c proc.document().ast().getDiagnostics() (or
-    /// \c doc.ast().getDiagnostics() in the document-level hooks) -- the same engine that carries
+    /// \c doc.ast().getDiagnostics() in the document-level hooks), the same engine that carries
     /// the parse's own errors. Emit one with \c Error severity, located at the offending
     /// declaration when there is one. The pipeline checks \c DiagnosticsEngine::hasErrorOccurred()
     /// after every hook and stops, so a hook should return promptly once it has reported. This is
@@ -71,16 +71,17 @@ namespace lore::tool::TLC {
         /// A short human-readable name, used in diagnostics.
         virtual std::string name() const = 0;
 
-        /// Hook run while the translation unit AST is being handled, before any proc is processed.
-        /// A good place for document-scope setup (e.g. resolving a type the pass relies on); report
-        /// errors via \c doc.ast().getDiagnostics() (see the class note).
-        virtual void handleTranslationUnit(DocumentContext &doc) {
+        /// Hook run first, opening the document's processing, before \c handleTranslationUnit and the
+        /// per-proc work. Report errors via the document's \c DiagnosticsEngine (see the class note).
+        virtual void beginProcessDocument(DocumentContext &doc) {
             (void) doc;
         }
 
-        /// Hook run before the document's procs are processed. Report errors via the document's
-        /// \c DiagnosticsEngine (see the class note).
-        virtual void beginProcessDocument(DocumentContext &doc) {
+        /// Hook run once the procs are collected and processing has opened (after
+        /// \c beginProcessDocument), before any proc is processed. A good place for document-scope
+        /// setup (e.g. resolving a type the pass relies on). Report errors via
+        /// \c doc.ast().getDiagnostics() (see the class note).
+        virtual void handleTranslationUnit(DocumentContext &doc) {
             (void) doc;
         }
 
@@ -91,15 +92,15 @@ namespace lore::tool::TLC {
         }
 
         /// Decides whether this pass should run on \a proc. May stash a \c PassMessage in \a msg
-        /// for the handle hooks below. A predicate only -- report problems from the handle hooks,
+        /// for the handle hooks below. A predicate only. Report problems from the handle hooks,
         /// which can locate them on the proc.
         virtual bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg);
 
-        /// Pre-body hook for one proc; runs before the proc's body is generated. Report errors via
+        /// Pre-body hook for one proc, run before the proc's body is generated. Report errors via
         /// the document's \c DiagnosticsEngine (see the class note).
         virtual void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) = 0;
 
-        /// Post-body hook for one proc; runs after the proc's body is generated. Report errors via
+        /// Post-body hook for one proc, run after the proc's body is generated. Report errors via
         /// the document's \c DiagnosticsEngine (see the class note).
         virtual void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) = 0;
 

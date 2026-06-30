@@ -4,6 +4,7 @@
 #include <lorelei/TLCApi/Pass.h>
 #include <lorelei/TLCApi/ProcSnippet.h>
 #include <lorelei/TLCApi/DocumentContext.h>
+#include <lorelei/TLCApi/Diagnostics.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 
 #include <clang/AST/Attr.h>
@@ -34,6 +35,7 @@ namespace lore::tool::TLC {
             return "LibCFormat";
         }
 
+        void handleTranslationUnit(DocumentContext &doc) override;
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
         void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
         void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
@@ -58,6 +60,29 @@ namespace lore::tool::TLC {
         indent -= 4;
         res += std::string(indent, ' ') + "};\n";
         return res;
+    }
+
+    void LibCFormatPass::handleTranslationUnit(DocumentContext &doc) {
+        auto &ast = doc.ast();
+        // The parse failed, or a sibling LibCFormat pass (the four printf/scanf variants each get
+        // this hook) already reported the same thing. Either way there is nothing to add.
+        if (ast.getDiagnostics().hasErrorOccurred()) {
+            return;
+        }
+
+        // The variadic thunks this builder emits name `CVargEntry` (from
+        // <lorelei/DLCall/Tools/VariadicArgDefs.h>) as bare text, not a resolved AST type, so a
+        // manifest that does not make the type visible would only break much later, at the generated
+        // TU's own compile, with an opaque "'CVargEntry' undeclared". Verify it once here, at document
+        // scope, rather than per proc. A well-formed manifest always has it: the manifest entry inc
+        // pulls the header in transitively.
+        auto &ident = ast.Idents.get("CVargEntry");
+        if (ast.getTranslationUnitDecl()->lookup(DeclarationName(&ident)).empty()) {
+            reportError(ast.getDiagnostics(), SourceLocation{},
+                        "the manifest does not include "
+                        "<lorelei/DLCall/Tools/VariadicArgDefs.h>, which provides 'CVargEntry' for "
+                        "the printf/scanf-style thunk builders");
+        }
     }
 
     bool LibCFormatPass::testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
@@ -249,7 +274,7 @@ namespace lore::tool::TLC {
         ProcSnippet::ProcSource emptyCAL;
 
         // Route the live ProcSource to the side matching the document mode (the other side gets a
-        // throw-away `empty*`); X* is the sender side and Y* the receiver side. See DefaultBuilder.
+        // throw-away `empty*`). X* is the sender side and Y* the receiver side. See DefaultBuilder.
         auto &GENT = isHost ? emptyENT : ENT;
         auto &GADP = isHost ? emptyADP : ADP;
         auto &GCAL = isHost ? emptyCAL : CAL;
@@ -287,7 +312,7 @@ namespace lore::tool::TLC {
         };
 
         // Adapt is a typed pass-through between Entry and Caller (here the normalized,
-        // varg-carrying signature); non-Builder passes inject into its forward/backward.
+        // varg-carrying signature). Non-Builder passes inject into its forward/backward.
 
         const auto &addVAStartEnd = [](const std::string &fixedArgToken, const std::string &content,
                                        int indent = 4) {

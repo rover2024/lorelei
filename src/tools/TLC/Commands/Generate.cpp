@@ -90,8 +90,40 @@ namespace lore::tool::command::generate {
 
     class MyASTConsumer : public ASTConsumer {
     public:
+        // The whole generation pipeline runs here, while the AST consumer is still active. Doing it
+        // from the frontend action's EndSourceFileAction instead would tear down the diagnostic
+        // renderer first, so any located diagnostic a pass reported there would crash. Each step may
+        // report an error on the diagnostics engine (see Pass's class note), so stop the moment one
+        // has.
         void HandleTranslationUnit(ASTContext &ast) override {
-            g_ctx().doc.handleTranslationUnit(ast);
+            auto &doc = g_ctx().doc;
+            DiagnosticsEngine &DE = ast.getDiagnostics();
+
+            doc.beginProcessDocument(ast);
+            if (DE.hasErrorOccurred()) {
+                return;
+            }
+
+            doc.handleTranslationUnit(ast);
+            if (DE.hasErrorOccurred()) {
+                return;
+            }
+
+            doc.endProcessDocument();
+            if (DE.hasErrorOccurred()) {
+                return;
+            }
+
+            // Scoped so the stream flushes into outBuffer when it goes out of scope.
+            {
+                llvm::raw_string_ostream out(g_ctx().outBuffer);
+                out << llvm::format<const char *, const char *>(
+                           reinterpret_cast<const char *>(res_Warning_txt_c),
+                           g_ctx().manifestStatPath.c_str(), TOOL_VERSION)
+                    << "\n";
+                out << "\n";
+                doc.generateOutput(out);
+            }
         }
     };
 
@@ -107,30 +139,7 @@ namespace lore::tool::command::generate {
         }
 
         void EndSourceFileAction() override {
-            CompilerInstance &CI = getCompilerInstance();
-            DiagnosticsEngine &DE = CI.getDiagnostics();
-            if (DE.hasErrorOccurred()) {
-                return;
-            }
-
             g_ctx().doc.endSourceFileAction();
-
-            // A pass (or DocumentContext) may have reported an error on the diagnostics engine while
-            // the pipeline ran (see Pass's class note); do not emit output in that case.
-            if (DE.hasErrorOccurred()) {
-                return;
-            }
-
-            // Scoped so the stream flushes into outBuffer when it goes out of scope.
-            {
-                llvm::raw_string_ostream out(g_ctx().outBuffer);
-                out << llvm::format<const char *, const char *>(
-                           reinterpret_cast<const char *>(res_Warning_txt_c),
-                           g_ctx().manifestStatPath.c_str(), TOOL_VERSION)
-                    << "\n";
-                out << "\n";
-                g_ctx().doc.generateOutput(out);
-            }
         }
     };
 

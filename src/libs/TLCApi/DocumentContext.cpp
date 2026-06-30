@@ -78,7 +78,7 @@ namespace lore::tool::TLC {
         const Expr *initExpr = vd.getInit();
         if (!initExpr) {
             // An implicitly instantiated static data member (e.g. pass::printf<>::ID) carries no
-            // initializer of its own; it lives in the template it was instantiated from.
+            // initializer of its own. It lives in the template it was instantiated from.
             if (const VarDecl *pattern = vd.getInstantiatedFromStaticDataMember()) {
                 initExpr = pattern->getInit();
             }
@@ -239,7 +239,7 @@ namespace lore::tool::TLC {
         }
     }
 
-    void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
+    void DocumentContext::beginProcessDocument(clang::ASTContext &ast) {
         m_ast = &ast;
 
         ClassTemplateDecl *procFnTemplateDecl = nullptr;
@@ -536,17 +536,36 @@ namespace lore::tool::TLC {
             }
         }
 
+        // Run each pass's beginProcessDocument hook, opening the document's processing.
         for (int i = Pass::Builder; i < Pass::NumPhases; ++i) {
             auto phase = static_cast<Pass::Phase>(i);
             for (auto &[_, pass] : m_passMaps[phase]) {
                 if (pass) {
-                    pass->handleTranslationUnit(*this);
+                    pass->beginProcessDocument(*this);
+                    if (ast.getDiagnostics().hasErrorOccurred()) {
+                        return;
+                    }
                 }
             }
         }
     }
 
-    void DocumentContext::endSourceFileAction() {
+    void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
+        // Run each pass's handleTranslationUnit hook (document-scope setup that needs the full AST).
+        for (int i = Pass::Builder; i < Pass::NumPhases; ++i) {
+            auto phase = static_cast<Pass::Phase>(i);
+            for (auto &[_, pass] : m_passMaps[phase]) {
+                if (pass) {
+                    pass->handleTranslationUnit(*this);
+                    if (ast.getDiagnostics().hasErrorOccurred()) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    void DocumentContext::endProcessDocument() {
         struct RunPassTask {
             ProcSnippet *proc = nullptr;
             Pass *pass = nullptr;
@@ -566,7 +585,11 @@ namespace lore::tool::TLC {
                                 continue;
                             }
                             std::unique_ptr<PassMessage> msg;
-                            if (pass->testProc(proc, msg)) {
+                            bool matched = pass->testProc(proc, msg);
+                            if (m_ast->getDiagnostics().hasErrorOccurred()) {
+                                return;
+                            }
+                            if (matched) {
                                 runPassTasks.push_back(RunPassTask{&proc, pass, std::move(msg)});
                             }
                         }
@@ -595,7 +618,11 @@ namespace lore::tool::TLC {
                                 continue;
                             }
                             std::unique_ptr<PassMessage> msg;
-                            if (pass->testProc(proc, msg)) {
+                            bool matched = pass->testProc(proc, msg);
+                            if (m_ast->getDiagnostics().hasErrorOccurred()) {
+                                return;
+                            }
+                            if (matched) {
                                 runPassTasks.push_back(RunPassTask{&proc, pass, std::move(msg)});
                                 hasBuilder = true;
                                 break;
@@ -610,29 +637,24 @@ namespace lore::tool::TLC {
 
         };
 
-        // Begin document-level processing.
-        for (int i = Pass::Builder; i < Pass::NumPhases; ++i) {
-            auto phase = static_cast<Pass::Phase>(i);
-            for (auto &[_, pass] : m_passMaps[phase]) {
-                if (pass) {
-                    pass->beginProcessDocument(*this);
-                }
-            }
-        }
-        if (m_ast->getDiagnostics().hasErrorOccurred()) {
-            return;
-        }
-
-        // Select per-proc pass tasks.
+        // Select per-proc pass tasks. (Each pass's beginProcessDocument hook already ran in
+        // beginProcessDocument.)
         appendBuilderPassTasks();
         if (m_ast->getDiagnostics().hasErrorOccurred()) {
             return;
         }
+
         appendMultiMatchPassTasks(Pass::Guard);
+        if (m_ast->getDiagnostics().hasErrorOccurred()) {
+            return;
+        }
         appendMultiMatchPassTasks(Pass::Misc);
+        if (m_ast->getDiagnostics().hasErrorOccurred()) {
+            return;
+        }
 
         // Run begin hooks in order. A pass that hits an error reports it on the diagnostics engine
-        // (see Pass's class note); stop the moment one has, before doing any more work.
+        // (see Pass's class note), so stop the moment one has, before doing any more work.
         for (auto &task : runPassTasks) {
             task.pass->beginHandleProc(*task.proc, task.message);
             if (m_ast->getDiagnostics().hasErrorOccurred()) {
@@ -654,15 +676,21 @@ namespace lore::tool::TLC {
             for (auto &[_, pass] : m_passMaps[phase]) {
                 if (pass) {
                     pass->endProcessDocument(*this);
+                    if (m_ast->getDiagnostics().hasErrorOccurred()) {
+                        return;
+                    }
                 }
             }
         }
 
     }
 
+    void DocumentContext::endSourceFileAction() {
+    }
+
     static std::string legendLine(const std::string &name) {
         constexpr int kLegendWidth = 75;
-        // Pad both sides to center the name; assumes names are shorter than the banner width.
+        // Pad both sides to center the name, assuming names are shorter than the banner width.
         int eqCount = (kLegendWidth - name.size()) / 2;
         return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
     }
@@ -720,7 +748,7 @@ namespace lore::tool::TLC {
         os << "#pragma GCC diagnostic push\n";
         os << "#pragma GCC diagnostic ignored \"-Wattribute-alias\"\n";
 
-        // A host thunk exports the guest function under a GTL_-prefixed symbol; a guest thunk
+        // A host thunk exports the guest function under a GTL_-prefixed symbol. A guest thunk
         // exports the host function under its own name. Both alias the generated Entry invoke.
         const bool isHost = m_mode == Host;
         const auto direction = isHost ? ProcSnippet::HostToGuest : ProcSnippet::GuestToHost;

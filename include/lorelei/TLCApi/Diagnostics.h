@@ -14,11 +14,11 @@ namespace clang {
 
 namespace lore::tool::TLC {
 
-    /// Report a fatal lorelei error on \a de, prefixed with "lorelei: ". \a loc may be invalid for an
+    /// Report a fatal LoreTLC error on \a DE, prefixed with "LoreTLC: ". \a loc may be invalid for an
     /// error not tied to a source construct. Generate (passes and \c DocumentContext alike) reports
     /// every error this way: \c DiagnosticsEngine::hasErrorOccurred() is the pipeline's single failure
     /// signal, so there is no error-return channel to keep in sync.
-    LORETLCAPI_EXPORT void reportError(clang::DiagnosticsEngine &de, clang::SourceLocation loc,
+    LORETLCAPI_EXPORT void reportError(clang::DiagnosticsEngine &DE, clang::SourceLocation loc,
                                        const llvm::Twine &message);
 
 }
