@@ -43,6 +43,7 @@ namespace lore::tool::TLC {
     protected:
         bool m_scanf;
         bool m_hasVAList;
+        clang::QualType m_cvargEntryPtrType; // resolved `CVargEntry *`, set in handleTranslationUnit
     };
 
     static inline bool isCharPointerType(const clang::QualType &type) {
@@ -70,14 +71,20 @@ namespace lore::tool::TLC {
             return;
         }
 
-        // The variadic thunks this builder emits name `CVargEntry` (from
-        // <lorelei/DLCall/Tools/VariadicArgDefs.h>) as bare text, not a resolved AST type, so a
-        // manifest that does not make the type visible would only break much later, at the generated
-        // TU's own compile, with an opaque "'CVargEntry' undeclared". Verify it once here, at document
-        // scope, rather than per proc. A well-formed manifest always has it: the manifest entry inc
-        // pulls the header in transitively.
+        // Resolve CVargEntry (from <lorelei/DLCall/Tools/VariadicArgDefs.h>) to a real AST type, so
+        // the generated thunk's packed `vargs` parameter carries `CVargEntry *` as a resolved type
+        // rather than as bare text. Caching it here, at document scope, also serves as the guard. A
+        // manifest that does not make the type visible fails cleanly now instead of much later, at
+        // the generated TU's own compile, with an opaque "'CVargEntry' undeclared". A well-formed
+        // manifest always has it, as the manifest entry inc pulls the header in transitively.
         auto &ident = ast.Idents.get("CVargEntry");
-        if (ast.getTranslationUnitDecl()->lookup(DeclarationName(&ident)).empty()) {
+        for (NamedDecl *decl : ast.getTranslationUnitDecl()->lookup(DeclarationName(&ident))) {
+            if (auto *typeDecl = dyn_cast<TypeDecl>(decl)) {
+                m_cvargEntryPtrType = ast.getPointerType(ast.getTypeDeclType(typeDecl));
+                break;
+            }
+        }
+        if (m_cvargEntryPtrType.isNull()) {
             reportError(ast.getDiagnostics(), SourceLocation{},
                         "the manifest does not include "
                         "<lorelei/DLCall/Tools/VariadicArgDefs.h>, which provides 'CVargEntry' for "
@@ -145,8 +152,8 @@ namespace lore::tool::TLC {
                     if (!isVAList && proc.functionDecl()) {
                         auto params = proc.functionDecl()->parameters();
                         if (params.size() == argTypes.size() && !params.empty()) {
-                            isVAList =
-                                isVaListType(proc.document().ast(), params.back()->getOriginalType());
+                            isVAList = isVaListType(proc.document().ast(),
+                                                    params.back()->getOriginalType());
                         }
                     }
                     if (isVAList) {
@@ -172,8 +179,7 @@ namespace lore::tool::TLC {
         return false;
     }
 
-    void LibCFormatPass::beginHandleProc(ProcSnippet &proc,
-                                                std::unique_ptr<PassMessage> &msg) {
+    void LibCFormatPass::beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
         /// \brief Guest-to-Host variadic function thunks.
         /// \example: int (v)printf(const char *fmt, ... | va_list);
         /// \code
@@ -257,8 +263,7 @@ namespace lore::tool::TLC {
         } else {
             NFI.setVariadic(false);
         }
-        NFI.argumentsRef().push_back({{}, "vargs"});
-        NFI.setMetaArgumentType("vargs", "CVargEntry *");
+        NFI.argumentsRef().push_back({m_cvargEntryPtrType, "vargs"});
 
         FunctionInfo CNFI = NFI; // callback normalized FI: NFI with a leading `void *callback`
         CNFI.argumentsRef().insert(CNFI.argumentsRef().begin(), {pVoidType, "callback"});
@@ -539,7 +544,8 @@ namespace lore::tool::TLC {
             /// \code
             ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
             ///         int ret;
-            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt, vargs);
+            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt,
+            ///                                                                    vargs);
             ///         return ret;
             ///     }
             /// \endcode
@@ -583,7 +589,8 @@ namespace lore::tool::TLC {
             /// \code
             ///     int invoke(void *callback, const char *fmt, CVargEntry *vargs) {
             ///         int ret;
-            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt, vargs);
+            ///         ret = ProcCb<PFN_printf_like, HostToGuest, Caller>::invoke(callback, fmt,
+            ///                                                                    vargs);
             ///         return ret;
             ///     }
             /// \endcode
@@ -622,8 +629,7 @@ namespace lore::tool::TLC {
         }
     }
 
-    void LibCFormatPass::endHandleProc(ProcSnippet &proc,
-                                              std::unique_ptr<PassMessage> &msg) {
+    void LibCFormatPass::endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
     }
 
     class PrintFPass : public LibCFormatPass {
