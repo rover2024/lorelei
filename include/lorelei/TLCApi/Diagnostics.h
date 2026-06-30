@@ -3,8 +3,8 @@
 #ifndef LORE_TLCAPI_DIAGNOSTICS_H
 #define LORE_TLCAPI_DIAGNOSTICS_H
 
-#include <clang/Basic/SourceLocation.h>
 #include <llvm/ADT/Twine.h>
+#include <clang/Basic/SourceLocation.h>
 
 #include <lorelei/TLCApi/Global.h>
 
