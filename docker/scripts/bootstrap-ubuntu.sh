@@ -65,10 +65,13 @@ EOF
     apt-get update
     # The amd64 runtime/dev libraries the guest side links and runs against: libffcall (avcall, the
     # VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/minizip/liblzma for running the
-    # x86_64 guest binaries under qemu-x86_64.
+    # x86_64 guest binaries under qemu-x86_64. libssl-dev:amd64 supplies the x86_64 openssl headers
+    # (its arch-specific opensslconf.h) that the experimental openssl thunk's guest parse needs on a
+    # cross host; the rest of the openssl headers are arch-independent and come from the native one.
     apt-get install -y --no-install-recommends \
         libffcall-dev:amd64 \
-        libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64 liblzma5:amd64
+        libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64 liblzma5:amd64 \
+        libssl-dev:amd64
 
     # The x86_64 cross-compiler that builds the guest side.
     if [ "$host_arch" = "riscv64" ]; then
@@ -94,6 +97,15 @@ EOF
     ( cd "$tmp" && apt-get download xz-utils:amd64 )
     dpkg-deb -x "$tmp"/xz-utils_*_amd64.deb /opt/xz-utils-amd64
     ln -sf /opt/xz-utils-amd64/usr/bin/xz /usr/local/bin/xz-x86_64
+    rm -rf "$tmp"
+
+    # The amd64 openssl CLI, exposed as openssl-x86_64, for exercising the experimental openssl thunk
+    # (`openssl speed` runs in the guest while the crypto runs natively on the host). Its libssl and
+    # libcrypto resolve to the GTL, so no amd64 openssl runtime library is needed.
+    tmp="$(mktemp -d)"
+    ( cd "$tmp" && apt-get download openssl:amd64 )
+    dpkg-deb -x "$tmp"/openssl_*_amd64.deb /opt/openssl-amd64
+    ln -sf /opt/openssl-amd64/usr/bin/openssl /usr/local/bin/openssl-x86_64
     rm -rf "$tmp"
 
     # Make sure the x86_64 dynamic loader is found at its canonical path for running x64 binaries.
