@@ -22,15 +22,15 @@ namespace lore::tool::TLC {
         }
 
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
     };
 
     bool DefaultBuilderPass::testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) {
         return true; // selected automatically; the default builder handles every proc
     }
 
-    llvm::Error DefaultBuilderPass::beginHandleProc(ProcSnippet &proc,
+    void DefaultBuilderPass::beginHandleProc(ProcSnippet &proc,
                                                     std::unique_ptr<PassMessage> &msg) {
         /// \brief Guest-to-Host function thunks
         /// \example: int foo(int a, double b);
@@ -329,13 +329,10 @@ namespace lore::tool::TLC {
                          CFI, formatN("ProcCb<%1, %2, Exec>::invoke", proc.name(), procKindStr)));
             YCAL.body.epilog.push_back(key, SRC_returnRet(FI));
         }
-
-        return llvm::Error::success();
     }
 
-    llvm::Error DefaultBuilderPass::endHandleProc(ProcSnippet &proc,
+    void DefaultBuilderPass::endHandleProc(ProcSnippet &proc,
                                                   std::unique_ptr<PassMessage> &msg) {
-        return llvm::Error::success();
     }
 
     static llvm::Registry<Pass>::Add<DefaultBuilderPass> PR_DefaultBuilder("DefaultBuilder", {});

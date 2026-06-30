@@ -31,8 +31,8 @@ namespace lore::tool::TLC {
         }
 
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
     };
 
     static inline bool isCharPointerType(const clang::QualType &type) {
@@ -69,14 +69,14 @@ namespace lore::tool::TLC {
         return false;
     }
 
-    llvm::Error GetProcAddressPass::beginHandleProc(ProcSnippet &proc,
+    void GetProcAddressPass::beginHandleProc(ProcSnippet &proc,
                                                     std::unique_ptr<PassMessage> &msg) {
         if (proc.kind() != ProcSnippet::Function && proc.direction() != ProcSnippet::GuestToHost) {
-            return llvm::Error::success();
+            return;
         }
 
         if (proc.document().mode() != DocumentContext::Guest) {
-            return llvm::Error::success();
+            return;
         }
 
         auto &message = static_cast<GetProcAddressMessage &>(*msg.get());
@@ -90,12 +90,10 @@ namespace lore::tool::TLC {
             key,
             SRC_asIs("ret = (decltype(ret)) mod::GuestClient::convertHostProcAddress((const char *) " +
                      GADP.functionInfo.argumentName(nameIndex - 1) + ", (void *) ret);"));
-        return llvm::Error::success();
     }
 
-    llvm::Error GetProcAddressPass::endHandleProc(ProcSnippet &proc,
+    void GetProcAddressPass::endHandleProc(ProcSnippet &proc,
                                                   std::unique_ptr<PassMessage> &msg) {
-        return llvm::Error::success();
     }
 
     static llvm::Registry<Pass>::Add<GetProcAddressPass> PR_GetProcAddress("GetProcAddress", {});

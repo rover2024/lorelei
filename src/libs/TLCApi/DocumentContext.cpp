@@ -18,6 +18,7 @@
 #include <llvm/Support/Error.h>
 
 #include <lorelei/TLCApi/Pass.h>
+#include <lorelei/TLCApi/Diagnostics.h>
 #include <lorelei/ClangExtras/CommonMatchFinder.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 #include <lorelei/ClangExtras/DeclUtils.h>
@@ -216,7 +217,7 @@ namespace lore::tool::TLC {
         return std::nullopt;
     }
 
-    llvm::Error DocumentContext::beginSourceFileAction(clang::CompilerInstance &CI) {
+    void DocumentContext::beginSourceFileAction(clang::CompilerInstance &CI) {
         (void) CI;
         for (auto &map : m_passMaps) {
             map.clear();
@@ -236,10 +237,9 @@ namespace lore::tool::TLC {
             m_passMaps[phaseIndex][pass->id()] = pass.get();
             m_passInstances.push_back(std::move(pass));
         }
-        return llvm::Error::success();
     }
 
-    llvm::Error DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
+    void DocumentContext::handleTranslationUnit(clang::ASTContext &ast) {
         m_ast = &ast;
 
         ClassTemplateDecl *procFnTemplateDecl = nullptr;
@@ -439,13 +439,14 @@ namespace lore::tool::TLC {
         finder.matchAST(ast);
 
         if (!procFnTemplateDecl) {
-            return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                           "ProcFn template declaration not found");
+            reportError(ast.getDiagnostics(), {}, "ProcFn template declaration not found");
+            return;
         }
 
         m_procAliasMaker = std::make_unique<ProcAliasMaker>();
         if (auto err = m_procAliasMaker->initialize(procFnTemplateDecl)) {
-            return err;
+            reportError(ast.getDiagnostics(), {}, llvm::toString(std::move(err)));
+            return;
         }
 
         /// STEP: Filter requested items.
@@ -543,11 +544,9 @@ namespace lore::tool::TLC {
                 }
             }
         }
-
-        return llvm::Error::success();
     }
 
-    llvm::Error DocumentContext::endSourceFileAction() {
+    void DocumentContext::endSourceFileAction() {
         struct RunPassTask {
             ProcSnippet *proc = nullptr;
             Pass *pass = nullptr;
@@ -576,12 +575,12 @@ namespace lore::tool::TLC {
             }
         };
 
-        const auto appendBuilderPassTasks = [&]() -> llvm::Error {
+        const auto appendBuilderPassTasks = [&]() {
             auto &builderPassMap = m_passMaps[Pass::Builder];
             auto defaultBuilderIt = builderPassMap.find(lore::thunk::pass::ID_DefaultBuilder);
             if (defaultBuilderIt == builderPassMap.end() || !defaultBuilderIt->second) {
-                return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                               "no default builder pass found");
+                reportError(m_ast->getDiagnostics(), {}, "no default builder pass found");
+                return;
             }
             Pass *defaultBuilder = defaultBuilderIt->second;
 
@@ -609,7 +608,6 @@ namespace lore::tool::TLC {
                 }
             }
 
-            return llvm::Error::success();
         };
 
         // Begin document-level processing.
@@ -621,31 +619,32 @@ namespace lore::tool::TLC {
                 }
             }
         }
+        if (m_ast->getDiagnostics().hasErrorOccurred()) {
+            return;
+        }
 
         // Select per-proc pass tasks.
-        if (auto err = appendBuilderPassTasks()) {
-            return err;
+        appendBuilderPassTasks();
+        if (m_ast->getDiagnostics().hasErrorOccurred()) {
+            return;
         }
         appendMultiMatchPassTasks(Pass::Guard);
         appendMultiMatchPassTasks(Pass::Misc);
 
-        // Run begin hooks in order.
+        // Run begin hooks in order. A pass that hits an error reports it on the diagnostics engine
+        // (see Pass's class note); stop the moment one has, before doing any more work.
         for (auto &task : runPassTasks) {
-            if (auto err = task.pass->beginHandleProc(*task.proc, task.message)) {
-                return llvm::createStringError(
-                    llvm::inconvertibleErrorCode(), "in proc \"%s\", failed to begin pass @%s: %s",
-                    task.proc->name().c_str(), task.pass->name().c_str(),
-                    llvm::toString(std::move(err)).c_str());
+            task.pass->beginHandleProc(*task.proc, task.message);
+            if (m_ast->getDiagnostics().hasErrorOccurred()) {
+                return;
             }
         }
 
         // Run end hooks in reverse order.
         for (auto it = runPassTasks.rbegin(); it != runPassTasks.rend(); ++it) {
-            if (auto err = it->pass->endHandleProc(*it->proc, it->message)) {
-                return llvm::createStringError(
-                    llvm::inconvertibleErrorCode(), "in proc \"%s\", failed to end pass @%s: %s",
-                    it->proc->name().c_str(), it->pass->name().c_str(),
-                    llvm::toString(std::move(err)).c_str());
+            it->pass->endHandleProc(*it->proc, it->message);
+            if (m_ast->getDiagnostics().hasErrorOccurred()) {
+                return;
             }
         }
 
@@ -659,7 +658,6 @@ namespace lore::tool::TLC {
             }
         }
 
-        return llvm::Error::success();
     }
 
     static std::string legendLine(const std::string &name) {
@@ -669,11 +667,12 @@ namespace lore::tool::TLC {
         return "// " + std::string(eqCount, '=') + " " + name + " " + std::string(eqCount, '=');
     }
 
-    llvm::Error DocumentContext::generateOutput(llvm::raw_ostream &os) {
+    void DocumentContext::generateOutput(llvm::raw_ostream &os) {
         emitManifestPrologue(os);
 
-        if (auto err = emitExportedAliases(os)) {
-            return err;
+        emitExportedAliases(os);
+        if (m_ast->getDiagnostics().hasErrorOccurred()) {
+            return;
         }
 
         /// STEP: Generate document head
@@ -703,7 +702,6 @@ namespace lore::tool::TLC {
         /// STEP: Add manifest implementation (LORE_THUNK_HOST was set by the manifest's host entry)
         os << "#include <lorelei/ThunkInterface/Detail/ProcImpl.cpp.inc>\n";
         os << "\n";
-        return llvm::Error::success();
     }
 
     void DocumentContext::emitManifestPrologue(llvm::raw_ostream &os) const {
@@ -717,7 +715,7 @@ namespace lore::tool::TLC {
         os << "\n";
     }
 
-    llvm::Error DocumentContext::emitExportedAliases(llvm::raw_ostream &os) const {
+    void DocumentContext::emitExportedAliases(llvm::raw_ostream &os) const {
         os << "extern \"C\" {\n";
         os << "#pragma GCC diagnostic push\n";
         os << "#pragma GCC diagnostic ignored \"-Wattribute-alias\"\n";
@@ -732,7 +730,9 @@ namespace lore::tool::TLC {
                 directionName, "Entry", const_cast<FunctionDecl *>(proc.functionDecl()),
                 proc.desc() ? proc.desc()->overlayType : std::nullopt);
             if (!alias) {
-                return alias.takeError();
+                reportError(m_ast->getDiagnostics(), proc.functionDecl()->getLocation(),
+                            llvm::toString(alias.takeError()));
+                return;
             }
             const std::string symbol = isHost ? ("GTL_" + proc.name()) : proc.name();
             os << "LORE_DECL_EXPORT "
@@ -742,7 +742,6 @@ namespace lore::tool::TLC {
 
         os << "#pragma GCC diagnostic pop\n";
         os << "}\n\n";
-        return llvm::Error::success();
     }
 
     void DocumentContext::emitForeachMacros(llvm::raw_ostream &os) const {

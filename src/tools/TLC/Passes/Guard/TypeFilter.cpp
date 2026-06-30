@@ -41,8 +41,8 @@ namespace lore::tool::TLC {
         void handleTranslationUnit(DocumentContext &doc) override;
 
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
 
     protected:
         std::map<std::string, const ClassTemplateSpecializationDecl *> m_procArgFilters;
@@ -115,7 +115,7 @@ namespace lore::tool::TLC {
         return true;
     }
 
-    llvm::Error TypeFilterPass::beginHandleProc(ProcSnippet &proc,
+    void TypeFilterPass::beginHandleProc(ProcSnippet &proc,
                                                 std::unique_ptr<PassMessage> &msg) {
         auto &message = static_cast<TypeFilterMessage &>(*msg);
 
@@ -183,13 +183,10 @@ namespace lore::tool::TLC {
             XADP.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
             YADP.body.backward.push_back(key, SRC_asIs(getRetFilterStatement()));
         }
-
-        return llvm::Error::success();
     }
 
-    llvm::Error TypeFilterPass::endHandleProc(ProcSnippet &proc,
+    void TypeFilterPass::endHandleProc(ProcSnippet &proc,
                                               std::unique_ptr<PassMessage> &msg) {
-        return llvm::Error::success();
     }
 
     static llvm::Registry<Pass>::Add<TypeFilterPass> PR_TypeFilter("TypeFilter", {});

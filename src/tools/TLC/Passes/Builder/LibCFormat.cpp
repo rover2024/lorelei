@@ -35,8 +35,8 @@ namespace lore::tool::TLC {
         }
 
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
 
     protected:
         bool m_scanf;
@@ -147,7 +147,7 @@ namespace lore::tool::TLC {
         return false;
     }
 
-    llvm::Error LibCFormatPass::beginHandleProc(ProcSnippet &proc,
+    void LibCFormatPass::beginHandleProc(ProcSnippet &proc,
                                                 std::unique_ptr<PassMessage> &msg) {
         /// \brief Guest-to-Host variadic function thunks.
         /// \example: int (v)printf(const char *fmt, ... | va_list);
@@ -595,13 +595,10 @@ namespace lore::tool::TLC {
             YCAL.body.center.push_back(key, SRC_asIs(getVRetValueAssign()));
             YCAL.body.epilog.push_back(key, SRC_returnRet(FI));
         }
-
-        return llvm::Error::success();
     }
 
-    llvm::Error LibCFormatPass::endHandleProc(ProcSnippet &proc,
+    void LibCFormatPass::endHandleProc(ProcSnippet &proc,
                                               std::unique_ptr<PassMessage> &msg) {
-        return llvm::Error::success();
     }
 
     class PrintFPass : public LibCFormatPass {

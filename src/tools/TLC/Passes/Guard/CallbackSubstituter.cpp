@@ -2,6 +2,7 @@
 
 #include <array>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -9,6 +10,7 @@
 #include <lorelei/TLCApi/Pass.h>
 #include <lorelei/TLCApi/ProcSnippet.h>
 #include <lorelei/TLCApi/DocumentContext.h>
+#include <lorelei/TLCApi/Diagnostics.h>
 #include <lorelei/ThunkInterface/PassTags.h>
 #include <lorelei/ClangExtras/TypeUtils.h>
 
@@ -242,8 +244,8 @@ namespace lore::tool::TLC {
         }
 
         bool testProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
-        llvm::Error endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void beginHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
+        void endHandleProc(ProcSnippet &proc, std::unique_ptr<PassMessage> &msg) override;
 
     protected:
         std::map<std::string, CallbackTree> m_treeCache;
@@ -300,7 +302,7 @@ namespace lore::tool::TLC {
         return true;
     }
 
-    llvm::Error CallbackSubstituterPass::beginHandleProc(ProcSnippet &proc,
+    void CallbackSubstituterPass::beginHandleProc(ProcSnippet &proc,
                                                          std::unique_ptr<PassMessage> &msg) {
         const auto &tree = static_cast<CallbackSubstituterMessage &>(*msg).tree;
 
@@ -330,17 +332,18 @@ namespace lore::tool::TLC {
         if (tree.status == CallbackTree::Status::Unsupported) {
             receiverADP.body.forward.push_back(
                 key, "#ifdef LORE_THUNK_CALLBACK_REPLACE\n#error \"unsupported callback type\"\n#endif\n");
-            return llvm::Error::success();
+            return;
         }
 
-        // Resolve the ProcCb<> alias the manifest registered for a callee function type.
-        const auto resolveAlias = [&](const QualType &calleeType) -> llvm::Expected<std::string> {
+        // Resolve the ProcCb<> alias the manifest registered for a callee function type. Reports a
+        // diagnostic and returns nullopt when the type was never registered as a callback.
+        const auto resolveAlias = [&](const QualType &calleeType) -> std::optional<std::string> {
             const auto ptrType = doc.ast().getPointerType(calleeType.getCanonicalType());
             const auto it = doc.callbackTypes().find(getTypeString(ptrType.getCanonicalType()));
             if (it == doc.callbackTypes().end()) {
-                return llvm::createStringError(std::errc::not_supported,
-                                               "callback not found for type: %s",
-                                               getTypeString(ptrType).c_str());
+                reportError(doc.ast().getDiagnostics(), {},
+                            "callback not found for type: " + getTypeString(ptrType));
+                return std::nullopt;
             }
             return it->second.name;
         };
@@ -359,7 +362,7 @@ namespace lore::tool::TLC {
             for (const auto &[allocator, calleeType] : allocators) {
                 auto alias = resolveAlias(calleeType);
                 if (!alias) {
-                    return alias.takeError();
+                    return;
                 }
                 usingDecls += "    using " + allocator + " = ProcCb<" + *alias + ", " + inDirection +
                               ", Entry>;\n";
@@ -400,7 +403,7 @@ namespace lore::tool::TLC {
             for (const auto &[name, calleeType] : tree.outCallbacks) {
                 auto alias = resolveAlias(calleeType);
                 if (!alias) {
-                    return alias.takeError();
+                    return;
                 }
                 const auto allocator = proc.name() + "____" + name + "_xx_OutThunkAlloc";
                 ss << "        using " << allocator << " = ProcCb<" << *alias << ", " << outDirection
@@ -413,13 +416,10 @@ namespace lore::tool::TLC {
             ss << "    }\n#endif\n";
             callerADP.body.backward.push_back(key, ss.str());
         }
-
-        return llvm::Error::success();
     }
 
-    llvm::Error CallbackSubstituterPass::endHandleProc(ProcSnippet &proc,
+    void CallbackSubstituterPass::endHandleProc(ProcSnippet &proc,
                                                        std::unique_ptr<PassMessage> &msg) {
-        return llvm::Error::success();
     }
 
     static llvm::Registry<Pass>::Add<CallbackSubstituterPass>

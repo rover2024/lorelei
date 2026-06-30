@@ -73,16 +73,16 @@ namespace lore::tool::TLC {
         }
 
         /// Instantiates the pass pipeline for this source file; a returned error aborts the action.
-        llvm::Error beginSourceFileAction(clang::CompilerInstance &CI);
+        void beginSourceFileAction(clang::CompilerInstance &CI);
 
         /// Collects the requested procs and their metadata from the parsed AST.
-        llvm::Error handleTranslationUnit(clang::ASTContext &ast);
+        void handleTranslationUnit(clang::ASTContext &ast);
 
         /// Runs the Builder/Guard/Misc passes over the collected procs.
-        llvm::Error endSourceFileAction();
+        void endSourceFileAction();
 
         /// Serializes the generated thunk translation unit into \c os.
-        llvm::Error generateOutput(llvm::raw_ostream &os);
+        void generateOutput(llvm::raw_ostream &os);
 
     public:
         inline Mode mode() const {
@@ -129,7 +129,7 @@ namespace lore::tool::TLC {
     protected:
         // generateOutput helpers; each appends one section of the generated TU to `os`.
         void emitManifestPrologue(llvm::raw_ostream &os) const;
-        llvm::Error emitExportedAliases(llvm::raw_ostream &os) const;
+        void emitExportedAliases(llvm::raw_ostream &os) const;
         void emitForeachMacros(llvm::raw_ostream &os) const;
         void emitProcTexts(llvm::raw_ostream &os, bool asDeclaration) const;
         void emitMissingComments(llvm::raw_ostream &os) const;

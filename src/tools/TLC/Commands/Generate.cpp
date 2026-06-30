@@ -44,18 +44,6 @@ namespace lore::tool::command::generate {
         TLC::DocumentContext doc;
 
         std::string outBuffer;
-
-        bool failed = false;
-        std::string errorMessage;
-
-        // Record the first error raised from inside a Clang callback (which can't return one).
-        void recordError(llvm::Error err) {
-            auto msg = llvm::toString(std::move(err));
-            if (!failed) {
-                failed = true;
-                errorMessage = std::move(msg);
-            }
-        }
     };
 
     static GlobalContext &g_ctx() {
@@ -103,20 +91,15 @@ namespace lore::tool::command::generate {
     class MyASTConsumer : public ASTConsumer {
     public:
         void HandleTranslationUnit(ASTContext &ast) override {
-            if (auto err = g_ctx().doc.handleTranslationUnit(ast)) {
-                g_ctx().recordError(std::move(err));
-            }
+            g_ctx().doc.handleTranslationUnit(ast);
         }
     };
 
     class MyASTFrontendAction : public ASTFrontendAction {
     public:
         bool BeginSourceFileAction(CompilerInstance &CI) override {
-            if (auto err = g_ctx().doc.beginSourceFileAction(CI)) {
-                g_ctx().recordError(std::move(err));
-                return false;
-            }
-            return true;
+            g_ctx().doc.beginSourceFileAction(CI);
+            return !CI.getDiagnostics().hasErrorOccurred();
         }
 
         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &, StringRef) override {
@@ -126,12 +109,15 @@ namespace lore::tool::command::generate {
         void EndSourceFileAction() override {
             CompilerInstance &CI = getCompilerInstance();
             DiagnosticsEngine &DE = CI.getDiagnostics();
-            if (DE.hasErrorOccurred() || g_ctx().failed) {
+            if (DE.hasErrorOccurred()) {
                 return;
             }
 
-            if (auto err = g_ctx().doc.endSourceFileAction()) {
-                g_ctx().recordError(std::move(err));
+            g_ctx().doc.endSourceFileAction();
+
+            // A pass (or DocumentContext) may have reported an error on the diagnostics engine while
+            // the pipeline ran (see Pass's class note); do not emit output in that case.
+            if (DE.hasErrorOccurred()) {
                 return;
             }
 
@@ -143,10 +129,7 @@ namespace lore::tool::command::generate {
                            g_ctx().manifestStatPath.c_str(), TOOL_VERSION)
                     << "\n";
                 out << "\n";
-                if (auto err = g_ctx().doc.generateOutput(out)) {
-                    g_ctx().recordError(std::move(err));
-                    return;
-                }
+                g_ctx().doc.generateOutput(out);
             }
         }
     };
@@ -264,10 +247,6 @@ namespace lore::tool::command::generate {
             });
         if (int ret = tool.run(newFrontendActionFactory<MyASTFrontendAction>().get()); ret != 0) {
             return ret;
-        }
-        if (g_ctx().failed) {
-            llvm::errs() << "error: " << g_ctx().errorMessage << "\n";
-            return 1;
         }
 
         if (!g_ctx().outBuffer.empty()) {
