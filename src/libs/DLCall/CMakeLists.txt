@@ -17,10 +17,15 @@ qm_include_recursive(${PROJECT_NAME} PRIVATE
     ${LORE_INCLUDE_DIR}/lorelei/DLCall
 )
 
+# Link avcall statically (libavcall.a) so it is baked into this shared library under its hidden
+# visibility, rather than leaving a runtime dependency on libavcall.so.
+set(_saved_lib_suffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
 find_library(_avcall_lib avcall)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${_saved_lib_suffixes})
 
 if(NOT _avcall_lib)
-    message(FATAL_ERROR "avcall library not found")
+    message(FATAL_ERROR "static avcall library (libavcall.a) not found")
 endif()
 
 if(NOT WIN32)
