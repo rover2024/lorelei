@@ -21,3 +21,5 @@ endif()
 lore_install()
 
 lore_finish_buildsystem()
+
+install(FILES ../LICENSE DESTINATION ${LORE_INSTALL_DATA_DIR})
