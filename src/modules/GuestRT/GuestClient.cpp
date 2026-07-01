@@ -163,6 +163,10 @@ namespace lore::mod {
     bool GuestClient::isHostAddressNaive(void *addr) {
         // dladdr only resolves addresses in guest-mapped objects, so a failed lookup means the
         // address belongs to the host.
+        // ##FIXME: dladdr cannot see anonymous-mmap trampolines, so this naive classification is
+        // sound only because callers unwrapTrampoline() first (itself an unchecked speculative
+        // read at a fixed offset). A dedicated trampoline mmap arena would let both be range-checked
+        // directly, the way separation mode uses emuAddr. Deferred.
         Dl_info info;
         return !dladdr(addr, &info);
     }
