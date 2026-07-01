@@ -19,5 +19,5 @@ fi
 cd qmsetup
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/qmsetup"
+    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
 cmake --build build --target install

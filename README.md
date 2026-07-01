@@ -68,7 +68,7 @@ cd qmsetup
 
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/qmsetup
+    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
 cmake --build build --target all
 cmake --build build --target install
 ```
@@ -94,7 +94,7 @@ The guest and host ISA are the same, so a single x86_64 compiler builds both sid
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-    -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
+    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
     -DLORE_BUILD_TOOLS=TRUE \
     -DLORE_BUILD_GUEST_TARGETS=TRUE
 cmake --build build --target all
@@ -110,7 +110,7 @@ The host ISA differs from the guest x86_64, so the two sides need two different 
 cmake -B build-host -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-    -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
+    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
     -DLORE_BUILD_TOOLS=TRUE \
     -DLORE_BUILD_GUEST_TARGETS=FALSE
 cmake --build build-host --target install
@@ -121,7 +121,7 @@ cmake -B build-guest -G Ninja \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/x86_64 \
     -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc \
     -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++ \
-    -Dqmsetup_DIR=$INSTALL_DIR/qmsetup/lib/cmake/qmsetup \
+    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
     -DLORE_BUILD_TOOLS=FALSE \
     -DLORE_BUILD_GUEST_TARGETS=TRUE
 cmake --build build-guest --target install

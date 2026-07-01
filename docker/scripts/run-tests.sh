@@ -59,16 +59,16 @@ timed "emulated (qemu, no plugin)" \
     "$QEMU" "$guest_minizip" -8 -o "$work/emulated.zip" "$archive"
 
 # The host runtime (LoreHostRT / LoreDLCall, this machine's arch) and the host thunk (HTL) live under
-# install/lorelei and install/lorethunks; the x86_64 guest runtime and the GTL live under
-# install/x86_64. LORELEI_ROOT points at the host lorethunks so HTL_DIR and the ThunkDB (which lists
-# libz) resolve there; LORELEI_GUEST_ROOT points at the x86_64 lorethunks for GTL_DIR. The QEMU process
-# loads the host runtime via LD_LIBRARY_PATH; the guest minizip loads the GTL plus the x86_64 runtime
-# from the path passed through with -E.
-host_lib="$INSTALL_DIR/lorelei/lib"
-guest_lib="$INSTALL_DIR/x86_64/lorelei/lib"
-gtl_dir="$INSTALL_DIR/x86_64/lorethunks/lib/x86_64-LoreGTL"
+# install; the x86_64 guest runtime and the GTL live under install/x86_64. LORELEI_ROOT points at the
+# host install so HTL_DIR and the ThunkDB (which lists libz) resolve there, and LORELEI_GUEST_ROOT
+# points at the x86_64 install for GTL_DIR. The QEMU process loads the host runtime via
+# LD_LIBRARY_PATH, and the guest minizip loads the GTL plus the x86_64 runtime from the path passed
+# through with -E.
+host_lib="$INSTALL_DIR/lib"
+guest_lib="$INSTALL_DIR/x86_64/lib"
+gtl_dir="$INSTALL_DIR/x86_64/lib/x86_64-LoreGTL"
 timed "lorelei (qemu + zlib thunk)" \
-    env LORELEI_ROOT="$INSTALL_DIR/lorethunks" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64/lorethunks" \
+    env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
         LD_LIBRARY_PATH="$host_lib" \
         "$QEMU" -plugin "$PLUGIN" \
         -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \
@@ -90,7 +90,7 @@ timed "emulated (qemu, no plugin)" \
     "$QEMU" "$guest_xz" -6 -c "$xz_input"
 
 timed "lorelei (qemu + lzma thunk)" \
-    env LORELEI_ROOT="$INSTALL_DIR/lorethunks" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64/lorethunks" \
+    env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
         LD_LIBRARY_PATH="$host_lib" \
         "$QEMU" -plugin "$PLUGIN" \
         -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \
@@ -99,7 +99,7 @@ timed "lorelei (qemu + lzma thunk)" \
 # Correctness: the lorelei-compressed stream decompresses back to the original. Use file output
 # (-k -f) rather than stdout so the qemu process's own output cannot mix into the compressed bytes.
 cp "$xz_input" "$work/xz_check.bin"
-env LORELEI_ROOT="$INSTALL_DIR/lorethunks" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64/lorethunks" \
+env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
     LD_LIBRARY_PATH="$host_lib" \
     "$QEMU" -plugin "$PLUGIN" \
     -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \

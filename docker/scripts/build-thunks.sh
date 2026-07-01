@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Clone and build lorelei-thunks against the installed lorelei, twice, into a uniform layout:
-#   install/lorethunks         host side: the HTL (this machine's arch)
-#   install/x86_64/lorethunks  guest side: the GTL (x86_64)
+# Clone and build lorelei-thunks against the installed lorelei, twice, into a uniform layout. Each
+# side installs into the same flat prefix as lorelei (no per-repo subdir):
+#   install         host side: the HTL (this machine's arch)
+#   install/x86_64  guest side: the GTL (x86_64)
 #
 # The host build also generates both thunk sources and installs them, so the guest build compiles the
 # guest source straight from THUNK_GEN_SOURCE_DIR without running TLC. lorelei-thunks builds only its
@@ -41,9 +42,8 @@ else
 fi
 
 cd "$REPOS_DIR"
-# Pinned to the lorelei-1.0.0.0 test branch rather than main, so the image is built against the
-# thunks snapshot that goes with this lorelei release.
-THUNKS_BRANCH=lorelei-1.0.0.0
+# Track the thunks main branch, so the image builds against the latest thunks.
+THUNKS_BRANCH=main
 if [ ! -d lorelei-thunks ]; then
     curl -fsSL "https://codeload.github.com/rover2024/lorelei-thunks/tar.gz/refs/heads/$THUNKS_BRANCH" | tar xz
     mv "lorelei-thunks-$THUNKS_BRANCH" lorelei-thunks
@@ -53,9 +53,9 @@ cd lorelei-thunks
 # Host side: the HTL (native). Runs the TLC and installs ThunkStat.json plus both generated sources.
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/lorethunks" \
-    -Dqmsetup_DIR="$INSTALL_DIR/qmsetup/lib/cmake/qmsetup" \
-    -Dlorelei_DIR="$INSTALL_DIR/lorelei/lib/cmake/lorelei" \
+    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
+    -Dqmsetup_DIR="$INSTALL_DIR/lib/cmake/qmsetup" \
+    -Dlorelei_DIR="$INSTALL_DIR/lib/cmake/lorelei" \
     -DTHUNK_BUILD_HOST_TARGETS=TRUE \
     -DTHUNK_BUILD_GUEST_TARGETS=FALSE \
     "${host_extra[@]}"
@@ -67,10 +67,10 @@ cmake -B build-guest -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER="$GUEST_CC" \
     -DCMAKE_CXX_COMPILER="$GUEST_CXX" \
-    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/x86_64/lorethunks" \
-    -Dqmsetup_DIR="$INSTALL_DIR/qmsetup/lib/cmake/qmsetup" \
-    -Dlorelei_DIR="$INSTALL_DIR/x86_64/lorelei/lib/cmake/lorelei" \
-    -DTHUNK_GEN_SOURCE_DIR="$INSTALL_DIR/lorethunks/share/lorelei/thunks" \
+    -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/x86_64" \
+    -Dqmsetup_DIR="$INSTALL_DIR/lib/cmake/qmsetup" \
+    -Dlorelei_DIR="$INSTALL_DIR/x86_64/lib/cmake/lorelei" \
+    -DTHUNK_GEN_SOURCE_DIR="$INSTALL_DIR/share/lorelei/thunks" \
     -DTHUNK_BUILD_HOST_TARGETS=FALSE \
     -DTHUNK_BUILD_GUEST_TARGETS=TRUE \
     "${guest_extra[@]}"
