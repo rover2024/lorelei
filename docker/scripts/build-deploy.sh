@@ -8,10 +8,11 @@
 #   <deploy>/x86_64-host    x86_64 host runtime + host thunks (HTL)
 #   <deploy>/x86_64-guest   x86_64 guest runtime + guest thunks (GTL)
 #   <deploy>/aarch64-host   aarch64 host runtime + host thunks (HTL), cross-compiled   [x86_64 only]
+#   <deploy>/riscv64-host   riscv64 host runtime + host thunks (HTL), cross-compiled   [x86_64 only]
 #
 # On an x86_64 host all of the above are produced: the two x86_64 trees natively (reusing the image's
-# pre-generated x86_64 thunk sources), and the aarch64 host tree by a real cross build. A non-x86_64
-# host builds only its own native <arch>-host tree.
+# pre-generated x86_64 thunk sources), and the aarch64 and riscv64 host trees by real cross builds. A
+# non-x86_64 host builds only its own native <arch>-host tree.
 #
 # The native trees never run TLC: their thunk sources come pre-generated via THUNK_GEN_SOURCE_DIR
 # (installed by the image's host thunks build). The cross tree DOES cross-generate its own host source
@@ -137,14 +138,17 @@ build_target "$arch-host" FALSE
 if [ "$arch" = "x86_64" ]; then
     build_target "x86_64-guest" TRUE
 
-    # aarch64 host, real cross build. Install the cross toolchain on demand (via sudo, configured by the
-    # image's bootstrap) so the shared image stays untouched. DEPLOY_CROSS=0 skips it.
+    # Cross host trees (aarch64, riscv64), real cross builds. The cross toolchain for each is installed
+    # on demand (via sudo, configured by the image's bootstrap) so the shared image stays untouched.
+    # DEPLOY_CROSS=0 skips them.
     if [ "${DEPLOY_CROSS:-1}" = "1" ]; then
-        echo "== installing the aarch64 cross toolchain =="
-        sudo bash "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh"
-        cross_host_target "aarch64" \
-            "$TOOLCHAIN_DIR/aarch64-linux-gnu.cmake" \
-            "--gcc-toolchain=/usr;-idirafter;/usr/include"
+        for carch in aarch64 riscv64; do
+            echo "== installing the $carch cross toolchain =="
+            sudo bash "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh" "$carch"
+            cross_host_target "$carch" \
+                "$TOOLCHAIN_DIR/$carch-linux-gnu.cmake" \
+                "--gcc-toolchain=/usr;-idirafter;/usr/include"
+        done
     fi
 fi
 

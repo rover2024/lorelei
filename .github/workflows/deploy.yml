@@ -2,8 +2,9 @@ name: deploy
 
 # Build the deployable runtime trees and upload them as artifacts. Fires on a version tag (the real
 # release path) and on manual dispatch (to smoke-test without tagging). One x86_64 job builds the two
-# x86_64 trees natively and cross-compiles the aarch64 host tree. riscv64 is still TODO (see the note
-# at the bottom).
+# x86_64 trees natively and cross-compiles the aarch64 and riscv64 host trees, so every artifact is
+# uploaded from a runner that supports actions/upload-artifact (unlike the self-hosted riscv64 runner,
+# which has no Node 20).
 on:
   push:
     tags:
@@ -56,7 +57,8 @@ jobs:
           name: aarch64-host
           path: deploy/aarch64-host
 
-# TODO: riscv64-host. It is cross-compiled the same way as aarch64 (a riscv64 toolchain file plus the
-# riscv64 dev libraries in bootstrap-cross.sh), once the riscv64 ffcall availability on ports is
-# confirmed. Doing it here on x86_64 keeps the upload on a runner that supports actions/upload-artifact,
-# unlike the self-hosted riscv64 runner (no Node 20).
+      - name: Upload riscv64-host
+        uses: actions/upload-artifact@v4
+        with:
+          name: riscv64-host
+          path: deploy/riscv64-host
