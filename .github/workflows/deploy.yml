@@ -1,9 +1,9 @@
 name: deploy
 
 # Build the deployable runtime trees and upload them as artifacts. Fires on a version tag (the real
-# release path) and on manual dispatch (to smoke-test without tagging). x86_64 only for now: it builds
-# both the x86_64 host and guest trees natively in one job. The aarch64/riscv64 host trees are native
-# to their own runners and are not wired in yet (see the note at the bottom).
+# release path) and on manual dispatch (to smoke-test without tagging). One x86_64 job builds the two
+# x86_64 trees natively and cross-compiles the aarch64 host tree. riscv64 is still TODO (see the note
+# at the bottom).
 on:
   push:
     tags:
@@ -50,8 +50,13 @@ jobs:
           name: x86_64-guest
           path: deploy/x86_64-guest
 
-# TODO: aarch64-host and riscv64-host. Each is native to its own runner (ubuntu-24.04-arm and the
-# self-hosted riscv64), so add a per-arch deploy job that runs build-deploy.sh there. The riscv64
-# self-hosted runner has no Node 20, so actions/upload-artifact cannot run on it: its tree has to reach
-# an uploader some other way (a shell gh/curl upload, or an x86_64 aggregation job that collects all
-# four). Deferred until the cross/transport path is settled.
+      - name: Upload aarch64-host
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-host
+          path: deploy/aarch64-host
+
+# TODO: riscv64-host. It is cross-compiled the same way as aarch64 (a riscv64 toolchain file plus the
+# riscv64 dev libraries in bootstrap-cross.sh), once the riscv64 ffcall availability on ports is
+# confirmed. Doing it here on x86_64 keeps the upload on a runner that supports actions/upload-artifact,
+# unlike the self-hosted riscv64 runner (no Node 20).

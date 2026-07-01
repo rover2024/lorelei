@@ -6,13 +6,20 @@
 # tests. Each target is a self-contained runtime tree with lorelei and the thunks merged into one flat
 # prefix:
 #
-#   <deploy>/<arch>-host    host runtime (this machine's arch) + host thunks (HTL)
-#   <deploy>/x86_64-guest   x86_64 guest runtime + guest thunks (GTL)   [x86_64 host only]
+#   <deploy>/x86_64-host    x86_64 host runtime + host thunks (HTL)
+#   <deploy>/x86_64-guest   x86_64 guest runtime + guest thunks (GTL)
+#   <deploy>/aarch64-host   aarch64 host runtime + host thunks (HTL), cross-compiled   [x86_64 only]
 #
-# The guest is always x86_64, so it is only built natively on an x86_64 host; a cross host produces
-# just its own <arch>-host tree. TLC is never run here: the thunk sources come pre-generated via
-# THUNK_GEN_SOURCE_DIR (installed by the image's host thunks build), which is what keeps these trees
-# tool-free.
+# On an x86_64 host all of the above are produced: the two x86_64 trees natively, and the aarch64 host
+# tree cross-compiled (the cross toolchain is installed on demand, see below). A non-x86_64 host builds
+# only its own native <arch>-host tree.
+#
+# TLC is never run here: the thunk sources come pre-generated via THUNK_GEN_SOURCE_DIR (installed by the
+# image's host thunks build), which is what keeps these trees tool-free. The pre-generated host source
+# is reused as-is for the aarch64 cross target too: for the stable thunks (zlib, lzma) generation does
+# not depend on the target arch, so the same Thunk_host.cpp compiles correctly for aarch64. A library
+# whose generation IS arch-specific (variadic / va_list) would instead need a real cross-generate; that
+# is a later step, on top of the -target support already in the thunks CMake.
 set -euo pipefail
 : "${INSTALL_DIR:?}"
 : "${LORELEI_SRC:?}"
@@ -22,19 +29,25 @@ DEPLOY_DIR="${1:-${DEPLOY_DIR:-$REPOS_DIR/deploy}}"
 GEN_SOURCE_DIR="$INSTALL_DIR/share/lorelei/thunks"
 QMSETUP_DIR="$INSTALL_DIR/lib/cmake/qmsetup"
 THUNKS_SRC="$REPOS_DIR/lorelei-thunks"
+TOOLCHAIN_DIR="$LORELEI_SRC/docker/cmake/toolchain"
 
 arch="$(uname -m)"
 [ "$arch" = "amd64" ] && arch=x86_64
 
-# build_target <name> <guest-targets TRUE|FALSE>
-# Build a tool-free lorelei plus its thunks into $DEPLOY_DIR/<name>, from fresh build dirs. The thunks
-# reuse the pre-generated sources, so no TLC runs and lorelei can be the tool-free deploy install.
+# build_target <name> <guest-targets TRUE|FALSE> [toolchain-file]
+# Build a tool-free lorelei plus its thunks into $DEPLOY_DIR/<name>, from fresh build dirs. With a
+# toolchain file the target is cross-compiled. The thunks reuse the pre-generated sources, so no TLC
+# runs and lorelei can be the tool-free deploy install.
 build_target() {
     local name="$1"
     local guest="$2"
+    local toolchain="${3:-}"
     local prefix="$DEPLOY_DIR/$name"
     local lore_build="$REPOS_DIR/deploy-build/$name/lorelei"
     local thunk_build="$REPOS_DIR/deploy-build/$name/thunks"
+
+    local tc_arg=()
+    [ -n "$toolchain" ] && tc_arg=(-DCMAKE_TOOLCHAIN_FILE="$toolchain")
 
     local thunk_host thunk_guest
     if [ "$guest" = "TRUE" ]; then
@@ -47,6 +60,7 @@ build_target() {
 
     echo "== deploy $name: lorelei (no tools, no tests) =="
     cmake -S "$LORELEI_SRC" -B "$lore_build" -G Ninja \
+        "${tc_arg[@]}" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$prefix" \
         -Dqmsetup_DIR="$QMSETUP_DIR" \
@@ -57,6 +71,7 @@ build_target() {
 
     echo "== deploy $name: thunks (no tools, pre-generated sources) =="
     cmake -S "$THUNKS_SRC" -B "$thunk_build" -G Ninja \
+        "${tc_arg[@]}" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$prefix" \
         -Dqmsetup_DIR="$QMSETUP_DIR" \
@@ -69,10 +84,17 @@ build_target() {
 
 build_target "$arch-host" FALSE
 
-# The guest is x86_64. Build it only when this is an x86_64 host, where it is native; a cross host
-# leaves the guest tree to the x86_64 runner.
+# The guest is x86_64, and the cross host trees only make sense on an x86_64 build machine.
 if [ "$arch" = "x86_64" ]; then
     build_target "x86_64-guest" TRUE
+
+    # aarch64 host, cross-compiled. Install the cross toolchain on demand (via sudo, configured by the
+    # image's bootstrap) so the shared image stays untouched. DEPLOY_CROSS=0 skips it.
+    if [ "${DEPLOY_CROSS:-1}" = "1" ]; then
+        echo "== installing the aarch64 cross toolchain =="
+        sudo "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh"
+        build_target "aarch64-host" FALSE "$TOOLCHAIN_DIR/aarch64-linux-gnu.cmake"
+    fi
 fi
 
 echo "Deploy trees ready under $DEPLOY_DIR:"
