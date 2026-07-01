@@ -32,8 +32,12 @@ RUN mkdir -p ${INSTALL_DIR} && chown -R user:user /home/user
 USER user
 WORKDIR /home/user
 
-# Build the external dependencies first, so they stay cached across edits to this repository.
-RUN /tmp/scripts/build-qmsetup.sh && /tmp/scripts/build-qemu.sh
+# Build the external dependencies first, so they stay cached across edits to this repository. QEMU is
+# the slow one and is only needed to run the end-to-end tests, so a deploy build (which runs none)
+# skips it with --build-arg BUILD_QEMU=0.
+ARG BUILD_QEMU=1
+RUN /tmp/scripts/build-qmsetup.sh \
+    && if [ "${BUILD_QEMU}" = "1" ]; then /tmp/scripts/build-qemu.sh; else echo "skipping QEMU build (BUILD_QEMU=${BUILD_QEMU})"; fi
 
 # Copy this repository (lorelei v2) and build it from local source, then the thunks against it. These
 # scripts are run from the repo copy, so editing them only rebuilds from here on.

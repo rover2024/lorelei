@@ -21,8 +21,10 @@ jobs:
       # lorelei (with TLC) plus the thunks, which pre-generates the thunk sources build-deploy.sh reuses.
       - name: Build the image
         shell: bash
+        # Deploy runs no tests, so skip the slow QEMU build.
         run: |
           docker build \
+            --build-arg BUILD_QEMU=0 \
             --build-arg http_proxy="${http_proxy:-}" \
             --build-arg https_proxy="${https_proxy:-}" \
             --build-arg no_proxy="${no_proxy:-}" \
