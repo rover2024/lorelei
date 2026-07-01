@@ -31,6 +31,7 @@ function(_lore_common_configure_target _target)
 endfunction()
 
 set(LORE_POST_CONFIGURE_COMMANDS _lore_common_configure_target)
+set(LORE_CONFIG_HEADER_PATH "lorelei/BuildConfig.h")
 
 # ----------------------------------
 # Include Build Helpers

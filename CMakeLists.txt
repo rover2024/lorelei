@@ -16,6 +16,10 @@ option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
 
+# Emitted into <lorelei/BuildConfig.h>
+set(LORE_CONFIG_THUNK_VARG_MAX 64) # max packed variadic arguments a thunked call marshals
+set(LORE_CONFIG_QEMU_SUPPORT_ADDRESS_SEPARATION ON) # QEMU separates guest/host address ranges (fork)
+
 # ----------------------------------
 # CMake Settings
 # ----------------------------------

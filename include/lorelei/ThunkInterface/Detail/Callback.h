@@ -3,10 +3,12 @@
 #ifndef LORE_THUNKINTERFACE_CALLBACK_H
 #define LORE_THUNKINTERFACE_CALLBACK_H
 
+#include <lorelei/BuildConfig.h>
 #include <lorelei/DLCall/Tools/FunctionTrampoline.h>
 
-// Now QEMU does not officially support address separation, use the fork QEMU instead.
-#define QEMU_SUPPORT_ADDRESS_SEPARATION
+#ifdef LORE_CONFIG_QEMU_SUPPORT_ADDRESS_SEPARATION
+#  define LORE_QEMU_SUPPORT_ADDRESS_SEPARATION
+#endif
 
 #define LORE_THUNK_LAST_GCB lore::thread_last_callback
 
@@ -113,20 +115,22 @@ namespace lore::thunk {
     }
 
     /// CallbackContext - Tracks one substituted callback so it can be wrapped before a call and
-    /// restored after. \c init wraps a foreign callback in a receiver-callable trampoline and records
-    /// the original at \c p_fp / \c org_fp, and \c fini restores it. A default-constructed context (no
-    /// init, or init that found nothing to wrap) carries a null \c org_fp and fini() is then a no-op.
+    /// restored after. \c init wraps a foreign callback in a receiver-callable trampoline and
+    /// records the original at \c p_fp / \c org_fp, and \c fini restores it. A default-constructed
+    /// context (no init, or init that found nothing to wrap) carries a null \c org_fp and fini() is
+    /// then a no-op.
     struct CallbackContext {
         void **p_fp = nullptr;
         void *org_fp = nullptr;
 
         /// Wrap \a fp so the side that will invoke it (the receiver) can call it, recording the
-        /// original for \c fini to restore. \c isGuest is true when the callback belongs to the guest,
-        /// so the receiver invoking it is then the host (and vice versa). \a allocator turns a pointer
-        /// foreign to the receiver into a receiver-callable trampoline.
+        /// original for \c fini to restore. \c isGuest is true when the callback belongs to the
+        /// guest, so the receiver invoking it is then the host (and vice versa). \a allocator turns
+        /// a pointer foreign to the receiver into a receiver-callable trampoline.
         template <bool isGuest, class Alloc>
         void init(void *&fp, Alloc allocator) {
-            // Resolve fp to the real callback first: a stub we handed out earlier carries its origin.
+            // Resolve fp to the real callback first: a stub we handed out earlier carries its
+            // origin.
             void *real = unwrapTrampoline(fp);
             if (isGuest != isHostAddress(real)) {
                 // real is foreign to the receiver: hand over a receiver-callable trampoline for it.

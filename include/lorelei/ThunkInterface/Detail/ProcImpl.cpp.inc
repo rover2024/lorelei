@@ -4,7 +4,7 @@ namespace lore::thunk {
 
     // Declared in "Callback.h"
     inline bool isHostAddress(void *addr) {
-#ifdef QEMU_SUPPORT_ADDRESS_SEPARATION
+#ifdef LORE_QEMU_SUPPORT_ADDRESS_SEPARATION
         // Guest and host addresses live in disjoint ranges split at emuAddr.
         return reinterpret_cast<uintptr_t>(addr) >
                reinterpret_cast<uintptr_t>(detail::staticThunkContext.emuAddr);
