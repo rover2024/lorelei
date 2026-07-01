@@ -92,7 +92,7 @@ if [ "$arch" = "x86_64" ]; then
     # image's bootstrap) so the shared image stays untouched. DEPLOY_CROSS=0 skips it.
     if [ "${DEPLOY_CROSS:-1}" = "1" ]; then
         echo "== installing the aarch64 cross toolchain =="
-        sudo "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh"
+        sudo bash "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh"
         build_target "aarch64-host" FALSE "$TOOLCHAIN_DIR/aarch64-linux-gnu.cmake"
     fi
 fi
