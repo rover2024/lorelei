@@ -1,0 +1,55 @@
+name: deploy
+
+# Build the deployable runtime trees and upload them as artifacts. Fires on a version tag (the real
+# release path) and on manual dispatch (to smoke-test without tagging). x86_64 only for now: it builds
+# both the x86_64 host and guest trees natively in one job. The aarch64/riscv64 host trees are native
+# to their own runners and are not wired in yet (see the note at the bottom).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  x86_64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reuse the one-click image: it runs bootstrap-ubuntu.sh for the toolchain and builds the staging
+      # lorelei (with TLC) plus the thunks, which pre-generates the thunk sources build-deploy.sh reuses.
+      - name: Build the image
+        shell: bash
+        run: |
+          docker build \
+            --build-arg http_proxy="${http_proxy:-}" \
+            --build-arg https_proxy="${https_proxy:-}" \
+            --build-arg no_proxy="${no_proxy:-}" \
+            -f docker/Dockerfile -t lorelei-deploy-x86_64 .
+
+      - name: Build the deploy trees (no tools, no tests)
+        shell: bash
+        run: |
+          docker run --name lorelei-deploy-x86_64 \
+            lorelei-deploy-x86_64 bash docker/scripts/build-deploy.sh /home/user/deploy
+          docker cp lorelei-deploy-x86_64:/home/user/deploy ./deploy
+          docker rm lorelei-deploy-x86_64
+
+      - name: Upload x86_64-host
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-host
+          path: deploy/x86_64-host
+
+      - name: Upload x86_64-guest
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-guest
+          path: deploy/x86_64-guest
+
+# TODO: aarch64-host and riscv64-host. Each is native to its own runner (ubuntu-24.04-arm and the
+# self-hosted riscv64), so add a per-arch deploy job that runs build-deploy.sh there. The riscv64
+# self-hosted runner has no Node 20, so actions/upload-artifact cannot run on it: its tree has to reach
+# an uploader some other way (a shell gh/curl upload, or an x86_64 aggregation job that collects all
+# four). Deferred until the cross/transport path is settled.
