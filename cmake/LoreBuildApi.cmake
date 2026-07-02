@@ -1,24 +1,17 @@
 # Guest architecture: x86_64
 set(LORE_GUEST_ARCH "x86_64")
-set(LORE_GUEST_FIXED_REGISTER "r11")
 
-execute_process(
-    COMMAND ${CMAKE_C_COMPILER} -dumpmachine
-    OUTPUT_VARIABLE _target_triplet
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-string(REGEX MATCH "^[^-]+" _target_arch "${_target_triplet}")
-
+# Host architecture from CMake's own target processor rather than the compiler's -dumpmachine: gcc
+# bakes the target into the driver, but clang does not (its -dumpmachine ignores -target), so parsing
+# the compiler output would misdetect a clang cross build. CMAKE_SYSTEM_PROCESSOR is set natively and
+# by the cross toolchain files, so this is correct for both compilers and for native and cross builds.
 if(NOT LORE_HOST_ARCH)
-    if(_target_arch MATCHES "x86_64|amd64")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
         set(LORE_HOST_ARCH "x86_64")
-        set(LORE_HOST_FIXED_REGISTER "r11")
-    elseif(_target_arch MATCHES "aarch64|arm64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
         set(LORE_HOST_ARCH "aarch64")
-        set(LORE_HOST_FIXED_REGISTER "x16")
-    elseif(_target_arch MATCHES "riscv64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
         set(LORE_HOST_ARCH "riscv64")
-        set(LORE_HOST_FIXED_REGISTER "t1")
     endif()
 endif()
 

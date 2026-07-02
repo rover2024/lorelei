@@ -28,15 +28,15 @@ set(_work ${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(${LORE_TLC_GEN_GUEST_SRC} ${LORE_TLC_GEN_HOST_SRC}
     PROPERTIES GENERATED TRUE)
 
-# Common settings for the GTL and HTL: C++20, the guest fixed register (r11) reserved, and no
-# exceptions/rtti. They are deliberately NOT linked with --no-undefined, matching the real thunk
-# build: DLCall symbols they do not pull from the runtimes are resolved at run time.
+# Common settings for the GTL and HTL: C++20 and no exceptions/rtti. They are deliberately NOT linked
+# with --no-undefined, matching the real thunk build: DLCall symbols they do not pull from the
+# runtimes are resolved at run time.
 function(_te_thunk_lib _target _out)
     set_target_properties(${_target} PROPERTIES
         OUTPUT_NAME ${_out}
         LIBRARY_OUTPUT_DIRECTORY ${_work})
     target_compile_features(${_target} PRIVATE cxx_std_20)
-    target_compile_options(${_target} PRIVATE -fno-exceptions -fno-rtti -ffixed-r11)
+    target_compile_options(${_target} PRIVATE -fno-exceptions -fno-rtti)
     target_include_directories(${_target} PRIVATE ${_incs})
 endfunction()
 
