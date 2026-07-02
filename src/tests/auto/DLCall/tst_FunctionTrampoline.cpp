@@ -25,6 +25,15 @@ static int operator_thunk(int a, int b) {
     return ((Operator) fn)(a, b);
 }
 
+// Hide a pointer's provenance from the optimizer. unwrapTrampoline reads the magic word that sits
+// just before a stub, so probing a bare function pointer reads before it; at -O2 GCC otherwise sees
+// this as indexing before a compile-time-known function object and rejects it. Real callbacks are
+// runtime pointers where this analysis cannot fire, so this only matters for the test's own probes.
+static void *opaque(void *p) {
+    asm volatile("" : "+r"(p));
+    return p;
+}
+
 static int add(int a, int b) {
     return a + b;
 }
@@ -78,7 +87,7 @@ BOOST_AUTO_TEST_CASE(alloc_dedups_routes_and_unwraps) {
 
     // A stub reverts to its original; a non-trampoline pointer passes through unchanged.
     BOOST_TEST(unwrapTrampoline((void *) s_add) == (void *) add);
-    BOOST_TEST(unwrapTrampoline((void *) add) == (void *) add);
+    BOOST_TEST(unwrapTrampoline(opaque((void *) add)) == (void *) add);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

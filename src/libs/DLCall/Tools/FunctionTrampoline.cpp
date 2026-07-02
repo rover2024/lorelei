@@ -36,13 +36,15 @@ namespace lore {
             (FunctionTrampolineTable *) mmap(NULL, table_size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         trampoline->count = count;
+        // Build the shared landing once: it loads `target` and tail-branches to it.
+        tramp_gen_shared(trampoline->shared_entry, target);
         for (size_t i = 0; i < count; i++) {
             auto thunk = &trampoline->trampoline[i];
             thunk->magic_sign = magic_sign;
             thunk->saved_function = NULL;
-            // Each stub calls `target` directly and returns; the handler recovers this instance from
-            // its own return address, so no shared landing stub is needed.
-            tramp_gen_thunk(thunk->thunk_instr, target);
+            // Each stub calls the shared entry and returns; the handler recovers this instance from
+            // its own return address, so no per-stub target load is needed.
+            tramp_gen_thunk(thunk->thunk_instr, trampoline->shared_entry);
         }
         // Flush the instruction cache over the just-written code so it is visible to execution on
         // architectures without a coherent I-cache (aarch64, riscv64), a no-op on x86_64.
