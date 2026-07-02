@@ -33,8 +33,9 @@ namespace lore {
         void *saved_function;
         /// Per-instance executable stub. Its address is the surrogate function pointer handed out.
         /// The layout is per-arch (see the \c Trampoline_codegen_*): it links into the table's shared
-        /// entry and the handler returns back through it. It is tiny: riscv64 uses 8 bytes, aarch64
-        /// 12, x86_64 6. Sized to 16 so the following \c magic_sign stays naturally aligned.
+        /// entry and the handler returns back through it. It is small: riscv64 uses 8 bytes, aarch64
+        /// 12, x86_64 14 (it also re-aligns the stack). Sized to 16 so the following \c magic_sign
+        /// stays naturally aligned.
         char thunk_instr[16];
         /// Sentinel identifying this block as one of our trampolines, so the stub address can be
         /// detected and reverted to \c saved_function.
@@ -45,7 +46,7 @@ namespace lore {
         /// trampoline from a return address. It is fixed by the per-arch stub template in
         /// \c Trampoline_codegen_* and MUST match it.
 #if defined(__x86_64__)
-        static constexpr size_t kResumeOffset = 5; // call <shared> (5)
+        static constexpr size_t kResumeOffset = 9; // sub $8,%rsp (4) + call <shared> (5)
 #elif defined(__aarch64__)
         static constexpr size_t kResumeOffset = 8; // adr x9 (4) + b <prologue> (4)
 #elif defined(__riscv) && __riscv_xlen == 64

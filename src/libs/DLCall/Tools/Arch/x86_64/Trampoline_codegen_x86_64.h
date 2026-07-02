@@ -29,17 +29,33 @@ static void tramp_gen_shared(void *buf, void *target) {
 }
 
 // Emit the per-instance stub: call the shared landing, then return to the original caller. The
-// handler returns to the `ret` below (LORE_TRAMP_RESUME_OFFSET == 5 bytes into the stub), which then
-// returns to the caller.
+// handler returns to the `add` below (LORE_TRAMP_RESUME_OFFSET == 9 bytes into the stub), which
+// unwinds the realignment and returns to the caller.
 //
-//     call   <shared>         ; E8 <rel32>      (5 bytes)   return address = the ret below (offset 5)
-//     ret                     ; C3              (1 byte)    at offset 5
+//     sub    $8, %rsp         ; 48 83 EC 08     (4 bytes)   re-align the stack (see below)
+//     call   <shared>         ; E8 <rel32>      (5 bytes)   return address = the add below (offset 9)
+//     add    $8, %rsp         ; 48 83 C4 08     (4 bytes)   at offset 9
+//     ret                     ; C3              (1 byte)    at offset 13
+//
+// The `sub $8` is not scratch space: the caller enters at rsp % 16 == 8 (the ABI state right after a
+// call), and our own `call` pushes another 8, so without it the handler would run at rsp % 16 == 0.
+// A handler compiled for the ABI then spills with aligned moves (gcc -O2 movaps) relative to a stack
+// it believes is aligned, and faults. Subtracting 8 first makes the handler see the ABI-required
+// rsp % 16 == 8; the matching `add $8` unwinds it before returning to the caller.
 static void tramp_gen_thunk(void *buf, void *shared) {
     unsigned char *p = (unsigned char *) buf;
-    int32_t rel = (int32_t) ((char *) shared - ((char *) buf + 5));
-    p[0] = 0xE8; // CALL rel32
-    memcpy(p + 1, &rel, 4);
-    p[5] = 0xC3; // RET
+    p[0] = 0x48; // sub $8, %rsp
+    p[1] = 0x83;
+    p[2] = 0xEC;
+    p[3] = 0x08;
+    int32_t rel = (int32_t) ((char *) shared - ((char *) buf + 9));
+    p[4] = 0xE8; // CALL rel32
+    memcpy(p + 5, &rel, 4);
+    p[9] = 0x48; // add $8, %rsp
+    p[10] = 0x83;
+    p[11] = 0xC4;
+    p[12] = 0x08;
+    p[13] = 0xC3; // RET
 }
 
 #ifdef __cplusplus
