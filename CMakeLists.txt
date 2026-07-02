@@ -16,6 +16,11 @@ option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)
 option(LORE_INSTALL "Install library" ON)
 
+# Statically link LLVM/Clang into the tools (LoreTLC) and bundle Clang's builtin headers, so the
+# installed toolchain is self-contained and can be copied to a machine without LLVM/Clang. Off by
+# default: a normal build links libLLVM dynamically.
+option(LORE_STATIC_LLVM "Statically link LLVM/Clang into the tools" OFF)
+
 # Emitted into <lorelei/BuildConfig.h>
 set(LORE_CONFIG_THUNK_VARG_MAX 64) # max packed variadic arguments a thunked call marshals
 set(LORE_CONFIG_QEMU_SUPPORT_ADDRESS_SEPARATION ON) # QEMU separates guest/host address ranges (fork)

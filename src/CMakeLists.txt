@@ -12,6 +12,17 @@ add_subdirectory(utils)
 
 if(LORE_BUILD_TOOLS)
     add_subdirectory(tools)
+
+    # For a self-contained toolchain, bundle Clang's builtin headers next to the tools. Clang's
+    # embedded driver looks for them at <exe-dir>/../lib/clang/<version>/include, so a copied install
+    # resolves them without a system Clang present. The version subdirectory comes from the install
+    # tree itself, so nothing here hard-codes the LLVM version.
+    if(LORE_STATIC_LLVM AND LORE_INSTALL)
+        find_package(Clang REQUIRED)
+        install(DIRECTORY ${LLVM_LIBRARY_DIRS}/clang/
+            DESTINATION lib/clang
+            FILES_MATCHING PATTERN "*.h" PATTERN "*.modulemap")
+    endif()
 endif()
 
 if (LORE_BUILD_TESTS)

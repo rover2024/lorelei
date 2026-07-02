@@ -30,16 +30,40 @@ endif()
 function(lore_link_clang _target _scope)
     find_package(Clang REQUIRED)
     target_include_directories(${_target} SYSTEM ${_scope} ${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
-    target_link_directories(${_target} ${_scope} ${LLVM_LIBRARY_DIRS})
     target_compile_definitions(${_target} ${_scope} ${LLVM_DEFINITIONS})
-    target_link_libraries(${_target} ${_scope}
-        clangAST
-        clangBasic
-        clangFrontend
-        clangSerialization
-        clangTooling
-        clangASTMatchers
-    )
+
+    if(LORE_STATIC_LLVM)
+        # Self-contained toolchain: link the static Clang archives against static LLVM components, so
+        # the tool has no runtime dependency on libLLVM.so / libclang-cpp.so. The Clang CMake targets
+        # pull in the shared libLLVM, so bypass them and link the .a directly, resolved in one group.
+        # LLVM_LIBRARY_DIRS and LLVM_TOOLS_BINARY_DIR come from find_package(Clang) above, so nothing
+        # here hard-codes the LLVM version.
+        execute_process(COMMAND ${LLVM_TOOLS_BINARY_DIR}/llvm-config --link-static --system-libs
+            OUTPUT_VARIABLE _llvm_syslibs OUTPUT_STRIP_TRAILING_WHITESPACE)
+        separate_arguments(_llvm_syslibs UNIX_COMMAND "${_llvm_syslibs}")
+
+        # Glob the archives that actually exist rather than trusting `llvm-config --libs`, which lists
+        # optional components (e.g. Polly) that the distribution does not ship a static library for.
+        file(GLOB _clang_archives "${LLVM_LIBRARY_DIRS}/libclang*.a")
+        file(GLOB _llvm_archives "${LLVM_LIBRARY_DIRS}/libLLVM*.a")
+
+        target_link_directories(${_target} ${_scope} ${LLVM_LIBRARY_DIRS})
+        # --start-group: the Clang and LLVM archives reference each other both ways, so one pass is
+        # not enough. The linker only extracts the objects actually needed, so unused components
+        # (e.g. most target backends) do not bloat the binary.
+        target_link_libraries(${_target} ${_scope}
+            -Wl,--start-group ${_clang_archives} ${_llvm_archives} -Wl,--end-group ${_llvm_syslibs})
+    else()
+        target_link_directories(${_target} ${_scope} ${LLVM_LIBRARY_DIRS})
+        target_link_libraries(${_target} ${_scope}
+            clangAST
+            clangBasic
+            clangFrontend
+            clangSerialization
+            clangTooling
+            clangASTMatchers
+        )
+    endif()
 endfunction()
 
 #[[
