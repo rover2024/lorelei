@@ -42,9 +42,8 @@ else
 fi
 
 cd "$REPOS_DIR"
-# Pinned to the lorelei-1.0.1.0 thunks branch rather than main, so the image is built against the
-# thunks snapshot that goes with this lorelei release.
-THUNKS_BRANCH=lorelei-1.0.1.0
+# Track the thunks main branch.
+THUNKS_BRANCH=main
 if [ ! -d lorelei-thunks ]; then
     curl -fsSL "https://codeload.github.com/rover2024/lorelei-thunks/tar.gz/refs/heads/$THUNKS_BRANCH" | tar xz
     mv "lorelei-thunks-$THUNKS_BRANCH" lorelei-thunks
