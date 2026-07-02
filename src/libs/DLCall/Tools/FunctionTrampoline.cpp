@@ -20,6 +20,16 @@
 
 namespace lore {
 
+    // The callback identity channel. The shim parks a stub's saved_function here, and the handler
+    // reads it back. It is initial-exec so the shim's store is a call-free TP-relative move, and
+    // extern "C" so the shim's assembly can name it directly. It is defined here (in LoreDLCall,
+    // which loads before the runtimes) so the shim's TLS relocation resolves at load. See
+    // Trampoline_shim_*.S.
+    extern "C" {
+    LOREDLCALL_EXPORT __thread
+        __attribute__((tls_model("initial-exec"))) void *thread_last_callback = nullptr;
+    }
+
 #ifdef _WIN32
     FunctionTrampolineTable *FunctionTrampolineTable::create(size_t count, void *target,
                                                              uintptr_t magic_sign) {
@@ -36,15 +46,12 @@ namespace lore {
             (FunctionTrampolineTable *) mmap(NULL, table_size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         trampoline->count = count;
-        // Build the shared landing once: it loads `target` and tail-branches to it.
-        tramp_gen_shared(trampoline->shared_entry, target);
         for (size_t i = 0; i < count; i++) {
             auto thunk = &trampoline->trampoline[i];
             thunk->magic_sign = magic_sign;
             thunk->saved_function = NULL;
-            // Each stub calls the shared entry and returns; the handler recovers this instance from
-            // its own return address, so no per-stub target load is needed.
-            tramp_gen_thunk(thunk->thunk_instr, trampoline->shared_entry);
+            // Each stub loads its own saved_function and tail-branches (via the shim) to `target`.
+            tramp_gen_thunk(thunk->thunk_instr, target);
         }
         // Flush the instruction cache over the just-written code so it is visible to execution on
         // architectures without a coherent I-cache (aarch64, riscv64), a no-op on x86_64.

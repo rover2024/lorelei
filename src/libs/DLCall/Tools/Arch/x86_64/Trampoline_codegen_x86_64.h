@@ -9,53 +9,32 @@
 extern "C" {
 #endif
 
-// Emit the table's shared landing: load the handler `target` and tail-jump to it. Reached by a
-// `call` from a per-instance stub, so the return address on the stack still points into that stub;
-// the `jmp` leaves it there, so the handler recovers the instance from its own return address.
-//
-//     movabs $target, %r11    ; 49 BB <imm64>   (10 bytes)  r11 is scratch, not an argument reg
-//     jmp    *%r11            ; 41 FF E3        (3 bytes)   tail call, does not touch the stack
-//
-// r11 is chosen so the callback's own argument registers (and %al for a variadic callee) are left
-// untouched on the way into the handler.
-static void tramp_gen_shared(void *buf, void *target) {
-    unsigned char *p = (unsigned char *) buf;
-    p[0] = 0x49; // REX.W
-    p[1] = 0xBB; // MOV imm64, %r11
-    memcpy(p + 2, &target, 8);
-    p[10] = 0x41; // REX.B
-    p[11] = 0xFF; // JMP r/m64
-    p[12] = 0xE3; // ModR/M: jmp *%r11
-}
+// The shared shim (Trampoline_shim_x86_64.S): parks the identity in thread_last_callback and tail-
+// branches to the handler. Its address is baked into every stub.
+extern void lore_tramp_shim(void);
 
-// Emit the per-instance stub: call the shared landing, then return to the original caller. The
-// handler returns to the `add` below (LORE_TRAMP_RESUME_OFFSET == 9 bytes into the stub), which
-// unwinds the realignment and returns to the caller.
+// Emit the per-instance stub: load this instance's saved_function into %r11 (the identity), the
+// handler into %r10, and tail-jump to the shim. r10/r11/rax are scratch (not argument registers) and
+// there is no push, so this is a tail-branch that leaves every argument, including stack-passed ones,
+// exactly where the caller put them.
 //
-//     sub    $8, %rsp         ; 48 83 EC 08     (4 bytes)   re-align the stack (see below)
-//     call   <shared>         ; E8 <rel32>      (5 bytes)   return address = the add below (offset 9)
-//     add    $8, %rsp         ; 48 83 C4 08     (4 bytes)   at offset 9
-//     ret                     ; C3              (1 byte)    at offset 13
+//     mov  -15(%rip), %r11    ; 4C 8B 1D F1 FF FF FF   load saved_function from this struct field
+//     movabs target, %r10     ; 49 BA <imm64>          the table's handler
+//     movabs shim,   %rax     ; 48 B8 <imm64>          the shared shim
+//     jmp    *%rax            ; FF E0                   tail-branch to the shim
 //
-// The `sub $8` is not scratch space: the caller enters at rsp % 16 == 8 (the ABI state right after a
-// call), and our own `call` pushes another 8, so without it the handler would run at rsp % 16 == 0.
-// A handler compiled for the ABI then spills with aligned moves (gcc -O2 movaps) relative to a stack
-// it believes is aligned, and faults. Subtracting 8 first makes the handler see the ABI-required
-// rsp % 16 == 8; the matching `add $8` unwinds it before returning to the caller.
-static void tramp_gen_thunk(void *buf, void *shared) {
+// The saved_function load is PC-relative to this stub. saved_function sits at offset 0 of the
+// FunctionTrampoline and thunk_instr at offset 8, so from the `mov` (at thunk_instr+0) the field is a
+// constant -15 bytes back (offset 8 minus the 7-byte instruction minus the 8-byte field... i.e.
+// 0 - (8 + 7)). Loading it (rather than baking it) keeps setting saved_function a plain field write.
+static void tramp_gen_thunk(void *buf, void *target) {
     unsigned char *p = (unsigned char *) buf;
-    p[0] = 0x48; // sub $8, %rsp
-    p[1] = 0x83;
-    p[2] = 0xEC;
-    p[3] = 0x08;
-    int32_t rel = (int32_t) ((char *) shared - ((char *) buf + 9));
-    p[4] = 0xE8; // CALL rel32
-    memcpy(p + 5, &rel, 4);
-    p[9] = 0x48; // add $8, %rsp
-    p[10] = 0x83;
-    p[11] = 0xC4;
-    p[12] = 0x08;
-    p[13] = 0xC3; // RET
+    int32_t disp = -15;
+    p[0] = 0x4C; p[1] = 0x8B; p[2] = 0x1D; memcpy(p + 3, &disp, 4); // mov -15(%rip), %r11
+    p[7] = 0x49; p[8] = 0xBA; memcpy(p + 9, &target, 8);            // movabs target, %r10
+    void *shim = (void *) lore_tramp_shim;
+    p[17] = 0x48; p[18] = 0xB8; memcpy(p + 19, &shim, 8);           // movabs shim, %rax
+    p[27] = 0xFF; p[28] = 0xE0;                                      // jmp *%rax
 }
 
 #ifdef __cplusplus

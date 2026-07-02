@@ -1,12 +1,16 @@
 project(LoreDLCall)
 
-file(GLOB_RECURSE _src *.h *.cpp)
+enable_language(ASM)
+
+# Pick up the C++/headers everywhere, plus only this target arch's trampoline shim assembly (the
+# other arches' .S cannot assemble here), mirroring TinyCoroutine.
+file(GLOB_RECURSE _src *.h *.cpp Tools/Arch/${LORE_HOST_ARCH}/*.S)
 
 # Use a tiny JSON library instead of linking against the huge LLVM JSON library.
 # Shared so host/guest thunks resolve VariadicAdaptor (and friends) against this one copy at
-# runtime instead of each statically pulling LoreDLCall.a -- which dragged in the printf parser's
+# runtime instead of each statically pulling LoreDLCall.a, which dragged in the printf parser's
 # mp_vsnprintf reference without its definition. Public classes are tagged LOREDLCALL_EXPORT (see
-# Global.h); the bundled json11/printf/avcall keep their hidden visibility, so mp_vsnprintf and the
+# Global.h). The bundled json11/printf/avcall keep their hidden visibility, so mp_vsnprintf and the
 # JSON parser stay internal to this library.
 lore_add_library(${PROJECT_NAME} SHARED
     SOURCES ${_src}

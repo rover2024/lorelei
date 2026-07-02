@@ -17,7 +17,7 @@
 
 namespace lore {
 
-    extern thread_local void *thread_last_callback;
+    extern "C" __thread __attribute__((tls_model("initial-exec"))) void *thread_last_callback;
 
 }
 

@@ -48,8 +48,6 @@ namespace lore {
 
     LOREGUESTRT_EXPORT GuestRuntime runtime_instance;
 
-    LOREGUESTRT_EXPORT thread_local void *thread_last_callback = nullptr;
-
     static void logCallback(int level, const LogContext &ctx, const std::string_view &s) {
         if (level >= runtime_instance.level) {
             runtime_instance.client.logMessage(level, ctx, s.data());

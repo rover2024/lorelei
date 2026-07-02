@@ -15,19 +15,21 @@
 #define LORE_THUNK_LAST_HCB lore::thread_last_callback
 
 /// LORE_THUNK_GET_LAST_CALLBACK(NAME) declares NAME as the function the callback stub now being
-/// invoked stands in for. The stub calls this handler and returns; the handler recovers the identity
-/// from its own return address (see \c FunctionTrampoline::origin). The handler is a callback Entry
-/// whose address is taken to build the stub, so it is emitted out of line and that return address is
-/// the stub.
-#define LORE_THUNK_GET_LAST_CALLBACK(NAME)                                                         \
-    void *NAME = lore::FunctionTrampoline::origin(__builtin_return_address(0));
+/// invoked stands in for. The stub tail-branches (via the shared shim) to this handler after the
+/// shim parks the identity in \c thread_last_callback, so the handler just reads it. No reserved
+/// register and no return-address games, so the handler compiles cleanly under any compiler.
+#define LORE_THUNK_GET_LAST_CALLBACK(NAME) void *NAME = lore::thread_last_callback;
 
 #define LORE_THUNK_GET_LAST_GCB LORE_THUNK_GET_LAST_CALLBACK
 #define LORE_THUNK_GET_LAST_HCB LORE_THUNK_GET_LAST_CALLBACK
 
 namespace lore {
 
-    extern thread_local void *thread_last_callback;
+    // Set by the shim to the stub's saved_function just before the handler runs. The handler reads
+    // it to learn which callback it stands in for. initial-exec (a call-free TP-relative access)
+    // and extern "C" so the shim assembly can name it, and defined in LoreDLCall.
+    extern "C" LORE_DECL_IMPORT __thread
+        __attribute__((tls_model("initial-exec"))) void *thread_last_callback;
 
 }
 
