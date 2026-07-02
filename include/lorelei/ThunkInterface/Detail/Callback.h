@@ -14,33 +14,16 @@
 
 #define LORE_THUNK_LAST_HCB lore::thread_last_callback
 
-/// LORE_THUNK_GET_LAST_CALLBACK_*(NAME) read the host fixed register into NAME: it is where the
-/// generated callback trampoline leaves the address of the callback being invoked. That register
-/// (r11 on x86_64, x16 on aarch64, t1 on riscv64) is part of the trampoline ABI, so any translation
-/// unit that uses these macros (or the trampoline / callback-substitution path that relies on them)
-/// MUST reserve it with -ffixed-<reg>. Otherwise the compiler may reuse the register and overwrite
-/// the callback address before the read, and NAME picks up garbage.
-#define LORE_THUNK_GET_LAST_CALLBACK_X86_64(NAME)                                                  \
-    void *NAME;                                                                                    \
-    asm volatile("mov %%r11, %0" : "=r"(NAME)::"memory");
+/// LORE_THUNK_GET_LAST_CALLBACK(NAME) declares NAME as the function the callback stub now being
+/// invoked stands in for. The stub calls this handler and returns; the handler recovers the identity
+/// from its own return address (see \c FunctionTrampoline::origin). The handler is a callback Entry
+/// whose address is taken to build the stub, so it is emitted out of line and that return address is
+/// the stub.
+#define LORE_THUNK_GET_LAST_CALLBACK(NAME)                                                         \
+    void *NAME = lore::FunctionTrampoline::origin(__builtin_return_address(0));
 
-#define LORE_THUNK_GET_LAST_CALLBACK_ARM64(NAME)                                                   \
-    void *NAME;                                                                                    \
-    asm volatile("mov %0, x16" : "=r"(NAME)::"memory");
-
-#define LORE_THUNK_GET_LAST_CALLBACK_RISCV64(NAME)                                                 \
-    void *NAME;                                                                                    \
-    asm volatile("mv %0, t1" : "=r"(NAME)::"memory");
-
-#define LORE_THUNK_GET_LAST_HCB LORE_THUNK_GET_LAST_CALLBACK_X86_64
-
-#ifdef __x86_64__
-#  define LORE_THUNK_GET_LAST_GCB LORE_THUNK_GET_LAST_CALLBACK_X86_64
-#elif defined(__aarch64__)
-#  define LORE_THUNK_GET_LAST_GCB LORE_THUNK_GET_LAST_CALLBACK_ARM64
-#elif defined(__riscv)
-#  define LORE_THUNK_GET_LAST_GCB LORE_THUNK_GET_LAST_CALLBACK_RISCV64
-#endif
+#define LORE_THUNK_GET_LAST_GCB LORE_THUNK_GET_LAST_CALLBACK
+#define LORE_THUNK_GET_LAST_HCB LORE_THUNK_GET_LAST_CALLBACK
 
 namespace lore {
 

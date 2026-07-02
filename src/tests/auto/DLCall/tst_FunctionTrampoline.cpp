@@ -16,8 +16,8 @@ typedef int (*Operator)(int a, int b);
 
 static void *last_function;
 
-// Common landing function: the trampoline's shared stub leaves the original function in the
-// scratch register before jumping here.
+// Common handler: each stub calls this and returns; the handler recovers the original function from
+// its own return address. Its address is taken to build the stubs, so it is emitted out of line.
 static int operator_thunk(int a, int b) {
     LORE_THUNK_GET_LAST_GCB(fn)
 
@@ -54,6 +54,31 @@ BOOST_AUTO_TEST_CASE(routes_to_saved_function) {
     BOOST_TEST(table->trampoline[1].magic_sign == kMagic);
 
     FunctionTrampolineTable::destroy(table);
+}
+
+// allocCallbackTrampoline hands out one stub per distinct callback (dedup), routes each to its
+// original, and unwrapTrampoline recovers the original from a bare stub pointer.
+BOOST_AUTO_TEST_CASE(alloc_dedups_routes_and_unwraps) {
+    using namespace lore::thunk;
+
+    auto s_add = allocCallbackTrampoline<operator_thunk>((void *) add);
+    auto s_add2 = allocCallbackTrampoline<operator_thunk>((void *) add);
+    auto s_mul = allocCallbackTrampoline<operator_thunk>((void *) mul);
+
+    BOOST_TEST(s_add == s_add2); // same input -> same stub
+    BOOST_TEST(s_add != s_mul);  // distinct inputs -> distinct stubs
+
+    last_function = nullptr;
+    BOOST_TEST(s_add(3, 4) == 7);
+    BOOST_TEST(last_function == (void *) add);
+
+    last_function = nullptr;
+    BOOST_TEST(s_mul(3, 4) == 12);
+    BOOST_TEST(last_function == (void *) mul);
+
+    // A stub reverts to its original; a non-trampoline pointer passes through unchanged.
+    BOOST_TEST(unwrapTrampoline((void *) s_add) == (void *) add);
+    BOOST_TEST(unwrapTrampoline((void *) add) == (void *) add);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

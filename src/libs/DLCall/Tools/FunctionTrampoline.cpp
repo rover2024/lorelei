@@ -35,17 +35,14 @@ namespace lore {
         auto trampoline =
             (FunctionTrampolineTable *) mmap(NULL, table_size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        // Emit the one shared landing stub at the head of the table (jumps to target).
-        tramp_gen_jump(trampoline->jump_instr, target);
         trampoline->count = count;
-        for (int i = 0; i < count; i++) {
+        for (size_t i = 0; i < count; i++) {
             auto thunk = &trampoline->trampoline[i];
             thunk->magic_sign = magic_sign;
             thunk->saved_function = NULL;
-            // Pass this instance's distance from the table base. The emitted thunk uses it to form a
-            // RIP-relative jump back to the shared jump_instr at the table head.
-            tramp_gen_thunk(thunk->thunk_instr,
-                            (intptr_t) thunk->thunk_instr - (intptr_t) trampoline);
+            // Each stub calls `target` directly and returns; the handler recovers this instance from
+            // its own return address, so no shared landing stub is needed.
+            tramp_gen_thunk(thunk->thunk_instr, target);
         }
         // Flush the instruction cache over the just-written code so it is visible to execution on
         // architectures without a coherent I-cache (aarch64, riscv64), a no-op on x86_64.
