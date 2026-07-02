@@ -39,6 +39,12 @@ ARG BUILD_QEMU=1
 RUN /tmp/scripts/build-qmsetup.sh \
     && if [ "${BUILD_QEMU}" = "1" ]; then /tmp/scripts/build-qemu.sh; else echo "skipping QEMU build (BUILD_QEMU=${BUILD_QEMU})"; fi
 
+# Host toolchain for the lorelei + thunks build: gcc (default) or llvm (clang-20). Declared here, after
+# the cached qemu/qmsetup layers, so switching it does not rebuild them. The x86_64 guest cross and the
+# qemu/qmsetup builds always use gcc.
+ARG LORE_TOOLCHAIN=gcc
+ENV LORE_TOOLCHAIN=${LORE_TOOLCHAIN}
+
 # Copy this repository (lorelei v2) and build it from local source, then the thunks against it. These
 # scripts are run from the repo copy, so editing them only rebuilds from here on.
 COPY --chown=user:user . ${LORELEI_SRC}

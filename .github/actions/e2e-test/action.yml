@@ -5,6 +5,10 @@ inputs:
   arch:
     description: Architecture name (x86_64 / aarch64 / riscv64), for the image tag and the summary.
     required: true
+  toolchain:
+    description: Host toolchain for the lorelei + thunks build (gcc or llvm), for the image tag and the summary.
+    required: false
+    default: gcc
   build_args:
     description: Extra docker build arguments, e.g. --build-arg USE_USTC_MIRROR=1 for a domestic runner.
     required: false
@@ -32,10 +36,11 @@ runs:
       # the proxy build-args forward the runner's own proxy, and are empty on the hosted runners.
       run: |
         docker build ${{ inputs.build_args }} \
+          --build-arg LORE_TOOLCHAIN="${{ inputs.toolchain }}" \
           --build-arg http_proxy="${http_proxy:-}" \
           --build-arg https_proxy="${https_proxy:-}" \
           --build-arg no_proxy="${no_proxy:-}" \
-          -f docker/Dockerfile -t "lorelei-test-${{ inputs.arch }}" .
+          -f docker/Dockerfile -t "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" .
 
     - name: Run end-to-end tests
       id: run
@@ -50,7 +55,7 @@ runs:
         docker run --rm \
           -e ARCHIVE_SIZE="${{ inputs.archive_size }}" \
           -e XZ_ARCHIVE_SIZE="${{ inputs.xz_archive_size }}" \
-          "lorelei-test-${{ inputs.arch }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
+          "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
         printf '%s' "$rc" > run.rc
         exit "$rc"
 
@@ -62,12 +67,13 @@ runs:
       shell: bash
       run: |
         arch="${{ inputs.arch }}"
+        toolchain="${{ inputs.toolchain }}"
         clean="$(sed -r 's/\x1b\[[0-9;]*m//g' run.log)"
         rc="$(cat run.rc 2>/dev/null || echo 1)"
         if [ "$rc" = "0" ]; then
-          status="✅ **Passed** on \`$arch\`"
+          status="✅ **Passed** on \`$arch\` (\`$toolchain\`)"
         else
-          status="❌ **Failed** on \`$arch\` (see the log below)"
+          status="❌ **Failed** on \`$arch\` (\`$toolchain\`, see the log below)"
         fi
 
         # The two workload stages print timing lines with the same native/emulated/lorelei labels, so
@@ -88,7 +94,7 @@ runs:
         lzma_rows="$(extract_rows '== 4/4' '')"
 
         {
-          echo "## Lorelei End-to-End — \`$arch\`"
+          echo "## Lorelei End-to-End — \`$arch\` (\`$toolchain\`)"
           echo
           echo "$status"
 

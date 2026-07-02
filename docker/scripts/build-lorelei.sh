@@ -12,6 +12,13 @@ set -euo pipefail
 : "${LORELEI_SRC:?}"
 : "${INSTALL_DIR:?}"
 
+# Host toolchain: gcc by default, clang for the LLVM CI variant (LORE_TOOLCHAIN=llvm). Only the host
+# side switches, so the x86_64 guest cross toolchain below is unaffected.
+case "${LORE_TOOLCHAIN:-gcc}" in
+    llvm) HOST_CC=clang-20; HOST_CXX=clang++-20 ;;
+    *)    HOST_CC=gcc;      HOST_CXX=g++ ;;
+esac
+
 arch="$(uname -m)"
 guest_extra=()
 host_extra=()
@@ -48,6 +55,8 @@ cd "$LORELEI_SRC"
 # Host side (native), with the tests. The build tree is kept so the test run can drive it.
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="$HOST_CC" \
+    -DCMAKE_CXX_COMPILER="$HOST_CXX" \
     -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
     -Dqmsetup_DIR="$INSTALL_DIR/lib/cmake/qmsetup" \
     -DLORE_BUILD_TOOLS=TRUE \

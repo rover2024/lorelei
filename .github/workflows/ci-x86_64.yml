@@ -1,6 +1,6 @@
 name: x86_64
 
-# Manual-only end-to-end test on a GitHub-hosted x86_64 runner.
+# Manual-only end-to-end test on a GitHub-hosted x86_64 runner, once per host toolchain (gcc, clang).
 on:
   workflow_dispatch:
 
@@ -8,8 +8,13 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [gcc, llvm]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/e2e-test
         with:
           arch: x86_64
+          toolchain: ${{ matrix.toolchain }}

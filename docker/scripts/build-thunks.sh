@@ -14,6 +14,13 @@ set -euo pipefail
 : "${REPOS_DIR:?}"
 : "${INSTALL_DIR:?}"
 
+# Host toolchain: gcc by default, clang for the LLVM CI variant (LORE_TOOLCHAIN=llvm), matching the
+# lorelei build. Only the host HTL switches, so the x86_64 guest cross toolchain below is unaffected.
+case "${LORE_TOOLCHAIN:-gcc}" in
+    llvm) HOST_CC=clang-20; HOST_CXX=clang++-20 ;;
+    *)    HOST_CC=gcc;      HOST_CXX=g++ ;;
+esac
+
 arch="$(uname -m)"
 guest_extra=()
 host_extra=()
@@ -53,6 +60,8 @@ cd lorelei-thunks
 # Host side: the HTL (native). Runs the TLC and installs ThunkStat.json plus both generated sources.
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="$HOST_CC" \
+    -DCMAKE_CXX_COMPILER="$HOST_CXX" \
     -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
     -Dqmsetup_DIR="$INSTALL_DIR/lib/cmake/qmsetup" \
     -Dlorelei_DIR="$INSTALL_DIR/lib/cmake/lorelei" \
