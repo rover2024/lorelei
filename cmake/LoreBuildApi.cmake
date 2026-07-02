@@ -1,16 +1,28 @@
 # Guest architecture: x86_64
 set(LORE_GUEST_ARCH "x86_64")
 
-# Host architecture from CMake's own target processor rather than the compiler's -dumpmachine: gcc
-# bakes the target into the driver, but clang does not (its -dumpmachine ignores -target), so parsing
-# the compiler output would misdetect a clang cross build. CMAKE_SYSTEM_PROCESSOR is set natively and
-# by the cross toolchain files, so this is correct for both compilers and for native and cross builds.
+# Detect the arch this build targets. Prefer the compiler's explicit target: clang cross-builds set
+# CMAKE_<LANG>_COMPILER_TARGET (and clang's -dumpmachine ignores -target, so it would misreport).
+# Otherwise ask the compiler for its default machine: -dumpmachine is right for a native compiler and
+# for a cross gcc (the target is baked into the driver). CMAKE_SYSTEM_PROCESSOR is NOT usable here:
+# the guest side is cross-built by pointing a bare x86_64 gcc at CMake with no toolchain file, so
+# CMAKE_SYSTEM_PROCESSOR reports the build host's arch instead of the x86_64 target.
 if(NOT LORE_HOST_ARCH)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+    if(CMAKE_C_COMPILER_TARGET)
+        set(_target_triplet "${CMAKE_C_COMPILER_TARGET}")
+    else()
+        execute_process(
+            COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+            OUTPUT_VARIABLE _target_triplet
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+    string(REGEX MATCH "^[^-]+" _target_arch "${_target_triplet}")
+
+    if(_target_arch MATCHES "x86_64|amd64")
         set(LORE_HOST_ARCH "x86_64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+    elseif(_target_arch MATCHES "aarch64|arm64")
         set(LORE_HOST_ARCH "aarch64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
+    elseif(_target_arch MATCHES "riscv64")
         set(LORE_HOST_ARCH "riscv64")
     endif()
 endif()
