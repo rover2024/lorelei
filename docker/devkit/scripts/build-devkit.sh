@@ -101,15 +101,17 @@ ln -s usr/lib64 "$sysroot/lib64"
 # --- 5. wrappers -----------------------------------------------------------------------------------
 # For compiling the user's own x86_64 guest test programs by hand; the GTL cmake build uses the guest
 # toolchain file instead.
+# -fuse-ld=lld: use the bundled lld, not the system linker, which on a non-x86_64 host cannot link the
+# x86_64 target (its default ld only knows the host emulation).
 cat > "$DEVKIT_PREFIX/bin/x86_64-linux-gnu-clang" <<EOF
 #!/bin/sh
 tc="\$(CDPATH= cd -- "\$(dirname -- "\$0")/.." && pwd)"
-exec "\$tc/bin/clang" --target=x86_64-linux-gnu --sysroot="\$tc/x86_64" "\$@"
+exec "\$tc/bin/clang" --target=x86_64-linux-gnu --sysroot="\$tc/x86_64" -fuse-ld=lld "\$@"
 EOF
 cat > "$DEVKIT_PREFIX/bin/x86_64-linux-gnu-clang++" <<EOF
 #!/bin/sh
 tc="\$(CDPATH= cd -- "\$(dirname -- "\$0")/.." && pwd)"
-exec "\$tc/bin/clang++" --target=x86_64-linux-gnu --sysroot="\$tc/x86_64" "\$@"
+exec "\$tc/bin/clang++" --target=x86_64-linux-gnu --sysroot="\$tc/x86_64" -fuse-ld=lld "\$@"
 EOF
 chmod +x "$DEVKIT_PREFIX/bin/x86_64-linux-gnu-clang" "$DEVKIT_PREFIX/bin/x86_64-linux-gnu-clang++"
 
