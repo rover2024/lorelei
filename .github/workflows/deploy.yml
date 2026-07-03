@@ -1,10 +1,11 @@
 name: deploy
 
 # Build the shipping tarballs (a runtime + a devkit per arch) and upload them as artifacts. Fires on a
-# version tag (the real release path) and on manual dispatch (to smoke-test without tagging). A single
-# x86_64 job builds all three arches: x86_64 natively and aarch64/riscv64 by cross compilation, so
-# every artifact is uploaded from a runner that supports actions/upload-artifact (unlike the self-hosted
-# riscv64 runner, which has no Node 20).
+# version tag (the real release path) and on manual dispatch (to smoke-test without tagging). One job
+# per arch (a matrix), so the run shows which arch is building and the three go in parallel. Every job
+# runs on an x86_64 runner: x86_64 builds natively, aarch64/riscv64 by cross compilation, so every
+# artifact is uploaded from a runner that supports actions/upload-artifact (unlike the self-hosted
+# riscv64 runner, which has no Node 20). One arch per runner also keeps the build's disk use down.
 on:
   push:
     tags:
@@ -13,47 +14,29 @@ on:
 
 jobs:
   dist:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64, riscv64]
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
-      # Cross-compiles aarch64/riscv64 too, so one runner produces all six tarballs (docker build +
-      # docker cp, no buildx). Tarballs land in ./out as lorelei-{runtime,devkit}-<arch>.tar.xz.
-      - name: Build the distribution tarballs (x86_64 + aarch64 + riscv64)
+      # Cross-compiles aarch64/riscv64 on the x86_64 runner (docker build + docker cp, no buildx).
+      # Tarballs land in ./out as lorelei-{runtime,devkit}-<arch>.tar.xz.
+      - name: Build the ${{ matrix.arch }} tarballs
         shell: bash
-        run: bash docker/dist/build.sh -t "x86_64 aarch64 riscv64" -o ./out
+        run: bash docker/dist/build.sh -t "${{ matrix.arch }}" -o ./out
 
-      # One artifact per tarball: a runtime and a devkit for each of the three arches, six in all.
-      - name: Upload runtime x86_64
+      - name: Upload runtime ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
-          name: lorelei-runtime-x86_64
-          path: out/lorelei-runtime-x86_64.tar.xz
-      - name: Upload devkit x86_64
-        uses: actions/upload-artifact@v4
-        with:
-          name: lorelei-devkit-x86_64
-          path: out/lorelei-devkit-x86_64.tar.xz
+          name: lorelei-runtime-${{ matrix.arch }}
+          path: out/lorelei-runtime-${{ matrix.arch }}.tar.xz
 
-      - name: Upload runtime aarch64
+      - name: Upload devkit ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
-          name: lorelei-runtime-aarch64
-          path: out/lorelei-runtime-aarch64.tar.xz
-      - name: Upload devkit aarch64
-        uses: actions/upload-artifact@v4
-        with:
-          name: lorelei-devkit-aarch64
-          path: out/lorelei-devkit-aarch64.tar.xz
-
-      - name: Upload runtime riscv64
-        uses: actions/upload-artifact@v4
-        with:
-          name: lorelei-runtime-riscv64
-          path: out/lorelei-runtime-riscv64.tar.xz
-      - name: Upload devkit riscv64
-        uses: actions/upload-artifact@v4
-        with:
-          name: lorelei-devkit-riscv64
-          path: out/lorelei-devkit-riscv64.tar.xz
+          name: lorelei-devkit-${{ matrix.arch }}
+          path: out/lorelei-devkit-${{ matrix.arch }}.tar.xz
