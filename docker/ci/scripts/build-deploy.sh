@@ -29,7 +29,7 @@ GEN_SOURCE_DIR="$INSTALL_DIR/share/lorelei/thunks"
 QMSETUP_DIR="$INSTALL_DIR/lib/cmake/qmsetup"
 STAGING_LORELEI_DIR="$INSTALL_DIR/lib/cmake/lorelei"   # the with-tools staging lorelei (carries TLC)
 THUNKS_SRC="$REPOS_DIR/lorelei-thunks"
-TOOLCHAIN_DIR="$LORELEI_SRC/docker/cmake/toolchain"
+TOOLCHAIN_DIR="$LORELEI_SRC/docker/ci/cmake/toolchain"
 
 arch="$(uname -m)"
 [ "$arch" = "amd64" ] && arch=x86_64
@@ -144,7 +144,7 @@ if [ "$arch" = "x86_64" ]; then
     if [ "${DEPLOY_CROSS:-1}" = "1" ]; then
         for carch in aarch64 riscv64; do
             echo "== installing the $carch cross toolchain =="
-            sudo bash "$LORELEI_SRC/docker/scripts/bootstrap-cross.sh" "$carch"
+            sudo bash "$LORELEI_SRC/docker/ci/scripts/bootstrap-cross.sh" "$carch"
             cross_host_target "$carch" \
                 "$TOOLCHAIN_DIR/$carch-linux-gnu.cmake" \
                 "--gcc-toolchain=/usr;-idirafter;/usr/include"

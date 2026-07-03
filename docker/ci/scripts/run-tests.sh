@@ -40,7 +40,7 @@ echo "== 3/4  minizip over the zlib thunk: native vs emulated vs lorelei =="
 native_minizip="$(command -v minizip)"
 guest_minizip="$(command -v minizip-x86_64 || command -v minizip)"
 archive="$work/archive.bin"
-python3 "$LORELEI_SRC/docker/benchmark/GenerateArchive.py" "$archive" "${ARCHIVE_SIZE:-64M}"
+python3 "$LORELEI_SRC/docker/ci/benchmark/GenerateArchive.py" "$archive" "${ARCHIVE_SIZE:-64M}"
 
 # Run a command, hide its output, and print the wall-clock time on its own line.
 timed() {
@@ -81,7 +81,7 @@ echo "== 4/4  xz over the lzma thunk: native vs emulated vs lorelei =="
 # applies cleanly. A separate, modest input keeps this quick, since xz is much slower than gzip.
 guest_xz="$(command -v xz-x86_64 || command -v xz)"
 xz_input="$work/xz_input.bin"
-python3 "$LORELEI_SRC/docker/benchmark/GenerateArchive.py" "$xz_input" "${XZ_ARCHIVE_SIZE:-64M}"
+python3 "$LORELEI_SRC/docker/ci/benchmark/GenerateArchive.py" "$xz_input" "${XZ_ARCHIVE_SIZE:-64M}"
 
 timed "native (host xz)" \
     "$(command -v xz)" -6 -c "$xz_input"

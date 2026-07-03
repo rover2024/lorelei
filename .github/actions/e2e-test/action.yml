@@ -40,7 +40,7 @@ runs:
           --build-arg http_proxy="${http_proxy:-}" \
           --build-arg https_proxy="${https_proxy:-}" \
           --build-arg no_proxy="${no_proxy:-}" \
-          -f docker/Dockerfile -t "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" .
+          -f docker/ci/Dockerfile -t "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" .
 
     - name: Run end-to-end tests
       id: run
@@ -55,7 +55,7 @@ runs:
         docker run --rm \
           -e ARCHIVE_SIZE="${{ inputs.archive_size }}" \
           -e XZ_ARCHIVE_SIZE="${{ inputs.xz_archive_size }}" \
-          "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" bash docker/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
+          "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" bash docker/ci/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
         printf '%s' "$rc" > run.rc
         exit "$rc"
 

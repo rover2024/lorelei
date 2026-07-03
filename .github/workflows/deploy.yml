@@ -29,13 +29,13 @@ jobs:
             --build-arg http_proxy="${http_proxy:-}" \
             --build-arg https_proxy="${https_proxy:-}" \
             --build-arg no_proxy="${no_proxy:-}" \
-            -f docker/Dockerfile -t lorelei-deploy-x86_64 .
+            -f docker/ci/Dockerfile -t lorelei-deploy-x86_64 .
 
       - name: Build the deploy trees (no tools, no tests)
         shell: bash
         run: |
           docker run --name lorelei-deploy-x86_64 \
-            lorelei-deploy-x86_64 bash docker/scripts/build-deploy.sh /home/user/deploy
+            lorelei-deploy-x86_64 bash docker/ci/scripts/build-deploy.sh /home/user/deploy
           docker cp lorelei-deploy-x86_64:/home/user/deploy ./deploy
           docker rm lorelei-deploy-x86_64
 
