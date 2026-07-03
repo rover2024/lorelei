@@ -52,11 +52,14 @@ apt-get install -y --no-install-recommends \
 # The target-arch clang/LLVM go into a dedicated prefix: they cannot share /usr/lib/llvm-N with the
 # native x86_64 LLVM (whose clang binary must stay runnable here). ClangConfig.cmake ships in clang-N.
 # The LLVM cmake config is relocatable, so pointing Clang_DIR here resolves the target libs under it.
+# lld-N is included so the devkit bundles ld.lld: the guest toolchain links with -fuse-ld=lld, and on
+# the target host the bundled (target-arch) clang must find a matching lld next to it.
 LLVM_PREFIX="/opt/xllvm/$ARCH"
 rm -rf "$LLVM_PREFIX"
 mkdir -p "$LLVM_PREFIX"
 apt-get install -y --no-install-recommends --download-only \
-    "clang-${LLVM_VER}:$dpkg_arch" "llvm-${LLVM_VER}-dev:$dpkg_arch" "libclang-${LLVM_VER}-dev:$dpkg_arch"
+    "clang-${LLVM_VER}:$dpkg_arch" "lld-${LLVM_VER}:$dpkg_arch" \
+    "llvm-${LLVM_VER}-dev:$dpkg_arch" "libclang-${LLVM_VER}-dev:$dpkg_arch"
 for d in /var/cache/apt/archives/*_${dpkg_arch}.deb /var/cache/apt/archives/*_all.deb; do
     [ -e "$d" ] || continue
     dpkg-deb --fsys-tarfile "$d" | tar -x --skip-old-files -C "$LLVM_PREFIX" 2>/dev/null || true

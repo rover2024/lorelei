@@ -24,20 +24,36 @@ jobs:
         shell: bash
         run: bash docker/dist/build.sh -t "x86_64 aarch64 riscv64" -o ./out
 
-      - name: Upload x86_64
+      # One artifact per tarball: a runtime and a devkit for each of the three arches, six in all.
+      - name: Upload runtime x86_64
         uses: actions/upload-artifact@v4
         with:
-          name: lorelei-x86_64
-          path: out/lorelei-*-x86_64.tar.xz
+          name: lorelei-runtime-x86_64
+          path: out/lorelei-runtime-x86_64.tar.xz
+      - name: Upload devkit x86_64
+        uses: actions/upload-artifact@v4
+        with:
+          name: lorelei-devkit-x86_64
+          path: out/lorelei-devkit-x86_64.tar.xz
 
-      - name: Upload aarch64
+      - name: Upload runtime aarch64
         uses: actions/upload-artifact@v4
         with:
-          name: lorelei-aarch64
-          path: out/lorelei-*-aarch64.tar.xz
+          name: lorelei-runtime-aarch64
+          path: out/lorelei-runtime-aarch64.tar.xz
+      - name: Upload devkit aarch64
+        uses: actions/upload-artifact@v4
+        with:
+          name: lorelei-devkit-aarch64
+          path: out/lorelei-devkit-aarch64.tar.xz
 
-      - name: Upload riscv64
+      - name: Upload runtime riscv64
         uses: actions/upload-artifact@v4
         with:
-          name: lorelei-riscv64
-          path: out/lorelei-*-riscv64.tar.xz
+          name: lorelei-runtime-riscv64
+          path: out/lorelei-runtime-riscv64.tar.xz
+      - name: Upload devkit riscv64
+        uses: actions/upload-artifact@v4
+        with:
+          name: lorelei-devkit-riscv64
+          path: out/lorelei-devkit-riscv64.tar.xz

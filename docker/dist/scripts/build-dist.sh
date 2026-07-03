@@ -61,10 +61,15 @@ if [ "$TARGET" != "$build_arch" ]; then
 fi
 
 # --- 1. qmsetup (build tool, native x86_64) --------------------------------------------------------
-# Used at build time by the lorelei/thunks builds. A native x86_64 qmsetup is enough for building the
-# tree; the target-arch qmsetup the end user needs is added to the devkit by prepare_devkit_qmsetup.
+# Used at build time by the lorelei/thunks builds, and shipped in the devkit because the end user's
+# thunk build does find_package(qmsetup). One native x86_64 qmsetup serves both roles for every target:
+# the thunk build only uses qmsetup's cmake helpers (qm_import, qm_basic_install), never runs qmcorecmd,
+# so the tool's arch is irrelevant and no cross build is needed.
 INSTALL_DIR="$REPOS_DIR/qmsetup-native" bash "$COMMON_SCRIPTS/build-qmsetup.sh"
 QMSETUP_NATIVE="$REPOS_DIR/qmsetup-native/lib/cmake/qmsetup"
+# Install a second copy into the devkit tree (the runtime cut drops lib/cmake, so this rides only in
+# the devkit). Reuses the build dir build-qmsetup.sh left in $REPOS_DIR/qmsetup.
+cmake --install "$REPOS_DIR/qmsetup/build" --prefix "$TREE" >/dev/null
 
 # --- 2. lorelei host side (target arch): LoreTLC + LoreHostRT ---------------------------------------
 cd "$LORELEI_SRC"
