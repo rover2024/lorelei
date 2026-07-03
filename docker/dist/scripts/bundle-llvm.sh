@@ -11,6 +11,12 @@ LLVM_VER="$2"
 LLVM_SRC="${3:-/usr/lib/llvm-${LLVM_VER}}"
 
 cp -a "$LLVM_SRC" "$TREE/lib/llvm-${LLVM_VER}"
+
+# Drop the static LLVM/Clang archives (~600 MB). They exist only to link tools against LLVM; the devkit
+# ships a prebuilt LoreTLC and uses clang dynamically (against libLLVM.so / libclang-cpp.so), so nothing
+# here needs them at run time. The .so's, the clang resource headers and the tools all stay.
+rm -f "$TREE/lib/llvm-${LLVM_VER}/lib"/*.a
+
 mkdir -p "$TREE/bin"
 for tool in clang clang++ clang-cpp lld ld.lld llvm-ar llvm-nm llvm-objcopy llvm-strip; do
     if [ -e "$TREE/lib/llvm-${LLVM_VER}/bin/$tool" ]; then
