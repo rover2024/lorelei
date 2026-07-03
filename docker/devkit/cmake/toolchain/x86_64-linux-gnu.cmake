@@ -20,6 +20,11 @@ set(CMAKE_C_COMPILER "${_LORELEI_DEVKIT}/bin/clang")
 set(CMAKE_CXX_COMPILER "${_LORELEI_DEVKIT}/bin/clang++")
 set(CMAKE_C_COMPILER_TARGET x86_64-linux-gnu)
 set(CMAKE_CXX_COMPILER_TARGET x86_64-linux-gnu)
+# The ASM target must be set too: assembly (e.g. TinyCoroutine's per-arch .S) is otherwise assembled for
+# clang's default target, which happens to be x86_64 on an x86_64 build host but is wrong on an arm64
+# host, feeding x86_64 asm to the aarch64 assembler.
+set(CMAKE_ASM_COMPILER "${_LORELEI_DEVKIT}/bin/clang")
+set(CMAKE_ASM_COMPILER_TARGET x86_64-linux-gnu)
 
 # Link with the bundled lld, not a system x86_64 binutils that a user (or an arm64 host) may not have.
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=lld")
