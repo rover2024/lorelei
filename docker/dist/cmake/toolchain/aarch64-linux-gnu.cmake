@@ -1,6 +1,6 @@
 # CMake toolchain for cross-compiling to aarch64 on a Debian/Ubuntu multiarch amd64 host, with the
-# gcc-aarch64-linux-gnu cross toolchain against the :arm64 multiarch libraries. Used by the deploy
-# build to produce the aarch64 host tree on an x86_64 runner (see docker/scripts/build-deploy.sh).
+# gcc-aarch64-linux-gnu cross toolchain against the :arm64 multiarch libraries. Used by the dist build
+# to produce the aarch64 host side on an x86_64 runner (see docker/dist/scripts/build-dist.sh).
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 

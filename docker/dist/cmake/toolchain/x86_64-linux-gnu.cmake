@@ -10,7 +10,7 @@ set(CMAKE_SYSTEM_PROCESSOR x86_64)
 # The devkit prefix is three levels up from this file (share/lorelei/toolchains/).
 get_filename_component(_LORELEI_DEVKIT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
-set(_lorelei_sysroot "${_LORELEI_DEVKIT}/x86_64")
+set(_lorelei_sysroot "${_LORELEI_DEVKIT}/x86_64/sysroot")
 set(CMAKE_SYSROOT "${_lorelei_sysroot}")
 
 # One clang binary cross-targets x86_64 via --target (set through CMAKE_*_COMPILER_TARGET). Use it
