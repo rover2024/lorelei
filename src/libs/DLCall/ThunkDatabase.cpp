@@ -5,7 +5,6 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
-#include <unordered_set>
 
 #include <json11/json11.hpp>
 
@@ -62,28 +61,72 @@ namespace lore {
         return list.data();
     }
 
-    bool ThunkDatabase::load(const std::filesystem::path &path,
-                             const std::map<std::string, std::string> &vars) {
+    void ThunkDatabase::upsertForward(std::string name, const std::vector<std::string> &alias,
+                                      std::string guestThunk, std::string hostThunk,
+                                      std::string hostLibrary) {
+        CForwardThunkInfo info;
+        info.name = intern(name);
+        info.alias = intern(alias, info.aliasCount);
+        info.guestThunk = intern(std::move(guestThunk));
+        info.hostThunk = intern(std::move(hostThunk));
+        info.hostLibrary = intern(std::move(hostLibrary));
+        // Replace an entry an earlier source added under the same name, rather than duplicate it.
+        if (auto it = m_forwardIndex.find(name); it != m_forwardIndex.end()) {
+            m_forwardThunks[it->second] = info;
+        } else {
+            m_forwardIndex.emplace(std::move(name), m_forwardThunks.size());
+            m_forwardThunks.push_back(info);
+        }
+    }
+
+    void ThunkDatabase::autoScan(const std::map<std::string, std::string> &vars) {
+        std::string gtlDir;
+        std::string htlDir;
+        if (auto it = vars.find("GTL_DIR"); it != vars.end()) {
+            gtlDir = it->second;
+        }
+        if (auto it = vars.find("HTL_DIR"); it != vars.end()) {
+            htlDir = it->second;
+        }
+        if (gtlDir.empty() || htlDir.empty() || !std::filesystem::is_directory(gtlDir)) {
+            return;
+        }
+
+        // Every GTL_DIR/*.so that has a matching HTL_DIR/<name>_HTL.so becomes a forward thunk.
+        for (const auto &entry : std::filesystem::directory_iterator(gtlDir)) {
+            if (!entry.is_regular_file() && !entry.is_symlink()) {
+                continue;
+            }
+            const auto fileName = entry.path().filename().string();
+            if (!str::ends_with(fileName, ".so")) {
+                continue;
+            }
+            const auto name = fileName.substr(0, fileName.size() - 3);
+            if (name.empty()) {
+                continue;
+            }
+            auto hostThunk = htlDir + "/" + name + "_HTL.so";
+            if (!std::filesystem::exists(hostThunk)) {
+                continue;
+            }
+            upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
+        }
+    }
+
+    bool ThunkDatabase::loadJsonDatabase(const std::filesystem::path &path,
+                                         const std::map<std::string, std::string> &vars) {
         std::ifstream file(path);
         if (!file.is_open()) {
-            return false;
+            return true;  // no file just means no overrides, which is not an error
         }
 
         std::stringstream ss;
         ss << file.rdbuf();
-
         std::string err;
         auto json = Json::parse(ss.str(), err);
         if (!err.empty() || !json.is_object()) {
             return false;
         }
-
-        m_stringArena.clear();
-        m_listArena.clear();
-        m_forwardThunks.clear();
-        m_reversedThunks.clear();
-        m_forwardThunkMap.clear();
-        m_reversedThunkMap.clear();
 
         const auto resolvePath = [&](const std::string &p) { return str::varexp(p, vars); };
 
@@ -97,18 +140,6 @@ namespace lore {
         }
         const bool allHasDefault = !defaultGuestThunkPath.empty() && !defaultHostThunkPath.empty();
 
-        const auto addForward = [this](std::string name, const std::vector<std::string> &alias,
-                                       std::string guestThunk, std::string hostThunk,
-                                       std::string hostLibrary) {
-            CForwardThunkInfo info;
-            info.name = intern(std::move(name));
-            info.alias = intern(alias, info.aliasCount);
-            info.guestThunk = intern(std::move(guestThunk));
-            info.hostThunk = intern(std::move(hostThunk));
-            info.hostLibrary = intern(std::move(hostLibrary));
-            m_forwardThunks.push_back(info);
-        };
-
         const auto &docObj = json.object_items();
 
         // ---- forward thunks ----
@@ -118,8 +149,8 @@ namespace lore {
                 if (item.is_string()) {
                     const std::string name = item.string_value();
                     if (!name.empty() && allHasDefault) {
-                        addForward(name, {}, defaultGuestThunkPath + "/" + name + ".so",
-                                   defaultHostThunkPath + "/" + name + "_HTL.so", name + ".so");
+                        upsertForward(name, {}, defaultGuestThunkPath + "/" + name + ".so",
+                                      defaultHostThunkPath + "/" + name + "_HTL.so", name + ".so");
                     }
                     continue;
                 }
@@ -166,43 +197,8 @@ namespace lore {
                     continue;
                 }
 
-                addForward(*name, jsonStringArray(obj, "alias"), std::move(guestThunk),
-                           std::move(hostThunk), std::move(hostLibrary));
-            }
-        }
-
-        // Auto-discover forward thunks from default directories.
-        // Scan GTL_DIR for *.so, then require matching HTL_DIR/<name>_HTL.so before adding.
-        if (allHasDefault && std::filesystem::is_directory(defaultGuestThunkPath)) {
-            std::unordered_set<std::string> existingNames;
-            for (const auto &item : m_forwardThunks) {
-                existingNames.insert(item.name);
-                for (size_t i = 0; i < item.aliasCount; ++i) {
-                    existingNames.insert(item.alias[i]);
-                }
-            }
-
-            for (const auto &entry : std::filesystem::directory_iterator(defaultGuestThunkPath)) {
-                if (!entry.is_regular_file() && !entry.is_symlink()) {
-                    continue;
-                }
-                const auto fileName = entry.path().filename().string();
-                if (!str::ends_with(fileName, ".so")) {
-                    continue;
-                }
-
-                const auto name = fileName.substr(0, fileName.size() - 3);
-                if (name.empty() || existingNames.contains(name)) {
-                    continue;
-                }
-
-                auto hostThunk = defaultHostThunkPath + "/" + name + "_HTL.so";
-                if (!std::filesystem::exists(hostThunk)) {
-                    continue;
-                }
-
-                addForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
-                existingNames.insert(name);
+                upsertForward(*name, jsonStringArray(obj, "alias"), std::move(guestThunk),
+                              std::move(hostThunk), std::move(hostLibrary));
             }
         }
 
@@ -232,7 +228,27 @@ namespace lore {
             }
         }
 
-        // ---- build name/alias indexes ----
+        return true;
+    }
+
+    bool ThunkDatabase::load(const std::filesystem::path &path,
+                             const std::map<std::string, std::string> &vars,
+                             const ThunkDatabase::LoadOptions &opts) {
+        m_stringArena.clear();
+        m_listArena.clear();
+        m_forwardThunks.clear();
+        m_reversedThunks.clear();
+        m_forwardThunkMap.clear();
+        m_reversedThunkMap.clear();
+        m_forwardIndex.clear();
+
+        // Scan the default directories for a baseline, then layer the JSON overrides on top.
+        if (opts.autoScan) {
+            autoScan(vars);
+        }
+        const bool jsonOk = loadJsonDatabase(path, vars);
+
+        // Build the name/alias lookup indexes from the final entries.
         const auto indexEntries = [](const auto &items, auto &index) {
             for (size_t i = 0; i < items.size(); ++i) {
                 const auto &entry = items[i];
@@ -245,7 +261,7 @@ namespace lore {
         indexEntries(m_forwardThunks, m_forwardThunkMap);
         indexEntries(m_reversedThunks, m_reversedThunkMap);
 
-        return true;
+        return jsonOk;
     }
 
 }

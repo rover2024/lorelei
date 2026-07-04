@@ -134,10 +134,16 @@ namespace lore {
                 configPath = std::filesystem::path("share") / "lorelei" / "ThunkDB.json";
             }
 
+            // The GTL_DIR / HTL_DIR scan populates the database; the JSON is an optional override
+            // layer. Setting LORELEI_THUNK_NO_AUTOSCAN falls back to the JSON alone.
+            ThunkDatabase::LoadOptions opts;
+            opts.autoScan = std::getenv("LORELEI_THUNK_NO_AUTOSCAN") == nullptr;
+
             auto db = std::make_unique<ThunkDatabase>();
-            const auto loaded = db->load(configPath, buildConfigVars(rootDir, guestRootDir));
-            if (!loaded) {
-                loreWarning("[HRT] %1: Failed to load thunk config", configPath.string());
+            // load() returns false only for a config file that exists but cannot be parsed; a missing
+            // file is fine (the scan still runs), so it is not worth a warning.
+            if (!db->load(configPath, buildConfigVars(rootDir, guestRootDir), opts)) {
+                loreWarning("[HRT] %1: Failed to parse thunk config", configPath.string());
             }
             server.setThunkDatabase(std::move(db));
         }
