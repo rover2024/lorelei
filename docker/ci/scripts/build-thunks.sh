@@ -42,7 +42,7 @@ elif [ "$arch" = "riscv64" ]; then
     # so a thunk's own library header (e.g. zlib.h) is still found after the toolchain's own headers.
     # stat and the host generate parse natively, so leave them.
     tc=/opt/x86_64-unknown-linux-gnu
-    host_extra=( "-DTHUNK_GTL_EXTRA_ARGS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot;-idirafter;/usr/include" )
+    host_extra=( "-DTHUNK_GTL_TLC_OPTIONS=--gcc-toolchain=$tc;--sysroot=$tc/x86_64-unknown-linux-gnu/sysroot;-idirafter;/usr/include" )
 else
     GUEST_CC=x86_64-linux-gnu-gcc
     GUEST_CXX=x86_64-linux-gnu-g++

@@ -65,15 +65,12 @@ EOF
     apt-get update
     # The amd64 runtime/dev libraries the guest side links and runs against: libffcall (avcall, the
     # VariadicAdaptor backend) for the build, and libc/libstdc++/zlib/minizip/liblzma for running the
-    # x86_64 guest binaries under qemu-x86_64. libc6-dev:amd64 supplies the x86_64 libc headers (the
-    # arch-specific bits/, e.g. bits/libc-header-start.h) that the x86_64 guest thunk parse needs on a
-    # cross host. The amd64 apt cross-gcc drags it in on aarch64, but the riscv64 host uses a prebuilt
-    # toolchain instead, so it must be requested explicitly to cover both. libssl-dev:amd64 likewise
-    # supplies the x86_64 openssl headers (its arch-specific opensslconf.h) for the experimental openssl
-    # thunk's guest parse; the rest of the openssl headers are arch-independent and come from the native one.
+    # x86_64 guest binaries under qemu-x86_64. libssl-dev:amd64 supplies the x86_64 openssl headers
+    # (its arch-specific opensslconf.h) that the experimental openssl thunk's guest parse needs on a
+    # cross host; the rest of the openssl headers are arch-independent and come from the native one.
     apt-get install -y --no-install-recommends \
         libffcall-dev:amd64 \
-        libc6-dev:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64 liblzma5:amd64 \
+        libc6:amd64 libstdc++6:amd64 zlib1g:amd64 libminizip1:amd64 liblzma5:amd64 \
         libssl-dev:amd64
 
     # The x86_64 cross-compiler that builds the guest side.

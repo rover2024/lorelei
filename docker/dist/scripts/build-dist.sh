@@ -156,7 +156,7 @@ if [ "$CROSS" = "0" ]; then
     cmake -S "$THUNKS_SRC" -B "$REPOS_DIR/build/$TARGET-thunk-host" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TREE" \
         -Dqmsetup_DIR="$QMSETUP_NATIVE" -Dlorelei_DIR="$TREE/lib/cmake/lorelei" \
-        -DTHUNK_GTL_EXTRA_ARGS="$gtl_gen_args" \
+        -DTHUNK_GTL_TLC_OPTIONS="$gtl_gen_args" \
         -DTHUNK_BUILD_HOST_TARGETS=TRUE -DTHUNK_BUILD_GUEST_TARGETS=FALSE
     cmake --build "$REPOS_DIR/build/$TARGET-thunk-host" --target install
     gen_src="$TREE/share/lorelei/thunks"
@@ -169,8 +169,8 @@ else
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$gen/install" \
         -Dqmsetup_DIR="$QMSETUP_NATIVE" -Dlorelei_DIR="$STAGING/lib/cmake/lorelei" \
         -DTHUNK_HOST_ARCH="$TARGET" \
-        -DTHUNK_HTL_EXTRA_ARGS="--gcc-toolchain=/usr;-idirafter;/usr/include" \
-        -DTHUNK_GTL_EXTRA_ARGS="$gtl_gen_args" \
+        -DTHUNK_HTL_TLC_OPTIONS="--gcc-toolchain=/usr;-idirafter;/usr/include" \
+        -DTHUNK_GTL_TLC_OPTIONS="$gtl_gen_args" \
         -DTHUNK_BUILD_HOST_TARGETS=FALSE -DTHUNK_BUILD_GUEST_TARGETS=FALSE
     cmake --build "$gen" --target install
     gen_src="$gen/install/share/lorelei/thunks"
