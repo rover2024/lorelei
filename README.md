@@ -29,15 +29,15 @@ The underlying pass-through mechanism is also demonstrated from scratch in the [
 Lorelei requires `qmsetup` for configuration, so you need to build it first.
 
 ```bash
-# change to your own install location
-export INSTALL_DIR=/home/user/install
+# where lorelei installs, the devkit prefix that lorelei-thunks builds against
+export DEVKIT_DIR=/home/user/devkit
 
 git clone --recursive https://github.com/stdware/qmsetup.git
 cd qmsetup
 
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
+    -DCMAKE_INSTALL_PREFIX=$DEVKIT_DIR
 cmake --build build --target all
 cmake --build build --target install
 ```
@@ -51,46 +51,27 @@ git clone https://github.com/rover2024/lorelei.git
 cd lorelei
 ```
 
-Lorelei has two kinds of targets that belong to different ISAs: the **host** side (the `LoreHostRT` runtime and the `LoreTLC` tool, built for the host ISA) and the **guest** side (the `LoreGuestRT` runtime, built for the guest ISA, x86_64). 
+Lorelei has two kinds of targets that belong to different ISAs: the **host** side (the `LoreHostRT` runtime and the `LoreTLC` tool, built for the host ISA) and the **guest** side (the `LoreGuestRT` runtime, built for the guest ISA, x86_64). Build them in two configures into separate prefixes: the host side into `$DEVKIT_DIR`, the guest runtime into `$DEVKIT_DIR/x86_64`. The two are independent, so build the host side first.
 
-The active compiler must match whichever side is enabled. The host runtime builds either way.
-
-### Build on X86_64
-
-The guest and host ISA are the same, so a single x86_64 compiler builds both sides in one configure:
-
-```bash
-cmake -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
-    -DLORE_BUILD_TOOLS=TRUE \
-    -DLORE_BUILD_GUEST_TARGETS=TRUE
-cmake --build build --target all
-cmake --build build --target install
-```
-
-### Build on AARCH64/RISC-V64
-
-The host ISA differs from the guest x86_64, so the two sides need two different compilers and two separate builds into separate prefixes: the host side (`LoreHostRT` + `LoreTLC`) into `$INSTALL_DIR`, the guest runtime (`LoreGuestRT`) into `$INSTALL_DIR/x86_64`. The two are independent. Build the host side first.
+The guest side always uses the x86_64 toolchain (`x86_64-linux-gnu-gcc`, present natively on an x86_64 host and as the cross compiler on an aarch64/riscv64 one), while the host side uses the native compiler.
 
 ```bash
 # Host side (LoreHostRT + LoreTLC), built with the native host toolchain.
 cmake -B build-host -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
+    -DCMAKE_INSTALL_PREFIX=$DEVKIT_DIR \
+    -Dqmsetup_DIR=$DEVKIT_DIR/lib/cmake/qmsetup \
     -DLORE_BUILD_TOOLS=TRUE \
     -DLORE_BUILD_GUEST_TARGETS=FALSE
 cmake --build build-host --target install
 
-# Guest runtime (LoreGuestRT), built with an x86_64 toolchain.
+# Guest runtime (LoreGuestRT), built with the x86_64 toolchain.
 cmake -B build-guest -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR/x86_64 \
+    -DCMAKE_INSTALL_PREFIX=$DEVKIT_DIR/x86_64 \
     -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc \
     -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++ \
-    -Dqmsetup_DIR=$INSTALL_DIR/lib/cmake/qmsetup \
+    -Dqmsetup_DIR=$DEVKIT_DIR/lib/cmake/qmsetup \
     -DLORE_BUILD_TOOLS=FALSE \
     -DLORE_BUILD_GUEST_TARGETS=TRUE
 cmake --build build-guest --target install
