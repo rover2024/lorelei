@@ -65,9 +65,6 @@ BOOST_AUTO_TEST_SUITE(test_ThunkDatabase)
 BOOST_AUTO_TEST_CASE(load_failures) {
     ThunkDatabase db;
 
-    // A path that does not exist.
-    BOOST_TEST(!db.load(std::filesystem::temp_directory_path() / "lore_tdb_nope_xyz.json"));
-
     // Malformed JSON.
     TempJson bad("{ this is not json");
     BOOST_TEST(!db.load(bad.path));
@@ -76,7 +73,16 @@ BOOST_AUTO_TEST_CASE(load_failures) {
     TempJson arr("[1, 2, 3]");
     BOOST_TEST(!db.load(arr.path));
 
-    // None of the failed loads should have produced entries.
+    // Neither parse failure should have produced entries.
+    BOOST_TEST(db.forwardThunks().empty());
+    BOOST_TEST(db.reversedThunks().empty());
+}
+
+BOOST_AUTO_TEST_CASE(missing_file_is_not_an_error) {
+    // The config file is optional: a missing one is not a failure. It just leaves the database to
+    // whatever the directory auto-scan found (nothing here, with no GTL_DIR / HTL_DIR).
+    ThunkDatabase db;
+    BOOST_TEST(db.load(std::filesystem::temp_directory_path() / "lore_tdb_nope_xyz.json"));
     BOOST_TEST(db.forwardThunks().empty());
     BOOST_TEST(db.reversedThunks().empty());
 }
