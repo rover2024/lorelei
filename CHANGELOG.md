@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.2.0 (2026-07-05)
+
+Adds a prebuilt devkit, so a thunk can be built for a target without compiling Lorelei or LLVM/Clang from source. It complements the runtime artifacts from 1.0.1.0.
+
+- **Prebuilt devkit trees**, published as release assets: `lorelei-devkit-x86_64`, `lorelei-devkit-aarch64` and `lorelei-devkit-riscv64`. Each is one self-contained prefix bundling the host toolchain (Clang/LLVM, `LoreTLC`, qmsetup), the x86_64 guest cross toolchain and sysroot, and the Lorelei runtimes. A thunk builds against it with only CMake, Ninja and Make on the host.
+- The devkit and runtime builds are merged into one cross-built distribution pipeline. A single x86_64 runner produces, per target ISA, a `lorelei-runtime-<arch>` and a `lorelei-devkit-<arch>` tarball, and the deploy workflow runs one job per architecture. The static LLVM/Clang archives are dropped from the devkit, roughly halving its unpacked size.
+- **ThunkDatabase auto-discovery**: the host runtime scans the thunk directories for matching guest and host libraries, so `ThunkDB.json` is now optional and only needed to override paths or add aliases.
+- Guest callbacks reenter through a shared-entry return-address trampoline on aarch64 and riscv64, replacing the earlier fixed-register machinery.
+
 ## 1.0.1.0 (2026-07-01)
 
 Adds prebuilt runtime artifacts, so a target no longer has to build Lorelei from source to run a thunk.
