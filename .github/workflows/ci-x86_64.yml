@@ -1,7 +1,11 @@
 name: x86_64
+run-name: x86_64 e2e (${{ github.ref_name }})
 
-# Manual-only end-to-end test on a GitHub-hosted x86_64 runner, once per host toolchain (gcc, clang).
+# End-to-end test on a GitHub-hosted x86_64 runner, once per host toolchain (gcc, clang). Runs on a
+# push to main (development happens on dev, so main is the integration line) and on manual dispatch.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:

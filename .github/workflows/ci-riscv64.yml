@@ -1,10 +1,14 @@
 name: riscv64
+run-name: riscv64 e2e (${{ github.ref_name }})
 
-# Manual-only end-to-end test on the riscv64 self-hosted runner (ultrarisc). riscv64 has no Node 20,
+# End-to-end test on the riscv64 self-hosted runner (ultrarisc), on a push to main (development
+# happens on dev, so main is the integration line) and on manual dispatch. riscv64 has no Node 20,
 # so JS actions (actions/checkout) cannot run: check out with a plain git clone. Start the runner
 # with its proxy in the environment so the build can reach the network and the USTC apt mirror:
 # `source ~/setup-proxy.sh && ./run.sh`.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
