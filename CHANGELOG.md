@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.3.0 (2026-07-05)
+
+Decouples thunk distribution from the base. Thunks now ship as standalone drop-in packs discovered by a single search path, so libraries can be added to a target without touching or rebuilding the devkit or runtime, and neither of those grows as more libraries are thunked.
+
+- **Standalone thunk packs**, a new release asset per ISA: `lorelei-thunks-x86_64`, `lorelei-thunks-aarch64` and `lorelei-thunks-riscv64`. Each is a self-contained, drop-in prefix carrying the host thunks (`lib/<arch>-LoreHTL`), the guest thunks (`x86_64/lib/x86_64-LoreGTL`) and a `share/lorelei/ThunkDB.json`. The devkit and runtime trees no longer bundle any thunks.
+- **`LORELEI_THUNK_PATH`**, a single colon-separated search path of thunk-pack prefixes, highest priority first, the first to define a thunk winning (like `PATH`). Drop in more packs, or your own build prefix, without rebuilding anything.
+- **Per-source `ThunkDB.json`**: each pack's own JSON is layered over that pack's own directory scan (the pack's directories are the JSON's shorthand defaults), processed lowest to highest priority. `LORELEI_THUNK_DATABASE` remains an optional top-level override, and `LORELEI_THUNK_NO_AUTOSCAN` disables scanning.
+- **`LORELEI_ROOT` is removed.** It was a redundant single-root base after the split. The lorelei runtime `.so`'s are found on `LD_LIBRARY_PATH` as before.
+- The deploy workflow now publishes nine assets (was six): `lorelei-{devkit,runtime,thunks}-<arch>` for x86_64, aarch64 and riscv64, all cut from one cross-built tree, and each tarball is named with the release version.
+
 ## v1.0.2.0 (2026-07-05)
 
 Adds a prebuilt devkit, so a thunk can be built for a target without compiling Lorelei or LLVM/Clang from source. It complements the runtime artifacts from 1.0.1.0.
