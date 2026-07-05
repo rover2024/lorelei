@@ -1,0 +1,5 @@
+# These scripts and Makefiles run inside Linux containers, so keep LF line endings
+# even when the repository is checked out on Windows. A CRLF shebang breaks as
+# `bash\r`, and CRLF in a Makefile recipe breaks under make.
+*.sh     text eol=lf
+Makefile text eol=lf
