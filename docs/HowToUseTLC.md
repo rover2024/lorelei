@@ -6,7 +6,7 @@ TLC is a Clang LibTooling tool: it parses the library's actual headers and emits
 
 ## Inputs
 
-A thunk is described by three files (see the [lorelei-thunks](https://github.com/rover2024/lorelei-thunks) repository for worked examples):
+A thunk is described by three files (see the [LoreThunk](https://github.com/rover2024/lorelei-thunks) repository for worked examples):
 
 - **`Desc.h`** includes the library's headers and declares any per-proc pass descriptors (`ProcFnDesc` / `ProcCbDesc`, for example to route a `printf`-style function through the variadic pass).
 - **`Symbols.conf`** lists which functions and callbacks to thunk.
@@ -16,7 +16,7 @@ A thunk is described by three files (see the [lorelei-thunks](https://github.com
 
 The thunk pipeline runs in two stages. Each subcommand takes its inputs, then `--`, then the Clang flags used to parse the headers (the include paths, and for guest generation a `-target` triple).
 
-1. **`stat`**: parse `Desc.h` + `Symbols.conf` into `ThunkStat.json`, a description of every requested proc's real signature. This is architecture independent, so it is produced once and reused (see the lorelei-thunks build notes).
+1. **`stat`**: parse `Desc.h` + `Symbols.conf` into `ThunkStat.json`, a description of every requested proc's real signature. This is architecture independent, so it is produced once and reused (see the [LoreThunk](https://github.com/rover2024/lorelei-thunks) build notes).
 
    ```sh
    LoreTLC stat -o ThunkStat.json -c Symbols.conf Desc.h \
@@ -221,5 +221,5 @@ The builder tags are `pass::printf`, `pass::vprintf`, `pass::scanf` and `pass::v
 ## See Also
 
 - [`include/lorelei/DLCall/ProcDefs.h`](../include/lorelei/DLCall/ProcDefs.h): the `ProcPhase` layers and the cross-side `StaticThunkContext`.
-- [lorelei-thunks](https://github.com/rover2024/lorelei-thunks): ready-made thunks (zlib, SDL, ...) and the worked examples the inputs above are drawn from.
+- [LoreThunk](https://github.com/rover2024/lorelei-thunks): ready-made thunks (zlib, SDL, ...) and the worked examples the inputs above are drawn from.
 - [HowLoreleiWorks.md](HowLoreleiWorks.md): the runtime call path the generated thunks run on.
