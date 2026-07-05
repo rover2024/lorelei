@@ -304,12 +304,12 @@ BOOST_AUTO_TEST_CASE(autodiscovery_from_directories) {
     gtl.touch("bar.so");
     gtl.touch("baz.txt");
 
-    // An empty document still triggers the scan, since the search path has a real directory pair.
+    // One source with an empty override document, so only the source scan runs.
     TempJson j(R"({})");
 
     ThunkDatabase db;
     ThunkDatabase::LoadOptions opts;
-    opts.scanDirs = {{gtl.path, htl.path}};
+    opts.sources = {{gtl.path, htl.path, {}}};
     BOOST_TEST(db.load(j.path, {}, opts));
 
     const auto *foo = db.forwardThunk("foo");
@@ -328,27 +328,27 @@ BOOST_AUTO_TEST_CASE(autodiscovery_does_not_duplicate_explicit_entry) {
     gtl.touch("foo.so");
     htl.touch("foo_HTL.so");
 
-    // foo is also declared explicitly, so the scan must not add a second copy.
+    // foo is also declared in the override JSON, so it replaces the scanned copy, not a second entry.
     TempJson j(R"({ "forwardThunks": [
         { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
 
     ThunkDatabase db;
     ThunkDatabase::LoadOptions opts;
-    opts.scanDirs = {{gtl.path, htl.path}};
+    opts.sources = {{gtl.path, htl.path, {}}};
     BOOST_TEST(db.load(j.path, {}, opts));
 
     BOOST_TEST(db.forwardThunks().size() == 1u);
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
-    // The explicit paths win, and the discovered ones are not appended.
+    // The override's explicit paths win, and the discovered copy is replaced, not appended.
     BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
 }
 
 BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_first_match_wins) {
     // An extra search path (highest priority) plus the base tree (lowest). Each contributes a distinct
     // thunk, and a name present in both resolves to the earlier, higher-priority path.
-    TempDir extraGtl, extraHtl;  // scanDirs[0], higher priority
-    TempDir baseGtl, baseHtl;    // scanDirs[1], the base tree
+    TempDir extraGtl, extraHtl;  // sources[0], higher priority
+    TempDir baseGtl, baseHtl;    // sources[1], the base tree
 
     extraGtl.touch("shared.so");
     extraHtl.touch("shared_HTL.so");
@@ -362,8 +362,8 @@ BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_first_match_wins) {
     TempJson j(R"({})");
     ThunkDatabase db;
     ThunkDatabase::LoadOptions opts;
-    // The extra path first, the base tree last: same shape the host runtime assembles.
-    opts.scanDirs = {{extraGtl.path, extraHtl.path}, {baseGtl.path, baseHtl.path}};
+    // The extra source first, the base tree last: same shape the host runtime assembles.
+    opts.sources = {{extraGtl.path, extraHtl.path, {}}, {baseGtl.path, baseHtl.path, {}}};
     BOOST_TEST(db.load(j.path, {}, opts));
 
     // All three distinct names are discovered across the two paths.
@@ -389,13 +389,55 @@ BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_json_still_overrides) {
 
     ThunkDatabase db;
     ThunkDatabase::LoadOptions opts;
-    opts.scanDirs = {{extraGtl.path, extraHtl.path}};
+    opts.sources = {{extraGtl.path, extraHtl.path, {}}};
     BOOST_TEST(db.load(j.path, {}, opts));
 
     BOOST_TEST(db.forwardThunks().size() == 1u);
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
     BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
+}
+
+BOOST_AUTO_TEST_CASE(per_source_json_refines_its_own_scan) {
+    // A source's own ThunkDB.json is layered over that source's scan, with the source's own dirs as
+    // the shorthand default. Here it adds an alias to the scanned thunk.
+    TempDir gtl, htl;
+    gtl.touch("foo.so");
+    htl.touch("foo_HTL.so");
+    TempJson cfg(R"({ "forwardThunks": [ { "name": "foo", "alias": ["f"] } ] })");
+
+    ThunkDatabase db;
+    ThunkDatabase::LoadOptions opts;
+    opts.sources = {{gtl.path, htl.path, cfg.path}};
+    BOOST_TEST(db.load({}, {}, opts));  // no override JSON
+
+    const auto *foo = db.forwardThunk("foo");
+    BOOST_REQUIRE(foo != nullptr);
+    // The omitted paths defaulted against this source's own dirs, and the alias came from its JSON.
+    BOOST_TEST(s(foo->guestThunk) == (gtl.path / "foo.so").string());
+    BOOST_TEST(s(foo->hostThunk) == (htl.path / "foo_HTL.so").string());
+    BOOST_TEST(db.forwardThunk("f") == foo);
+}
+
+BOOST_AUTO_TEST_CASE(override_json_beats_source_json) {
+    // The explicit override JSON (load's first argument) sits on top of every source, including a
+    // source's own JSON.
+    TempDir gtl, htl;
+    gtl.touch("foo.so");
+    htl.touch("foo_HTL.so");
+    TempJson srcCfg(R"({ "forwardThunks": [
+        { "name": "foo", "guestThunk": "/src/foo.so", "hostThunk": "/src/foo_HTL.so" } ] })");
+    TempJson ovr(R"({ "forwardThunks": [
+        { "name": "foo", "guestThunk": "/ovr/foo.so", "hostThunk": "/ovr/foo_HTL.so" } ] })");
+
+    ThunkDatabase db;
+    ThunkDatabase::LoadOptions opts;
+    opts.sources = {{gtl.path, htl.path, srcCfg.path}};
+    BOOST_TEST(db.load(ovr.path, {}, opts));
+
+    const auto *foo = db.forwardThunk("foo");
+    BOOST_REQUIRE(foo != nullptr);
+    BOOST_TEST(s(foo->guestThunk) == "/ovr/foo.so");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

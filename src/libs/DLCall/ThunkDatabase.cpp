@@ -79,33 +79,33 @@ namespace lore {
         }
     }
 
-    void ThunkDatabase::autoScan(
-        const std::vector<std::pair<std::filesystem::path, std::filesystem::path>> &dirPairs) {
-        for (const auto &[gtlDir, htlDir] : dirPairs) {
-            if (gtlDir.empty() || htlDir.empty() || !std::filesystem::is_directory(gtlDir)) {
+    void ThunkDatabase::scanForwardThunks(const std::filesystem::path &guestThunkDir,
+                                          const std::filesystem::path &hostThunkDir) {
+        if (guestThunkDir.empty() || hostThunkDir.empty() ||
+            !std::filesystem::is_directory(guestThunkDir)) {
+            return;
+        }
+
+        // Every GTL/*.so with a matching HTL/<name>_HTL.so becomes a forward thunk. upsertForward
+        // replaces any same-named entry, so when load() scans sources from lowest to highest priority
+        // the higher-priority source wins.
+        for (const auto &entry : std::filesystem::directory_iterator(guestThunkDir)) {
+            if (!entry.is_regular_file() && !entry.is_symlink()) {
                 continue;
             }
-
-            // Every GTL/*.so with a matching HTL/<name>_HTL.so becomes a forward thunk. A name an
-            // earlier (higher-priority) pair already claimed is skipped, so the first match wins.
-            for (const auto &entry : std::filesystem::directory_iterator(gtlDir)) {
-                if (!entry.is_regular_file() && !entry.is_symlink()) {
-                    continue;
-                }
-                const auto fileName = entry.path().filename().string();
-                if (!str::ends_with(fileName, ".so")) {
-                    continue;
-                }
-                const auto name = fileName.substr(0, fileName.size() - 3);
-                if (name.empty() || m_forwardIndex.count(name)) {
-                    continue;
-                }
-                auto hostThunk = (htlDir / (name + "_HTL.so")).string();
-                if (!std::filesystem::exists(hostThunk)) {
-                    continue;
-                }
-                upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
+            const auto fileName = entry.path().filename().string();
+            if (!str::ends_with(fileName, ".so")) {
+                continue;
             }
+            const auto name = fileName.substr(0, fileName.size() - 3);
+            if (name.empty()) {
+                continue;
+            }
+            auto hostThunk = (hostThunkDir / (name + "_HTL.so")).string();
+            if (!std::filesystem::exists(hostThunk)) {
+                continue;
+            }
+            upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
         }
     }
 
@@ -227,7 +227,7 @@ namespace lore {
         return true;
     }
 
-    bool ThunkDatabase::load(const std::filesystem::path &path,
+    bool ThunkDatabase::load(const std::filesystem::path &overridePath,
                              const std::map<std::string, std::string> &vars,
                              const ThunkDatabase::LoadOptions &opts) {
         m_stringArena.clear();
@@ -238,10 +238,23 @@ namespace lore {
         m_reversedThunkMap.clear();
         m_forwardIndex.clear();
 
-        // Scan the search path for a baseline (first match for a name wins), then layer the JSON
-        // overrides on top. An empty search path just leaves the JSON as the only source.
-        autoScan(opts.scanDirs);
-        const bool jsonOk = loadJsonDatabase(path, vars);
+        // Process the sources from lowest to highest priority (the list is highest-first), so a
+        // higher-priority source replaces a lower one via upsert. Each source scans its dirs and then
+        // layers its own JSON over that scan, with the source's own dirs as that JSON's shorthand
+        // defaults. Finally the explicit override JSON is layered on top of everything.
+        bool jsonOk = true;
+        for (auto it = opts.sources.rbegin(); it != opts.sources.rend(); ++it) {
+            scanForwardThunks(it->guestThunkDir, it->hostThunkDir);
+            auto sourceVars = vars;
+            sourceVars["GTL_DIR"] = it->guestThunkDir.string();
+            sourceVars["HTL_DIR"] = it->hostThunkDir.string();
+            if (!loadJsonDatabase(it->configPath, sourceVars)) {
+                jsonOk = false;
+            }
+        }
+        if (!overridePath.empty() && !loadJsonDatabase(overridePath, vars)) {
+            jsonOk = false;
+        }
 
         // Build the name/alias lookup indexes from the final entries.
         const auto indexEntries = [](const auto &items, auto &index) {

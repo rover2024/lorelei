@@ -59,26 +59,36 @@ namespace lore {
 
         /// LoadOptions - Tunes how load() populates the database.
         struct LoadOptions {
-            /// The thunk search path: (guestThunkDir, hostThunkDir) pairs scanned in order to auto-
-            /// discover forward thunks, with the first match for a name winning (so earlier entries
-            /// take precedence). Empty means no scan, leaving the JSON as the only source. The caller
-            /// assembles this, e.g. the extra LORELEI_THUNK_PATH prefixes followed by the base tree.
-            std::vector<std::pair<std::filesystem::path, std::filesystem::path>> scanDirs;
+            /// Source - one thunk source: a (guestThunkDir, hostThunkDir) pair to scan for bare thunk
+            /// .so pairs, plus an optional ThunkDB.json layered over that source's own scan (its
+            /// shorthand entries default to this source's own dirs).
+            struct Source {
+                std::filesystem::path guestThunkDir;
+                std::filesystem::path hostThunkDir;
+                std::filesystem::path configPath;  // this source's ThunkDB.json (optional; may be absent)
+            };
+
+            /// The thunk sources, highest priority first. Each source is scanned for bare thunk pairs
+            /// and then has its own configPath JSON layered over that scan; the first source to define a
+            /// thunk name wins (so earlier sources take precedence and the base tree comes last). Empty
+            /// means no scan. The caller assembles this, e.g. the LORELEI_THUNK_PATH prefixes followed
+            /// by the base tree, each paired with its <prefix>/share/lorelei/ThunkDB.json.
+            std::vector<Source> sources;
         };
 
-        /// Populate the database. The directories in \a opts.scanDirs are scanned in order (first match
-        /// for a name wins), then the JSON at \a path is layered on top: matching names replace the
-        /// scanned entry, new names are added. \a vars supplies the JSON's ${...} substitutions and its
-        /// default thunk directory (GTL_DIR / HTL_DIR), and is independent of the scan. The JSON is
-        /// optional; a missing file just means no overrides. Returns false only when a JSON file is
-        /// present but cannot be parsed.
-        bool load(const std::filesystem::path &path,
+        /// Populate the database. Each source in \a opts.sources contributes its directory scan and its
+        /// own JSON, earlier sources winning over later ones; then the JSON at \a overridePath is
+        /// layered on top of everything as a final override. \a vars supplies the JSON ${...}
+        /// substitutions (each source's own dirs supply its JSON's shorthand defaults). JSON files are
+        /// optional; a missing one is not an error. Returns false only when a JSON file that is present
+        /// cannot be parsed.
+        bool load(const std::filesystem::path &overridePath,
                   const std::map<std::string, std::string> &vars,
                   const LoadOptions &opts);
 
-        bool load(const std::filesystem::path &path,
+        bool load(const std::filesystem::path &overridePath,
                   const std::map<std::string, std::string> &vars = {}) {
-            return load(path, vars, LoadOptions{});
+            return load(overridePath, vars, LoadOptions{});
         }
 
         const std::vector<CForwardThunkInfo> &forwardThunks() const {
@@ -98,11 +108,11 @@ namespace lore {
         }
 
     private:
-        // Auto-discover forward thunks: scan each (guestThunkDir, hostThunkDir) pair in order for a
-        // GTL *.so with a matching HTL <name>_HTL.so. The first pair to define a given name wins; a
-        // later pair does not override it.
-        void autoScan(
-            const std::vector<std::pair<std::filesystem::path, std::filesystem::path>> &dirPairs);
+        // Scan one thunk source: every guestThunkDir/*.so with a matching hostThunkDir/<name>_HTL.so
+        // becomes a forward thunk, replacing any existing entry of the same name (so a later call, a
+        // higher-priority source, wins).
+        void scanForwardThunks(const std::filesystem::path &guestThunkDir,
+                               const std::filesystem::path &hostThunkDir);
 
         // Layer the JSON at \a path over the current entries: forward overrides (upsert by name) plus
         // reversed thunks. Returns false only if the file is present but cannot be parsed.

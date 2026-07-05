@@ -127,22 +127,19 @@ namespace lore {
                 rootDir = inferRootDirFromRuntime();
             }
 
-            std::filesystem::path configPath;
-            if (const char *configEnv = std::getenv("LORELEI_THUNK_DATABASE")) {
-                configPath = configEnv;
-            } else if (!rootDir.empty()) {
-                configPath = rootDir / "share" / "lorelei" / "ThunkDB.json";
-            } else {
-                configPath = std::filesystem::path("share") / "lorelei" / "ThunkDB.json";
-            }
-
-            // Assemble the thunk search path from thunk prefixes: the LORELEI_THUNK_PATH entries
-            // (colon-separated), scanned first and in order, then the base tree (LORELEI_ROOT) as the
-            // final, lowest-priority fallback. Every prefix mirrors the deployed layout, so its guest
-            // thunks are always under <prefix>/x86_64; there is no separate guest-root knob. The first
-            // pair to define a thunk name wins, and the JSON at configPath is layered on top as
-            // overrides. LORELEI_THUNK_NO_AUTOSCAN leaves the search path empty, so only the JSON applies.
+            // Assemble the thunk sources from thunk prefixes: the LORELEI_THUNK_PATH entries
+            // (colon-separated), highest priority and in order, then the base tree (LORELEI_ROOT) as
+            // the lowest-priority fallback. Every prefix mirrors the deployed layout (guest thunks
+            // under <prefix>/x86_64, host under <prefix>/lib) and carries its own
+            // <prefix>/share/lorelei/ThunkDB.json, so a self-contained thunk pack drops in without a
+            // rebuild. The first source to define a thunk name wins. LORELEI_THUNK_NO_AUTOSCAN leaves
+            // the sources empty, so only the override JSON applies.
             ThunkDatabase::LoadOptions opts;
+            const auto addSource = [&](const std::filesystem::path &prefix) {
+                auto dirs = thunkDirsForPrefix(prefix);
+                opts.sources.push_back({std::move(dirs.first), std::move(dirs.second),
+                                        prefix / "share" / "lorelei" / "ThunkDB.json"});
+            };
             if (std::getenv("LORELEI_THUNK_NO_AUTOSCAN") == nullptr) {
                 if (const char *thunkPath = std::getenv("LORELEI_THUNK_PATH");
                     thunkPath && *thunkPath) {
@@ -150,17 +147,24 @@ namespace lore {
                         if (entry.empty()) {
                             continue;
                         }
-                        opts.scanDirs.push_back(thunkDirsForPrefix(std::string(entry)));
+                        addSource(std::string(entry));
                     }
                 }
-                opts.scanDirs.push_back(thunkDirsForPrefix(rootDir));
+                addSource(rootDir);
+            }
+
+            // An explicit LORELEI_THUNK_DATABASE is a single override JSON layered on top of every
+            // source; without it the base tree's own ThunkDB.json (a source above) is the top layer.
+            std::filesystem::path overridePath;
+            if (const char *configEnv = std::getenv("LORELEI_THUNK_DATABASE")) {
+                overridePath = configEnv;
             }
 
             auto db = std::make_unique<ThunkDatabase>();
-            // load() returns false only for a config file that exists but cannot be parsed; a missing
-            // file is fine (the scan still runs), so it is not worth a warning.
-            if (!db->load(configPath, buildConfigVars(rootDir), opts)) {
-                loreWarning("[HRT] %1: Failed to parse thunk config", configPath.string());
+            // load() returns false only when a config file that is present cannot be parsed; a missing
+            // one is fine, so it is not worth a warning.
+            if (!db->load(overridePath, buildConfigVars(rootDir), opts)) {
+                loreWarning("[HRT] Failed to parse a thunk config");
             }
             server.setThunkDatabase(std::move(db));
         }
