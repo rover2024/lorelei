@@ -18,6 +18,8 @@ You do not write the per-library glue by hand. The Thunk Library Compiler (TLC),
 
 The underlying pass-through mechanism is also demonstrated from scratch in the [QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test).
 
+Lorelei supports **x86_64** guests, running on an **x86_64**, **arm64** or **riscv64** host.
+
 ## Highlights
 
 - **Native speed for host libraries.** Accelerated libraries such as `zlib` run on the host, not inside the emulator.
