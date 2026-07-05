@@ -60,15 +60,15 @@ timed "emulated (qemu, no plugin)" \
 
 # The host runtime (LoreHostRT / LoreDLCall, this machine's arch) and the host thunk (HTL) live under
 # install; the x86_64 guest runtime and the GTL live under install/x86_64. LORELEI_ROOT points at the
-# host install so HTL_DIR and the ThunkDB (which lists libz) resolve there, and LORELEI_GUEST_ROOT
-# points at the x86_64 install for GTL_DIR. The QEMU process loads the host runtime via
-# LD_LIBRARY_PATH, and the guest minizip loads the GTL plus the x86_64 runtime from the path passed
-# through with -E.
+# host install so the HTL and the ThunkDB (which lists libz) resolve there; the host runtime derives
+# the guest side as install/x86_64 on its own, so no separate guest-root variable is needed. The QEMU
+# process loads the host runtime via LD_LIBRARY_PATH, and the guest minizip loads the GTL plus the
+# x86_64 runtime from the path passed through with -E.
 host_lib="$INSTALL_DIR/lib"
 guest_lib="$INSTALL_DIR/x86_64/lib"
 gtl_dir="$INSTALL_DIR/x86_64/lib/x86_64-LoreGTL"
 timed "lorelei (qemu + zlib thunk)" \
-    env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
+    env LORELEI_ROOT="$INSTALL_DIR" \
         LD_LIBRARY_PATH="$host_lib" \
         "$QEMU" -plugin "$PLUGIN" \
         -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \
@@ -90,7 +90,7 @@ timed "emulated (qemu, no plugin)" \
     "$QEMU" "$guest_xz" -6 -c "$xz_input"
 
 timed "lorelei (qemu + lzma thunk)" \
-    env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
+    env LORELEI_ROOT="$INSTALL_DIR" \
         LD_LIBRARY_PATH="$host_lib" \
         "$QEMU" -plugin "$PLUGIN" \
         -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \
@@ -99,7 +99,7 @@ timed "lorelei (qemu + lzma thunk)" \
 # Correctness: the lorelei-compressed stream decompresses back to the original. Use file output
 # (-k -f) rather than stdout so the qemu process's own output cannot mix into the compressed bytes.
 cp "$xz_input" "$work/xz_check.bin"
-env LORELEI_ROOT="$INSTALL_DIR" LORELEI_GUEST_ROOT="$INSTALL_DIR/x86_64" \
+env LORELEI_ROOT="$INSTALL_DIR" \
     LD_LIBRARY_PATH="$host_lib" \
     "$QEMU" -plugin "$PLUGIN" \
     -E LD_LIBRARY_PATH="$gtl_dir:$guest_lib" \

@@ -304,15 +304,13 @@ BOOST_AUTO_TEST_CASE(autodiscovery_from_directories) {
     gtl.touch("bar.so");
     gtl.touch("baz.txt");
 
-    // An empty document still triggers the scan, since GTL_DIR / HTL_DIR are real directories.
+    // An empty document still triggers the scan, since the search path has a real directory pair.
     TempJson j(R"({})");
 
     ThunkDatabase db;
-    const std::map<std::string, std::string> vars = {
-        {"GTL_DIR", gtl.str()},
-        {"HTL_DIR", htl.str()},
-    };
-    BOOST_TEST(db.load(j.path, vars));
+    ThunkDatabase::LoadOptions opts;
+    opts.scanDirs = {{gtl.path, htl.path}};
+    BOOST_TEST(db.load(j.path, {}, opts));
 
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
@@ -335,16 +333,68 @@ BOOST_AUTO_TEST_CASE(autodiscovery_does_not_duplicate_explicit_entry) {
         { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
 
     ThunkDatabase db;
-    const std::map<std::string, std::string> vars = {
-        {"GTL_DIR", gtl.str()},
-        {"HTL_DIR", htl.str()},
-    };
-    BOOST_TEST(db.load(j.path, vars));
+    ThunkDatabase::LoadOptions opts;
+    opts.scanDirs = {{gtl.path, htl.path}};
+    BOOST_TEST(db.load(j.path, {}, opts));
 
     BOOST_TEST(db.forwardThunks().size() == 1u);
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
     // The explicit paths win, and the discovered ones are not appended.
+    BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
+}
+
+BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_first_match_wins) {
+    // An extra search path (highest priority) plus the base tree (lowest). Each contributes a distinct
+    // thunk, and a name present in both resolves to the earlier, higher-priority path.
+    TempDir extraGtl, extraHtl;  // scanDirs[0], higher priority
+    TempDir baseGtl, baseHtl;    // scanDirs[1], the base tree
+
+    extraGtl.touch("shared.so");
+    extraHtl.touch("shared_HTL.so");
+    extraGtl.touch("extra.so");
+    extraHtl.touch("extra_HTL.so");
+    baseGtl.touch("shared.so");
+    baseHtl.touch("shared_HTL.so");
+    baseGtl.touch("base.so");
+    baseHtl.touch("base_HTL.so");
+
+    TempJson j(R"({})");
+    ThunkDatabase db;
+    ThunkDatabase::LoadOptions opts;
+    // The extra path first, the base tree last: same shape the host runtime assembles.
+    opts.scanDirs = {{extraGtl.path, extraHtl.path}, {baseGtl.path, baseHtl.path}};
+    BOOST_TEST(db.load(j.path, {}, opts));
+
+    // All three distinct names are discovered across the two paths.
+    BOOST_TEST(db.forwardThunks().size() == 3u);
+    BOOST_TEST(db.forwardThunk("extra") != nullptr);
+    BOOST_TEST(db.forwardThunk("base") != nullptr);
+
+    // The shared name resolves to the extra path (scanned first), not the base tree.
+    const auto *shared = db.forwardThunk("shared");
+    BOOST_REQUIRE(shared != nullptr);
+    BOOST_TEST(s(shared->guestThunk) == (extraGtl.path / "shared.so").string());
+    BOOST_TEST(s(shared->hostThunk) == (extraHtl.path / "shared_HTL.so").string());
+}
+
+BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_json_still_overrides) {
+    // The JSON overlay wins over any scanned entry, including one discovered via an extra search path.
+    TempDir extraGtl, extraHtl;
+    extraGtl.touch("foo.so");
+    extraHtl.touch("foo_HTL.so");
+
+    TempJson j(R"({ "forwardThunks": [
+        { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
+
+    ThunkDatabase db;
+    ThunkDatabase::LoadOptions opts;
+    opts.scanDirs = {{extraGtl.path, extraHtl.path}};
+    BOOST_TEST(db.load(j.path, {}, opts));
+
+    BOOST_TEST(db.forwardThunks().size() == 1u);
+    const auto *foo = db.forwardThunk("foo");
+    BOOST_REQUIRE(foo != nullptr);
     BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
 }
 

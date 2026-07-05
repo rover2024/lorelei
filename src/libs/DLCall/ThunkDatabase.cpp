@@ -79,37 +79,33 @@ namespace lore {
         }
     }
 
-    void ThunkDatabase::autoScan(const std::map<std::string, std::string> &vars) {
-        std::string gtlDir;
-        std::string htlDir;
-        if (auto it = vars.find("GTL_DIR"); it != vars.end()) {
-            gtlDir = it->second;
-        }
-        if (auto it = vars.find("HTL_DIR"); it != vars.end()) {
-            htlDir = it->second;
-        }
-        if (gtlDir.empty() || htlDir.empty() || !std::filesystem::is_directory(gtlDir)) {
-            return;
-        }
+    void ThunkDatabase::autoScan(
+        const std::vector<std::pair<std::filesystem::path, std::filesystem::path>> &dirPairs) {
+        for (const auto &[gtlDir, htlDir] : dirPairs) {
+            if (gtlDir.empty() || htlDir.empty() || !std::filesystem::is_directory(gtlDir)) {
+                continue;
+            }
 
-        // Every GTL_DIR/*.so that has a matching HTL_DIR/<name>_HTL.so becomes a forward thunk.
-        for (const auto &entry : std::filesystem::directory_iterator(gtlDir)) {
-            if (!entry.is_regular_file() && !entry.is_symlink()) {
-                continue;
+            // Every GTL/*.so with a matching HTL/<name>_HTL.so becomes a forward thunk. A name an
+            // earlier (higher-priority) pair already claimed is skipped, so the first match wins.
+            for (const auto &entry : std::filesystem::directory_iterator(gtlDir)) {
+                if (!entry.is_regular_file() && !entry.is_symlink()) {
+                    continue;
+                }
+                const auto fileName = entry.path().filename().string();
+                if (!str::ends_with(fileName, ".so")) {
+                    continue;
+                }
+                const auto name = fileName.substr(0, fileName.size() - 3);
+                if (name.empty() || m_forwardIndex.count(name)) {
+                    continue;
+                }
+                auto hostThunk = (htlDir / (name + "_HTL.so")).string();
+                if (!std::filesystem::exists(hostThunk)) {
+                    continue;
+                }
+                upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
             }
-            const auto fileName = entry.path().filename().string();
-            if (!str::ends_with(fileName, ".so")) {
-                continue;
-            }
-            const auto name = fileName.substr(0, fileName.size() - 3);
-            if (name.empty()) {
-                continue;
-            }
-            auto hostThunk = htlDir + "/" + name + "_HTL.so";
-            if (!std::filesystem::exists(hostThunk)) {
-                continue;
-            }
-            upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
         }
     }
 
@@ -242,10 +238,9 @@ namespace lore {
         m_reversedThunkMap.clear();
         m_forwardIndex.clear();
 
-        // Scan the default directories for a baseline, then layer the JSON overrides on top.
-        if (opts.autoScan) {
-            autoScan(vars);
-        }
+        // Scan the search path for a baseline (first match for a name wins), then layer the JSON
+        // overrides on top. An empty search path just leaves the JSON as the only source.
+        autoScan(opts.scanDirs);
         const bool jsonOk = loadJsonDatabase(path, vars);
 
         // Build the name/alias lookup indexes from the final entries.

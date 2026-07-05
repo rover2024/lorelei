@@ -52,16 +52,25 @@ namespace lore {
         return runtimeDir;
     }
 
+    // The (guestThunkDir, hostThunkDir) pair for a thunk prefix. The prefix mirrors the deployed
+    // layout: guest thunks under <prefix>/x86_64/lib/x86_64-LoreGTL, host thunks under
+    // <prefix>/lib/<arch>-LoreHTL. This is the one place that encodes the on-disk thunk layout, shared
+    // by the JSON vars and the scan path.
+    static std::pair<std::filesystem::path, std::filesystem::path>
+        thunkDirsForPrefix(const std::filesystem::path &prefix) {
+        return {prefix / "x86_64" / "lib" / "x86_64-LoreGTL",
+                prefix / "lib" / (std::string(kHostArch) + "-LoreHTL")};
+    }
+
     static std::map<std::string, std::string>
-        buildConfigVars(const std::filesystem::path &rootDir,
-                        const std::filesystem::path &guestRootDir) {
+        buildConfigVars(const std::filesystem::path &rootDir) {
+        auto [gtlDir, htlDir] = thunkDirsForPrefix(rootDir);
         std::map<std::string, std::string> vars = {
-            {"ROOT",       rootDir.string()                                                  },
-            {"GUEST_ROOT", guestRootDir.string()                                             },
-            {"HOME",       std::getenv("HOME") ? std::getenv("HOME") : ""                    },
-            {"GTL_DIR",    (guestRootDir / "lib" / "x86_64-LoreGTL").string()                },
-            {"HTL_DIR",    (rootDir / "lib" / (std::string(kHostArch) + "-LoreHTL")).string()},
-            {"ARCH",       kHostArch                                                         },
+            {"ROOT",    rootDir.string()},
+            {"HOME",    std::getenv("HOME") ? std::getenv("HOME") : ""},
+            {"GTL_DIR", gtlDir.string() },
+            {"HTL_DIR", htlDir.string() },
+            {"ARCH",    kHostArch       },
         };
 
         if (const char *extraVars = std::getenv("LORELEI_THUNKS_CONFIG_VARIABLES");
@@ -118,13 +127,6 @@ namespace lore {
                 rootDir = inferRootDirFromRuntime();
             }
 
-            std::filesystem::path guestRootDir;
-            if (const char *guestRootEnv = std::getenv("LORELEI_GUEST_ROOT")) {
-                guestRootDir = guestRootEnv;
-            } else {
-                guestRootDir = rootDir;
-            }
-
             std::filesystem::path configPath;
             if (const char *configEnv = std::getenv("LORELEI_THUNK_DATABASE")) {
                 configPath = configEnv;
@@ -134,15 +136,30 @@ namespace lore {
                 configPath = std::filesystem::path("share") / "lorelei" / "ThunkDB.json";
             }
 
-            // The GTL_DIR / HTL_DIR scan populates the database; the JSON is an optional override
-            // layer. Setting LORELEI_THUNK_NO_AUTOSCAN falls back to the JSON alone.
+            // Assemble the thunk search path from thunk prefixes: the LORELEI_THUNK_PATH entries
+            // (colon-separated), scanned first and in order, then the base tree (LORELEI_ROOT) as the
+            // final, lowest-priority fallback. Every prefix mirrors the deployed layout, so its guest
+            // thunks are always under <prefix>/x86_64; there is no separate guest-root knob. The first
+            // pair to define a thunk name wins, and the JSON at configPath is layered on top as
+            // overrides. LORELEI_THUNK_NO_AUTOSCAN leaves the search path empty, so only the JSON applies.
             ThunkDatabase::LoadOptions opts;
-            opts.autoScan = std::getenv("LORELEI_THUNK_NO_AUTOSCAN") == nullptr;
+            if (std::getenv("LORELEI_THUNK_NO_AUTOSCAN") == nullptr) {
+                if (const char *thunkPath = std::getenv("LORELEI_THUNK_PATH");
+                    thunkPath && *thunkPath) {
+                    for (const auto entry : split(std::string_view(thunkPath), ":")) {
+                        if (entry.empty()) {
+                            continue;
+                        }
+                        opts.scanDirs.push_back(thunkDirsForPrefix(std::string(entry)));
+                    }
+                }
+                opts.scanDirs.push_back(thunkDirsForPrefix(rootDir));
+            }
 
             auto db = std::make_unique<ThunkDatabase>();
             // load() returns false only for a config file that exists but cannot be parsed; a missing
             // file is fine (the scan still runs), so it is not worth a warning.
-            if (!db->load(configPath, buildConfigVars(rootDir, guestRootDir), opts)) {
+            if (!db->load(configPath, buildConfigVars(rootDir), opts)) {
                 loreWarning("[HRT] %1: Failed to parse thunk config", configPath.string());
             }
             server.setThunkDatabase(std::move(db));

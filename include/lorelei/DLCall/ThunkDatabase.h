@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <lorelei/DLCall/Global.h>
@@ -58,15 +59,19 @@ namespace lore {
 
         /// LoadOptions - Tunes how load() populates the database.
         struct LoadOptions {
-            /// Auto-discover forward thunks by scanning GTL_DIR / HTL_DIR. The JSON, if present, is
-            /// then layered on top as overrides. Turn off to use the JSON alone.
-            bool autoScan = true;
+            /// The thunk search path: (guestThunkDir, hostThunkDir) pairs scanned in order to auto-
+            /// discover forward thunks, with the first match for a name winning (so earlier entries
+            /// take precedence). Empty means no scan, leaving the JSON as the only source. The caller
+            /// assembles this, e.g. the extra LORELEI_THUNK_PATH prefixes followed by the base tree.
+            std::vector<std::pair<std::filesystem::path, std::filesystem::path>> scanDirs;
         };
 
-        /// Populate the database. The default directories (GTL_DIR / HTL_DIR in \a vars) are scanned
-        /// first (unless disabled in \a opts), then the JSON at \a path is layered on top: matching
-        /// names replace the scanned entry, new names are added. The JSON is optional; a missing file
-        /// just means no overrides. Returns false only when a JSON file is present but cannot be parsed.
+        /// Populate the database. The directories in \a opts.scanDirs are scanned in order (first match
+        /// for a name wins), then the JSON at \a path is layered on top: matching names replace the
+        /// scanned entry, new names are added. \a vars supplies the JSON's ${...} substitutions and its
+        /// default thunk directory (GTL_DIR / HTL_DIR), and is independent of the scan. The JSON is
+        /// optional; a missing file just means no overrides. Returns false only when a JSON file is
+        /// present but cannot be parsed.
         bool load(const std::filesystem::path &path,
                   const std::map<std::string, std::string> &vars,
                   const LoadOptions &opts);
@@ -93,9 +98,11 @@ namespace lore {
         }
 
     private:
-        // Auto-discover forward thunks by scanning GTL_DIR for *.so that have a matching
-        // HTL_DIR/<name>_HTL.so (both from \a vars). Upserts by name.
-        void autoScan(const std::map<std::string, std::string> &vars);
+        // Auto-discover forward thunks: scan each (guestThunkDir, hostThunkDir) pair in order for a
+        // GTL *.so with a matching HTL <name>_HTL.so. The first pair to define a given name wins; a
+        // later pair does not override it.
+        void autoScan(
+            const std::vector<std::pair<std::filesystem::path, std::filesystem::path>> &dirPairs);
 
         // Layer the JSON at \a path over the current entries: forward overrides (upsert by name) plus
         // reversed thunks. Returns false only if the file is present but cannot be parsed.
