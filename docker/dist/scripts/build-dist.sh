@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 #
-# Build the lorelei distribution for one target arch and cut two tarballs from a single tree: a small
-# runtime (for running thunked guests) and a full devkit (runtime + devel + toolchain, for building
-# thunks). Both use the Scheme A layout: the host-arch side at the prefix root and the x86_64 guest
-# side nested under x86_64/.
+# Build the lorelei distribution for one target arch and cut three tarballs from a single tree: a small
+# runtime (for running thunked guests), a full devkit (runtime + devel + toolchain, for building
+# thunks), and a thunks pack (the prebuilt thunks alone). All use the Scheme A layout: the host-arch
+# side at the prefix root and the x86_64 guest side nested under x86_64/.
 #
 #   <tree>/                 host runtime + devel + LoreTLC + host thunks (HTL) + bundled clang/LLVM
 #   <tree>/x86_64/          x86_64 guest runtime + devel + guest thunks (GTL) + guest sysroot
 #
-# runtime-<arch>.tar.xz  = the runtime .so's + thunks (HTL/GTL) + ThunkDB.json, no tools/headers/LLVM.
-# devkit-<arch>.tar.xz   = the whole tree.
+# runtime-<arch>.tar.xz  = the lorelei runtime .so's alone (no toolchain, no thunks).
+# devkit-<arch>.tar.xz   = the whole tree minus the thunks (toolchain + runtime + headers/sysroot).
+# thunks-<arch>.tar.xz   = the prebuilt thunks (HTL/GTL + ThunkDB.json), a drop-in LORELEI_THUNK_PATH prefix.
 #
 # Everything is built on an x86_64 host: the native arch natively, and aarch64/riscv64 by cross
 # compilation (the guest x86_64 side is always native here). No target binary runs at build time.

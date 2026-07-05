@@ -1,6 +1,7 @@
 name: deploy
 
-# Build the shipping tarballs (a runtime + a devkit per arch) and upload them as artifacts. Fires on a
+# Build the shipping tarballs (a runtime, a devkit and a thunks pack per arch) and upload them as
+# artifacts. Fires on a
 # version tag (the real release path) and on manual dispatch (to smoke-test without tagging). One job
 # per arch (a matrix), so the run shows which arch is building and the three go in parallel. Every job
 # runs on an x86_64 runner: x86_64 builds natively, aarch64/riscv64 by cross compilation, so every
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Cross-compiles aarch64/riscv64 on the x86_64 runner (docker build + docker cp, no buildx).
-      # Tarballs land in ./out as lorelei-{runtime,devkit}-<arch>.tar.xz.
+      # Tarballs land in ./out as lorelei-{runtime,devkit,thunks}-<arch>.tar.xz.
       - name: Build the ${{ matrix.arch }} tarballs
         shell: bash
         run: bash docker/dist/build.sh -t "${{ matrix.arch }}" -o ./out
@@ -40,3 +41,9 @@ jobs:
         with:
           name: lorelei-devkit-${{ matrix.arch }}
           path: out/lorelei-devkit-${{ matrix.arch }}.tar.xz
+
+      - name: Upload thunks ${{ matrix.arch }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lorelei-thunks-${{ matrix.arch }}
+          path: out/lorelei-thunks-${{ matrix.arch }}.tar.xz
