@@ -77,3 +77,11 @@ endif()
 # Add source modules
 # ----------------------------------
 add_subdirectory(src)
+
+# Install LoreMakeThunk.py, the one-command thunk generator, next to the toolchain so an unpacked devkit
+# can turn a library into a thunk with just its own LoreTLC and clang. Tools are host-side only.
+if(LORE_INSTALL AND LORE_BUILD_TOOLS)
+    install(PROGRAMS scripts/LoreMakeThunk.py
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()

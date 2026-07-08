@@ -3,7 +3,7 @@
 # Installed into the devkit prefix at share/lorelei/toolchains/x86_64-linux-gnu.cmake, and passed as
 # CMAKE_TOOLCHAIN_FILE for the guest (GTL) build. It targets x86_64 with the toolchain's own bundled
 # clang and the self-contained x86_64 sysroot, so a thunk author needs no system x86_64 dev packages
-# and no separate cross compiler. MakeThunk.py wires this in automatically when given a devkit prefix.
+# and no separate cross compiler.
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
