@@ -17,6 +17,11 @@ Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is install
 follow --, clang-tooling style):
   LoreMakeThunk.py [--devkit <dir>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <clang flags>]
 
+The four intermediates it normally generates (Desc.h, Symbols.conf, Manifest_host.cpp,
+Manifest_guest.cpp) can each be supplied instead, with --desc / --symbols / --manifest-host /
+--manifest-guest. Anything not supplied is still generated. A supplied --desc brings its own #includes,
+so --header is then unused, and the symbol list comes from either --symbols or --lib.
+
 Example:
   LoreMakeThunk.py --name z --lib /usr/lib/x86_64-linux-gnu/libz.so.1 --header zlib.h \
                -o ./out -- -I/usr/include
@@ -24,6 +29,7 @@ Example:
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -160,104 +166,193 @@ def dump_functions(dk, lib):
     return funcs
 
 
+def functions_from_symbols(path):
+    """The [Function] names from a Symbols.conf (for the #undef list when we generate Desc.h)."""
+    funcs, section = [], None
+    for line in Path(path).read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        if s.startswith("[") and s.endswith("]"):
+            section = s[1:-1].strip().lower()
+            continue
+        if section == "function":
+            funcs.append(s)
+    return funcs
+
+
 def write_intermediates(gendir, args, funcs):
+    """Lay Desc.h / Symbols.conf / Manifest_{host,guest}.cpp into gendir. Each is copied verbatim from
+    the matching --desc/--symbols/--manifest-* override if given, otherwise generated from funcs."""
     gendir.mkdir(parents=True, exist_ok=True)
 
-    desc = ["#pragma once", ""]
-    for h in args.header:
-        desc.append(f"#include <{h}>")
-    desc.append("")
-    desc.append("// Undo any function-like macros the headers define over the names we thunk (zlib's")
-    desc.append("// gzgetc is one). #undef of a non-macro is a harmless no-op, so this is always safe,")
-    desc.append("// and it lets the generated thunk redeclare each name as a real function.")
-    for f in funcs:
-        desc.append(f"#undef {f}")
-    desc += ["",
-             "#include <lorelei/ThunkInterface/Proc.h>",
-             "#include <lorelei/ThunkInterface/PassTags.h>",
-             "",
-             "namespace lore::thunk {}",
-             ""]
-    (gendir / "Desc.h").write_text("\n".join(desc))
+    def place(name, override, generate):
+        dst = gendir / name
+        if override:
+            src = Path(override)
+            if not src.exists():
+                die(f"{name} source not found: {src}")
+            shutil.copyfile(src, dst)
+        else:
+            dst.write_text(generate())
 
-    (gendir / "Symbols.conf").write_text("[Function]\n" + "\n".join(funcs) + "\n")
+    def gen_desc():
+        desc = ["#pragma once", ""]
+        for h in args.header:
+            desc.append(f"#include <{h}>")
+        desc.append("")
+        desc.append("// Undo any function-like macros the headers define over the names we thunk (zlib's")
+        desc.append("// gzgetc is one). #undef of a non-macro is a harmless no-op, so this is always safe,")
+        desc.append("// and it lets the generated thunk redeclare each name as a real function.")
+        for f in funcs:
+            desc.append(f"#undef {f}")
+        desc += ["",
+                 "#include <lorelei/ThunkInterface/Proc.h>",
+                 "#include <lorelei/ThunkInterface/PassTags.h>",
+                 "",
+                 "namespace lore::thunk {}",
+                 ""]
+        return "\n".join(desc)
 
-    host = []
-    if args.callback_replace:
-        host.append("#define LORE_THUNK_CALLBACK_REPLACE")
-    if args.auto_link:
-        host.append("#define LORE_THUNK_AUTO_LINK")
-    host += ["",
-             '#include "Desc.h"',
-             "#include <lorelei/ThunkInterface/ManifestHost.cpp.inc>",
-             "",
-             "namespace lore::thunk {}",
-             ""]
-    (gendir / "Manifest_host.cpp").write_text("\n".join(host))
+    def gen_symbols():
+        return "[Function]\n" + "\n".join(funcs) + "\n"
 
-    guest = []
-    if args.callback_replace:
-        guest.append("#define LORE_THUNK_CALLBACK_REPLACE")
-    guest += ["",
-              '#include "Desc.h"',
-              "#include <lorelei/ThunkInterface/ManifestGuest.cpp.inc>",
-              "",
-              "namespace lore::thunk {}",
-              ""]
-    (gendir / "Manifest_guest.cpp").write_text("\n".join(guest))
+    def gen_manifest_host():
+        host = []
+        if args.callback_replace:
+            host.append("#define LORE_THUNK_CALLBACK_REPLACE")
+        if args.auto_link:
+            host.append("#define LORE_THUNK_AUTO_LINK")
+        host += ["",
+                 '#include "Desc.h"',
+                 "#include <lorelei/ThunkInterface/ManifestHost.cpp.inc>",
+                 "",
+                 "namespace lore::thunk {}",
+                 ""]
+        return "\n".join(host)
+
+    def gen_manifest_guest():
+        guest = []
+        if args.callback_replace:
+            guest.append("#define LORE_THUNK_CALLBACK_REPLACE")
+        guest += ["",
+                  '#include "Desc.h"',
+                  "#include <lorelei/ThunkInterface/ManifestGuest.cpp.inc>",
+                  "",
+                  "namespace lore::thunk {}",
+                  ""]
+        return "\n".join(guest)
+
+    place("Desc.h", args.desc, gen_desc)
+    place("Symbols.conf", args.symbols, gen_symbols)
+    place("Manifest_host.cpp", args.manifest_host, gen_manifest_host)
+    place("Manifest_guest.cpp", args.manifest_guest, gen_manifest_guest)
+
+
+class HelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Keep the epilog's hand-wrapped layout, and mark a repeatable option by appending ` ...` to its
+    argument (so both the usage line and the option list show, e.g., `--header HEADER ...`)."""
+
+    def _format_args(self, action, default_metavar):
+        text = super()._format_args(action, default_metavar)
+        if isinstance(action, argparse._AppendAction):
+            text += " ..."
+        return text
 
 
 def main():
     ap = argparse.ArgumentParser(
         prog="LoreMakeThunk.py",
+        formatter_class=HelpFormatter,
         fromfile_prefix_chars="@",
-        description="Generate a Lorelei guest+host thunk for one library from a devkit, using only "
-                    "the devkit's LoreTLC and clang (no cmake/make/git).",
-        epilog="Flags for parsing the headers go after `--`, clang-tooling style, e.g. "
-               "`-- -I/usr/include -DFOO -fno-strict-aliasing`; they are forwarded to the TLC parse "
-               "and to the thunk compile. @FILE reads arguments (one per line) from FILE.")
-    ap.add_argument("--devkit",
-                    help="unpacked lorelei devkit prefix (default: $LORELEI_DEVKIT, or the devkit "
-                         "this script is installed in)")
-    ap.add_argument("--name", required=True,
-                    help="thunk base name; the guest thunk becomes lib<name>.so (e.g. 'z' for zlib)")
-    ap.add_argument("--lib", required=True,
-                    help="the real shared library: its exported functions are thunked, its SONAME "
-                         "reused, and (with --auto-link) the host thunk links against it")
-    ap.add_argument("--header", action="append", required=True, metavar="HEADER",
-                    help="a header that declares the API, as written in an #include (repeatable)")
-    ap.add_argument("-o", "--out", required=True, help="output prefix (a LORELEI_THUNK_PATH prefix)")
-    ap.add_argument("--soname", help="override the guest thunk SONAME (default: read from --lib)")
-    ap.add_argument("--nm", help="nm command for dumping the library's symbols "
-                                 "(default: the devkit's llvm-nm, else nm on PATH)")
-    ap.add_argument("--htl-arg", action="append", default=[], metavar="FLAG",
-                    help="extra flag for the host thunk only (its parse + compile), e.g. "
-                         "--htl-arg=-lfoo (repeatable; use = for flags starting with -)")
-    ap.add_argument("--gtl-arg", action="append", default=[], metavar="FLAG",
-                    help="extra flag for the guest thunk only (its parse + compile), repeatable")
-    ap.add_argument("--no-callback-replace", dest="callback_replace", action="store_false",
-                    help="do not thunk function-pointer callbacks (default: do)")
-    ap.add_argument("--no-auto-link", dest="auto_link", action="store_false",
-                    help="do not link the host thunk against the real library (default: do)")
-    ap.add_argument("--keep-intermediates", action="store_true",
-                    help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
-    ap.add_argument("-n", "--dry-run", action="store_true",
-                    help="print the LoreTLC and clang commands without running them")
-    ap.add_argument("clang_args", nargs="*", metavar="-- CLANG_ARG ...",
-                    help="compiler flags after --, forwarded to the header parse and the compile")
+        description="Generate a Lorelei guest+host thunk for one library from a devkit.",
+        epilog="Notes:\n"
+               "  - An option shown with a trailing ` ...` may be given more than once.\n"
+               "  - Flags for parsing the headers go after `--`, clang-tooling style, for example\n"
+               "    `-- -I/usr/include -DFOO -fno-strict-aliasing`. They are forwarded to the TLC\n"
+               "    parse and to the thunk compile.\n"
+               "  - @FILE reads arguments, one per line, from FILE.")
+
+    g_req = ap.add_argument_group("required")
+    g_req.add_argument("--name", required=True,
+                       help="thunk base name; the guest thunk becomes lib<name>.so (e.g. 'z' for zlib)")
+    g_req.add_argument("-o", "--out", required=True,
+                       help="output prefix (a LORELEI_THUNK_PATH prefix)")
+
+    g_api = ap.add_argument_group(
+        "library and API",
+        "What to thunk. Give the symbol list as --lib or --symbols, and the API as --header or --desc.")
+    g_api.add_argument("--lib",
+                       help="the real shared library: its exported functions are thunked, its SONAME "
+                            "reused, and (with --auto-link) the host thunk links against it")
+    g_api.add_argument("--header", action="append", default=[], metavar="HEADER",
+                       help="a header that declares the API, as written in an #include. Not needed "
+                            "when --desc is given, which supplies its own #includes")
+
+    g_ovr = ap.add_argument_group(
+        "intermediate overrides",
+        "Supply one of the files LoreMakeThunk otherwise generates. Anything omitted is generated.")
+    g_ovr.add_argument("--desc", metavar="FILE",
+                       help="a Desc.h to use verbatim (its own #includes and any pass:: descriptors "
+                            "for printf-style functions). When given, --header is ignored")
+    g_ovr.add_argument("--symbols", metavar="FILE",
+                       help="a Symbols.conf listing the functions to thunk, instead of dumping them "
+                            "from --lib with nm")
+    g_ovr.add_argument("--manifest-host", dest="manifest_host", metavar="FILE",
+                       help="a Manifest_host.cpp to use instead of the generated one")
+    g_ovr.add_argument("--manifest-guest", dest="manifest_guest", metavar="FILE",
+                       help="a Manifest_guest.cpp to use instead of the generated one")
+
+    g_tune = ap.add_argument_group("build tuning")
+    g_tune.add_argument("--soname",
+                        help="override the guest thunk SONAME (default: the SONAME of --lib, else "
+                             "lib<name>.so)")
+    g_tune.add_argument("--nm", help="nm command for dumping the library's symbols "
+                                     "(default: the devkit's llvm-nm, else nm on PATH)")
+    g_tune.add_argument("--htl-arg", action="append", default=[], metavar="FLAG",
+                        help="extra flag for the host thunk only (its parse + compile), e.g. "
+                             "--htl-arg=-lfoo (use = for flags starting with -)")
+    g_tune.add_argument("--gtl-arg", action="append", default=[], metavar="FLAG",
+                        help="extra flag for the guest thunk only (its parse + compile)")
+    g_tune.add_argument("--no-callback-replace", dest="callback_replace", action="store_false",
+                        help="do not thunk function-pointer callbacks (default: do)")
+    g_tune.add_argument("--no-auto-link", dest="auto_link", action="store_false",
+                        help="do not link the host thunk against the real library (default: do)")
+
+    g_misc = ap.add_argument_group("devkit and misc")
+    g_misc.add_argument("--devkit",
+                        help="unpacked lorelei devkit prefix (default: $LORELEI_DEVKIT, or the devkit "
+                             "this script is installed in)")
+    g_misc.add_argument("--keep-intermediates", action="store_true",
+                        help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
+    g_misc.add_argument("-n", "--dry-run", action="store_true",
+                        help="print the LoreTLC and clang commands without running them")
+
+    ap.add_argument("clang_args", nargs="*", metavar="-- COMPILE_ARGS",
+                    help="compile arguments after --, forwarded to the header parse and the compile")
     args = ap.parse_args()
 
     global DRY_RUN
     DRY_RUN = args.dry_run
 
+    if not args.lib and not args.symbols:
+        die("need the function list: pass --lib (dumped with nm) or --symbols (a Symbols.conf)")
+    if not args.desc and not args.header:
+        die("need the API: pass --header (repeatable) or --desc (a Desc.h that #includes it)")
+    if args.desc and args.header:
+        print("note: --desc given, --header is ignored")
+
     dk = Devkit(resolve_devkit(args.devkit))
     if args.nm:
         dk.nm = args.nm
-    lib = Path(args.lib)
-    if not lib.exists():
+    lib = Path(args.lib) if args.lib else None
+    if lib and not lib.exists():
         die(f"--lib not found: {lib}")
+    if args.auto_link and not lib:
+        print("note: no --lib to link against, building the host thunk without --auto-link")
+        args.auto_link = False
 
-    soname = args.soname or read_soname(dk, lib) or f"lib{args.name}.so"
+    soname = args.soname or (read_soname(dk, lib) if lib else None) or f"lib{args.name}.so"
     cflags = args.clang_args
 
     out = Path(args.out).resolve()
@@ -268,10 +363,10 @@ def main():
     gtl_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[1/5] host arch={dk.host_arch}  soname={soname}  functions:", end=" ")
-    funcs = dump_functions(dk, lib)
+    funcs = functions_from_symbols(args.symbols) if args.symbols else dump_functions(dk, lib)
     print(len(funcs))
     if not funcs:
-        die(f"no exported functions found in {lib}")
+        die("no functions to thunk (empty symbol list)")
 
     print("[2/5] writing intermediates + running TLC stat")
     write_intermediates(gendir, args, funcs)
@@ -314,7 +409,6 @@ def main():
 
     if DRY_RUN:
         if not args.keep_intermediates:
-            import shutil
             shutil.rmtree(out / ".gen", ignore_errors=True)
         print("\n(dry run: the commands above were not executed, nothing was built)")
         return
@@ -326,7 +420,6 @@ def main():
         link.symlink_to(f"lib{args.name}.so")
 
     if not args.keep_intermediates:
-        import shutil
         shutil.rmtree(out / ".gen", ignore_errors=True)
 
     print("\ndone. thunk-pack prefix:", out)
