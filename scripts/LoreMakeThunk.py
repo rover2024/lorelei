@@ -371,21 +371,21 @@ def main():
     print("[2/5] writing intermediates + running TLC stat")
     write_intermediates(gendir, args, funcs)
     stat = gendir / "ThunkStat.json"
-    run([dk.tlc, "stat", "-o", stat, "-c", "Symbols.conf", "Desc.h",
-         "--", "-xc++", "-std=gnu++20", f"-I{dk.host_include}", *cflags],
-        cwd=gendir)
+    # Reference the generated intermediates by absolute path and do not chdir into gendir, so any
+    # relative path in the user's compile args (e.g. `-- -I.`) still resolves against the directory
+    # LoreMakeThunk was invoked from, not gendir.
+    run([dk.tlc, "stat", "-o", stat, "-c", gendir / "Symbols.conf", gendir / "Desc.h",
+         "--", "-xc++", "-std=gnu++20", f"-I{dk.host_include}", *cflags])
 
     print("[3/5] TLC generate (host + guest)")
     htl_src = gendir / "Thunk_host.cpp"
     gtl_src = gendir / "Thunk_guest.cpp"
-    run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", "Manifest_host.cpp",
+    run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", gendir / "Manifest_host.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet,
-         f"-I{dk.host_include}", f"-I{gendir}", *cflags, *args.htl_arg],
-        cwd=gendir)
-    run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", "Manifest_guest.cpp",
+         f"-I{dk.host_include}", f"-I{gendir}", *cflags, *args.htl_arg])
+    run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", gendir / "Manifest_guest.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", GUEST_TRIPLET,
-         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags, *args.gtl_arg],
-        cwd=gendir)
+         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags, *args.gtl_arg])
 
     print("[4/5] compile host thunk (HTL)")
     htl_out = htl_dir / f"lib{args.name}_HTL.so"
