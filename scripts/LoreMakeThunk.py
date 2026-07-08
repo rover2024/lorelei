@@ -15,7 +15,7 @@ LORELEI_THUNK_PATH prefix:
 
 Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is installed in. Header flags
 follow --, clang-tooling style):
-  LoreMakeThunk.py [--devkit <dir>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <clang flags>]
+  LoreMakeThunk.py [--devkit <dir>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <compile arguments>]
 
 The four intermediates it normally generates (Desc.h, Symbols.conf, Manifest_host.cpp,
 Manifest_guest.cpp) can each be supplied instead, with --desc / --symbols / --manifest-host /
@@ -326,9 +326,9 @@ def main():
     g_misc.add_argument("--keep-intermediates", action="store_true",
                         help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
     g_misc.add_argument("-n", "--dry-run", action="store_true",
-                        help="print the LoreTLC and clang commands without running them")
+                        help="print the LoreTLC and compiler commands without running them")
 
-    ap.add_argument("clang_args", nargs="*", metavar="-- COMPILE_ARGS",
+    ap.add_argument("compile_args", nargs="*", metavar="-- COMPILE_ARGS",
                     help="compile arguments after --, forwarded to the header parse and the compile")
     args = ap.parse_args()
 
@@ -353,7 +353,7 @@ def main():
         args.auto_link = False
 
     soname = args.soname or (read_soname(dk, lib) if lib else None) or f"lib{args.name}.so"
-    cflags = args.clang_args
+    cflags = args.compile_args
 
     out = Path(args.out).resolve()
     gendir = out / ".gen" / args.name
