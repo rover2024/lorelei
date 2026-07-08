@@ -150,6 +150,21 @@ def read_soname(dk, lib):
     return m.group(1) if m else None
 
 
+def make_aliases(dirpath, target, names):
+    """Create each name in `names` as a symlink to `target` in `dirpath`, skipping the target itself
+    and duplicates. Returns the names actually created."""
+    made = []
+    for name in dict.fromkeys(names):        # dedup, preserve order
+        if name == target:
+            continue
+        link = dirpath / name
+        if link.exists() or link.is_symlink():
+            link.unlink()
+        link.symlink_to(target)
+        made.append(name)
+    return made
+
+
 def dump_functions(dk, lib):
     """Exported text symbols of the real library, like DumpSyms.py's [Function] section."""
     out = capture([dk.nm, "-D", "--defined-only", str(lib)])
@@ -307,6 +322,12 @@ def main():
     g_tune.add_argument("--soname",
                         help="override the guest thunk SONAME (default: the SONAME of --lib, else "
                              "lib<name>.so)")
+    g_tune.add_argument("--gtl-alias", dest="gtl_alias", action="append", default=[], metavar="NAME",
+                        help="extra symlink in the guest thunk dir pointing at lib<name>.so, e.g. "
+                             "--gtl-alias libz.so.1 (on top of the SONAME alias from --lib)")
+    g_tune.add_argument("--htl-alias", dest="htl_alias", action="append", default=[], metavar="NAME",
+                        help="extra symlink in the host thunk dir pointing at lib<name>_HTL.so "
+                             "(rarely needed; the runtime finds the HTL via LORELEI_THUNK_PATH)")
     g_tune.add_argument("--nm", help="nm command for dumping the library's symbols "
                                      "(default: the devkit's llvm-nm, else nm on PATH)")
     g_tune.add_argument("--htl-arg", action="append", default=[], metavar="FLAG",
@@ -413,18 +434,17 @@ def main():
         print("\n(dry run: the commands above were not executed, nothing was written)")
         return
 
-    if soname != f"lib{args.name}.so":
-        link = gtl_dir / soname
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        link.symlink_to(f"lib{args.name}.so")
+    # Guest thunk symlinks: the SONAME alias derived from --lib (so a guest linking -l<name> resolves
+    # its NEEDED to the file), plus any explicit --gtl-alias. Host thunk symlinks: only --htl-alias.
+    made_gtl = make_aliases(gtl_dir, f"lib{args.name}.so", [soname, *args.gtl_alias])
+    made_htl = make_aliases(htl_dir, f"lib{args.name}_HTL.so", args.htl_alias)
 
     if not args.keep_intermediates:
         shutil.rmtree(out / ".gen", ignore_errors=True)
 
     print("\ndone. thunk-pack prefix:", out)
-    print("  HTL:", htl_out)
-    print("  GTL:", gtl_out, f"(+ {soname})" if soname != f"lib{args.name}.so" else "")
+    print("  HTL:", htl_out, f"(+ {', '.join(made_htl)})" if made_htl else "")
+    print("  GTL:", gtl_out, f"(+ {', '.join(made_gtl)})" if made_gtl else "")
     print(f"\nrun a guest over it with:  LORELEI_THUNK_PATH={out}")
 
 
