@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.4.0 (2026-07-08)
+
+Makes building a thunk a single command. The devkit now ships LoreMakeThunk, a self-contained generator that turns a library and its headers into a ready thunk pack using only the devkit's own clang and LoreTLC, with no build system and nothing to hand-write. Two runnable examples and a container come with it.
+
+- **`LoreMakeThunk`**, a one-command thunk generator installed in the devkit as `bin/LoreMakeThunk.py`. Given a real shared library and the headers that declare its API, it dumps the exported symbols, runs `LoreTLC`, and compiles both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a standard drop-in `LORELEI_THUNK_PATH` prefix. It drives the devkit's own clang directly, with no cmake, make or git, and no manifest or config file to write. Compiler flags follow a `--` separator, clang-tooling style.
+- **Boilerplate is generated, or supplied.** The four intermediates LoreMakeThunk normally writes (`Desc.h`, `Symbols.conf`, `Manifest_host.cpp`, `Manifest_guest.cpp`) can each be overridden with `--desc`, `--symbols`, `--manifest-host` and `--manifest-guest`, for the cases a header cannot express on its own, such as a `pass::printf` descriptor for an obscure-named format function or a type filter for `long double`. The function list comes from `--lib` (dumped with nm) or from `--symbols`.
+- **Runnable examples, now in this repository.** `examples/hello` (a minimal one-function library) and `examples/demo` (variadic functions and a callback that reenters the guest) each build a thunk and run it under the plugin with `make`. `docker/try-examples` builds qemu and runs both against a mounted devkit, for hosts without qemu or an x86_64 rootfs.
+
 ## v1.0.3.0 (2026-07-05)
 
 Decouples thunk distribution from the base. Thunks now ship as standalone drop-in packs discovered by a single search path, so libraries can be added to a target without touching or rebuilding the devkit or runtime, and neither of those grows as more libraries are thunked.
