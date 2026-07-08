@@ -13,9 +13,13 @@ LORELEI_THUNK_PATH prefix:
   <out>/lib/<host-arch>-LoreHTL/lib<name>_HTL.so
   <out>/x86_64/lib/x86_64-LoreGTL/lib<name>.so   (+ soname symlink)
 
-Minimal usage:
-  LoreMakeThunk.py --devkit <prefix> --name z --library /usr/lib/x86_64-linux-gnu/libz.so.1 \
-               --header zlib.h --include-dir /usr/include -o ./out
+Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is installed in. Header flags
+follow --, clang-tooling style):
+  LoreMakeThunk.py [--devkit <dir>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <clang flags>]
+
+Example:
+  LoreMakeThunk.py --name z --lib /usr/lib/x86_64-linux-gnu/libz.so.1 --header zlib.h \
+               -o ./out -- -I/usr/include
 """
 import argparse
 import os
@@ -206,22 +210,26 @@ def write_intermediates(gendir, args, funcs):
 def main():
     ap = argparse.ArgumentParser(
         prog="LoreMakeThunk.py",
+        fromfile_prefix_chars="@",
         description="Generate a Lorelei guest+host thunk for one library from a devkit, using only "
-                    "the devkit's LoreTLC and clang (no cmake/make/git).")
+                    "the devkit's LoreTLC and clang (no cmake/make/git).",
+        epilog="Flags for parsing the headers go after `--`, clang-tooling style, e.g. "
+               "`-- -I/usr/include -DFOO -fno-strict-aliasing`; they are forwarded to the TLC parse "
+               "and to the thunk compile. @FILE reads arguments (one per line) from FILE.")
     ap.add_argument("--devkit",
                     help="unpacked lorelei devkit prefix (default: $LORELEI_DEVKIT, or the devkit "
                          "this script is installed in)")
     ap.add_argument("--name", required=True,
                     help="thunk base name; the guest thunk becomes lib<name>.so (e.g. 'z' for zlib)")
-    ap.add_argument("--library", required=True,
+    ap.add_argument("--lib", required=True,
                     help="the real shared library: its exported functions are thunked, its SONAME "
                          "reused, and (with --auto-link) the host thunk links against it")
     ap.add_argument("--header", action="append", required=True, metavar="HEADER",
                     help="a header that declares the API, as written in an #include (repeatable)")
-    ap.add_argument("--include-dir", action="append", default=[], metavar="DIR",
-                    help="an include search dir for the headers above (repeatable)")
     ap.add_argument("-o", "--out", required=True, help="output prefix (a LORELEI_THUNK_PATH prefix)")
-    ap.add_argument("--soname", help="override the guest thunk SONAME (default: read from --library)")
+    ap.add_argument("--soname", help="override the guest thunk SONAME (default: read from --lib)")
+    ap.add_argument("--nm", help="nm command for dumping the library's symbols "
+                                 "(default: the devkit's llvm-nm, else nm on PATH)")
     ap.add_argument("--no-callback-replace", dest="callback_replace", action="store_false",
                     help="do not thunk function-pointer callbacks (default: do)")
     ap.add_argument("--no-auto-link", dest="auto_link", action="store_false",
@@ -230,18 +238,22 @@ def main():
                     help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
     ap.add_argument("-n", "--dry-run", action="store_true",
                     help="print the LoreTLC and clang commands without running them")
+    ap.add_argument("clang_args", nargs="*", metavar="-- CLANG_ARG ...",
+                    help="compiler flags after --, forwarded to the header parse and the compile")
     args = ap.parse_args()
 
     global DRY_RUN
     DRY_RUN = args.dry_run
 
     dk = Devkit(resolve_devkit(args.devkit))
-    lib = Path(args.library)
+    if args.nm:
+        dk.nm = args.nm
+    lib = Path(args.lib)
     if not lib.exists():
-        die(f"--library not found: {lib}")
+        die(f"--lib not found: {lib}")
 
     soname = args.soname or read_soname(dk, lib) or f"lib{args.name}.so"
-    incflags = [f"-I{d}" for d in args.include_dir]
+    cflags = args.clang_args
 
     out = Path(args.out).resolve()
     gendir = out / ".gen" / args.name
@@ -260,7 +272,7 @@ def main():
     write_intermediates(gendir, args, funcs)
     stat = gendir / "ThunkStat.json"
     run([dk.tlc, "stat", "-o", stat, "-c", "Symbols.conf", "Desc.h",
-         "--", "-xc++", "-std=gnu++20", f"-I{dk.host_include}", *incflags],
+         "--", "-xc++", "-std=gnu++20", f"-I{dk.host_include}", *cflags],
         cwd=gendir)
 
     print("[3/5] TLC generate (host + guest)")
@@ -268,16 +280,16 @@ def main():
     gtl_src = gendir / "Thunk_guest.cpp"
     run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", "Manifest_host.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet,
-         f"-I{dk.host_include}", f"-I{gendir}", *incflags],
+         f"-I{dk.host_include}", f"-I{gendir}", *cflags],
         cwd=gendir)
     run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", "Manifest_guest.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", GUEST_TRIPLET,
-         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *incflags],
+         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags],
         cwd=gendir)
 
     print("[4/5] compile host thunk (HTL)")
     htl_out = htl_dir / f"lib{args.name}_HTL.so"
-    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, f"-I{dk.host_include}", f"-I{gendir}", *incflags,
+    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, f"-I{dk.host_include}", f"-I{gendir}", *cflags,
                str(htl_src), "-o", str(htl_out),
                f"-L{dk.host_libdir}", "-lLoreHostRT", f"-Wl,-rpath,{RPATH}"]
     if args.auto_link:
@@ -287,7 +299,7 @@ def main():
     print("[5/5] compile guest thunk (GTL)")
     gtl_out = gtl_dir / f"lib{args.name}.so"
     gtl_cmd = [*dk.guest_compile_cmd(), "-shared", *TU_FLAGS,
-               f"-I{dk.guest_include}", f"-I{gendir}", *incflags,
+               f"-I{dk.guest_include}", f"-I{gendir}", *cflags,
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
                f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]

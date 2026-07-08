@@ -21,13 +21,13 @@ You need a lorelei **devkit** (the toolchain, `LoreTLC`, `LoreMakeThunk.py`, run
 tar -xf lorelei-devkit-<arch>-<version>.tar.xz   # unpacks to lorelei-devkit-<arch>/
 ```
 
-`LoreMakeThunk.py` (in the devkit's `bin/`) turns a library into a thunk in one command. Give it the built `.so`, a name, and the headers that declare the API; it generates and builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix:
+`LoreMakeThunk.py` (in the devkit's `bin/`) turns a library into a thunk in one command. Give it the built `.so`, a name, and the headers that declare the API, plus any compiler flags after `--`. It generates and builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix:
 
 ```bash
 DEVKIT=/path/to/lorelei-devkit-<arch>
 $DEVKIT/bin/LoreMakeThunk.py --devkit $DEVKIT --name hello \
-    --library build/libhello.so --header hello.h --include-dir . \
-    -o install
+    --lib build/libhello.so --header hello.h \
+    -o install -- -I.
 ```
 
 The `Makefile` does exactly this, after building `libhello.so` first.

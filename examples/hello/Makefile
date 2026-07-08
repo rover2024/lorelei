@@ -28,8 +28,8 @@ $(HERE)/build/libhello.so: $(HERE)/hello.c
 # self-contained thunk pack under install/ (itself a LORELEI_THUNK_PATH prefix).
 $(GTL)/libhello.so: $(HERE)/build/libhello.so
 	$(DEVKIT)/bin/LoreMakeThunk.py --devkit $(DEVKIT) --name hello \
-	    --library $(HERE)/build/libhello.so --header hello.h --include-dir $(HERE) \
-	    -o $(INSTALL)
+	    --lib $(HERE)/build/libhello.so --header hello.h \
+	    -o $(INSTALL) -- -I$(HERE)
 
 # 3. the guest program, linked against the GTL
 $(HERE)/build/main.elf: $(HERE)/main.c $(GTL)/libhello.so

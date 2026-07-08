@@ -28,8 +28,8 @@ $(HERE)/build/libdemo.so: $(HERE)/demo.c
 # self-contained thunk pack under install/ (itself a LORELEI_THUNK_PATH prefix).
 $(GTL)/libdemo.so: $(HERE)/build/libdemo.so
 	$(DEVKIT)/bin/LoreMakeThunk.py --devkit $(DEVKIT) --name demo \
-	    --library $(HERE)/build/libdemo.so --header demo.h --include-dir $(HERE) \
-	    -o $(INSTALL)
+	    --lib $(HERE)/build/libdemo.so --header demo.h \
+	    -o $(INSTALL) -- -I$(HERE)
 
 # 3. the guest program, linked against the GTL
 $(HERE)/build/main.elf: $(HERE)/main.c $(GTL)/libdemo.so
