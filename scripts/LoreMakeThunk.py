@@ -230,6 +230,11 @@ def main():
     ap.add_argument("--soname", help="override the guest thunk SONAME (default: read from --lib)")
     ap.add_argument("--nm", help="nm command for dumping the library's symbols "
                                  "(default: the devkit's llvm-nm, else nm on PATH)")
+    ap.add_argument("--htl-arg", action="append", default=[], metavar="FLAG",
+                    help="extra flag for the host thunk only (its parse + compile), e.g. "
+                         "--htl-arg=-lfoo (repeatable; use = for flags starting with -)")
+    ap.add_argument("--gtl-arg", action="append", default=[], metavar="FLAG",
+                    help="extra flag for the guest thunk only (its parse + compile), repeatable")
     ap.add_argument("--no-callback-replace", dest="callback_replace", action="store_false",
                     help="do not thunk function-pointer callbacks (default: do)")
     ap.add_argument("--no-auto-link", dest="auto_link", action="store_false",
@@ -280,11 +285,11 @@ def main():
     gtl_src = gendir / "Thunk_guest.cpp"
     run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", "Manifest_host.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet,
-         f"-I{dk.host_include}", f"-I{gendir}", *cflags],
+         f"-I{dk.host_include}", f"-I{gendir}", *cflags, *args.htl_arg],
         cwd=gendir)
     run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", "Manifest_guest.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", GUEST_TRIPLET,
-         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags],
+         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags, *args.gtl_arg],
         cwd=gendir)
 
     print("[4/5] compile host thunk (HTL)")
@@ -294,6 +299,7 @@ def main():
                f"-L{dk.host_libdir}", "-lLoreHostRT", f"-Wl,-rpath,{RPATH}"]
     if args.auto_link:
         htl_cmd.append(str(lib))          # link the real library so its symbols resolve
+    htl_cmd += args.htl_arg
     run(htl_cmd)
 
     print("[5/5] compile guest thunk (GTL)")
@@ -303,6 +309,7 @@ def main():
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
                f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]
+    gtl_cmd += args.gtl_arg
     run(gtl_cmd)
 
     if DRY_RUN:
