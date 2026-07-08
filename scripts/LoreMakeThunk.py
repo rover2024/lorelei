@@ -18,6 +18,7 @@ Minimal usage:
                --header zlib.h --include-dir /usr/include -o ./out
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -38,8 +39,13 @@ TU_FLAGS = ["-std=gnu++20", "-fPIC", "-fvisibility=hidden",
 RPATH = "$ORIGIN:$ORIGIN/../../lib"
 
 
+DRY_RUN = False
+
+
 def run(cmd, **kw):
     print("  $ " + " ".join(str(c) for c in cmd))
+    if DRY_RUN:
+        return
     subprocess.run([str(c) for c in cmd], check=True, **kw)
 
 
@@ -57,6 +63,20 @@ def first_existing(*paths):
         if p and Path(p).exists():
             return Path(p)
     return None
+
+
+def resolve_devkit(arg):
+    """--devkit, else $LORELEI_DEVKIT, else the devkit this script is installed in (bin/..)."""
+    if arg:
+        return arg
+    env = os.environ.get("LORELEI_DEVKIT")
+    if env:
+        return env
+    # Installed at <devkit>/bin/LoreMakeThunk.py, so the prefix is two levels up.
+    cand = Path(__file__).resolve().parent.parent
+    if (cand / "bin" / "LoreTLC").exists():
+        return cand
+    die("no devkit: pass --devkit, set LORELEI_DEVKIT, or install this script in a devkit's bin/")
 
 
 class Devkit:
@@ -188,7 +208,9 @@ def main():
         prog="LoreMakeThunk.py",
         description="Generate a Lorelei guest+host thunk for one library from a devkit, using only "
                     "the devkit's LoreTLC and clang (no cmake/make/git).")
-    ap.add_argument("--devkit", required=True, help="unpacked lorelei devkit prefix for this host")
+    ap.add_argument("--devkit",
+                    help="unpacked lorelei devkit prefix (default: $LORELEI_DEVKIT, or the devkit "
+                         "this script is installed in)")
     ap.add_argument("--name", required=True,
                     help="thunk base name; the guest thunk becomes lib<name>.so (e.g. 'z' for zlib)")
     ap.add_argument("--library", required=True,
@@ -206,9 +228,14 @@ def main():
                     help="do not link the host thunk against the real library (default: do)")
     ap.add_argument("--keep-intermediates", action="store_true",
                     help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
+    ap.add_argument("-n", "--dry-run", action="store_true",
+                    help="print the LoreTLC and clang commands without running them")
     args = ap.parse_args()
 
-    dk = Devkit(args.devkit)
+    global DRY_RUN
+    DRY_RUN = args.dry_run
+
+    dk = Devkit(resolve_devkit(args.devkit))
     lib = Path(args.library)
     if not lib.exists():
         die(f"--library not found: {lib}")
@@ -265,6 +292,14 @@ def main():
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
                f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]
     run(gtl_cmd)
+
+    if DRY_RUN:
+        if not args.keep_intermediates:
+            import shutil
+            shutil.rmtree(out / ".gen", ignore_errors=True)
+        print("\n(dry run: the commands above were not executed, nothing was built)")
+        return
+
     if soname != f"lib{args.name}.so":
         link = gtl_dir / soname
         if link.exists() or link.is_symlink():
