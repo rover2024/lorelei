@@ -28,6 +28,15 @@ Lorelei supports **x86_64** guests, running on an **x86_64**, **arm64** or **ris
 - **Calls in both directions.** The host can call back into guest code (for example a callback the guest registered), and nested reentry is handled with coroutines.
 - **Lean runtime.** The guest and host runtime libraries deliberately avoid heavyweight dependencies.
 
+## Examples
+
+Two runnable examples build a thunk with the devkit's `LoreMakeThunk.py` and run it under qemu with the dlcall plugin. Each needs an unpacked [devkit](https://github.com/rover2024/lorelei/releases) and the patched `qemu-x86_64`.
+
+- [examples/hello](examples/hello): a minimal one-function library. Start here.
+- [examples/demo](examples/demo): variadic functions and a callback that reenters the guest.
+
+No qemu or x86_64 rootfs on hand? [docker/try-examples](docker/try-examples) builds qemu and runs both in a container.
+
 ## Build From Source
 
 Lorelei requires `qmsetup` for configuration, so you need to build it first.

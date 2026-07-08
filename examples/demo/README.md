@@ -15,17 +15,15 @@ The thunk forwards the variadic / `va_list` arguments to the host, and for `demo
 
 ## Build And Run
 
-Exactly as in [hello](../hello#build-and-run). Unpack a `lorelei-devkit-<arch>`, then from this directory build (devkit only):
+Exactly as in [hello](../hello), from this directory:
 
 ```bash
-export LORELEI_DEVKIT=/path/to/lorelei-devkit-<arch>
+export DEVKIT=/path/to/lorelei-devkit-<arch>
 make
-```
 
-Then run the guest under qemu with the dlcall plugin:
-
-```bash
-make QEMU=/path/to/qemu-x86_64 PLUGIN=/path/to/libdlcall.so run
+export QEMU=/path/to/qemu-x86_64
+export PLUGIN=/path/to/libdlcall.so
+make run
 ```
 
 Expected output, every line from the host `libdemo.so`, the sorted numbers coming back through a guest comparator:

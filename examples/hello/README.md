@@ -8,11 +8,11 @@ void hello(const char *name, int lucky);   // prints a one-line greeting
 
 The pieces:
 
-- `hello.h` / `hello.c` — the native host library, the thing that really runs.
-- `main.c` — the x86_64 guest program, which just calls `hello("world", 7)`.
-- `Makefile` — builds the library, generates the thunk with `LoreMakeThunk.py`, builds the guest, and runs it.
+- `hello.h` / `hello.c`: the native host library, the thing that really runs.
+- `main.c`: the x86_64 guest program, which just calls `hello("world", 7)`.
+- `Makefile`: builds the library, generates the thunk with `LoreMakeThunk.py`, and builds the guest program.
 
-## Generate The Thunk
+## Get The Devkit
 
 You need a lorelei **devkit** (the toolchain, `LoreTLC`, `LoreMakeThunk.py`, runtimes and headers). Grab `lorelei-devkit-<arch>` for your host from a [Lorelei release](https://github.com/rover2024/lorelei/releases) and unpack it:
 
@@ -21,35 +21,48 @@ You need a lorelei **devkit** (the toolchain, `LoreTLC`, `LoreMakeThunk.py`, run
 tar -xf lorelei-devkit-<arch>-<version>.tar.xz   # unpacks to lorelei-devkit-<arch>/
 ```
 
-`LoreMakeThunk.py` (in the devkit's `bin/`) turns a library into a thunk in one command. Give it the built `.so`, a name, and the headers that declare the API, plus any compiler flags after `--`. It generates and builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix:
+## Build
+
+Set `DEVKIT` to the unpacked devkit, then `make`. In one go it:
+
+- compiles the host `libhello.so`,
+- generates the thunk from it with `LoreMakeThunk.py`,
+- compiles the guest `main.elf` against the generated GTL.
 
 ```bash
-DEVKIT=/path/to/lorelei-devkit-<arch>
-$DEVKIT/bin/LoreMakeThunk.py --devkit $DEVKIT --name hello \
-    --lib build/libhello.so --header hello.h \
-    -o install -- -I.
-```
-
-The `Makefile` does exactly this, after building `libhello.so` first.
-
-## Build And Run
-
-The `Makefile` runs the whole flow. Running it also needs the patched `qemu-x86_64` and its `libdlcall.so`. Build them from the [rover2024/qemu](https://github.com/rover2024/qemu) `minimal-passthrough-plugin` branch, or skip qemu entirely and [use the container](#running-in-a-container).
-
-First build (only the devkit is needed):
-
-```bash
-export LORELEI_DEVKIT=/path/to/lorelei-devkit-<arch>
+export DEVKIT=/path/to/lorelei-devkit-<arch>
 make
 ```
 
-Then run the guest under qemu with the dlcall plugin:
+The thunk-generation step is what this example is really about. On the built library, `make` runs the devkit's `LoreMakeThunk.py`:
 
 ```bash
-make QEMU=/path/to/qemu-x86_64 PLUGIN=/path/to/libdlcall.so run
+$DEVKIT/bin/LoreMakeThunk.py --name hello --lib build/libhello.so --header hello.h -o install -- -I.
 ```
 
-Expected output, printed by the host `libhello.so` from an emulated guest:
+It finds its own devkit (from its `bin/` location) and builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix at `install/`. Flags after `--` go to the thunk compile.
+
+## Run
+
+Running needs the patched `qemu-x86_64` and its `libdlcall.so`. Build them from the [rover2024/qemu](https://github.com/rover2024/qemu) `minimal-passthrough-plugin` branch, or skip qemu entirely and [use the container](#running-in-a-container). Then `make run`:
+
+```bash
+export QEMU=/path/to/qemu-x86_64
+export PLUGIN=/path/to/libdlcall.so
+make run
+```
+
+`make run` is just qemu with the dlcall plugin, `LORELEI_THUNK_PATH` pointed at the thunk pack:
+
+```bash
+LORELEI_THUNK_PATH=install \
+LD_LIBRARY_PATH=$DEVKIT/lib:install/lib:build \
+    $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
+    -E LD_LIBRARY_PATH=install/x86_64/lib/x86_64-LoreGTL:$DEVKIT/x86_64/lib \
+    build/main.elf
+```
+
+`-L` points qemu at the devkit's x86_64 sysroot so it finds the guest's loader and libc. Expected output, printed by the host `libhello.so` from an emulated guest:
 
 ```text
 Hello, world! Have a wonderful day. Your lucky number is 7.
