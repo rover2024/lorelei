@@ -359,8 +359,9 @@ def main():
     gendir = out / ".gen" / args.name
     htl_dir = out / "lib" / f"{dk.host_arch}-LoreHTL"
     gtl_dir = out / GUEST_ARCH / "lib" / f"{GUEST_ARCH}-LoreGTL"
-    htl_dir.mkdir(parents=True, exist_ok=True)
-    gtl_dir.mkdir(parents=True, exist_ok=True)
+    if not DRY_RUN:
+        htl_dir.mkdir(parents=True, exist_ok=True)
+        gtl_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[1/5] host arch={dk.host_arch}  soname={soname}  functions:", end=" ")
     funcs = functions_from_symbols(args.symbols) if args.symbols else dump_functions(dk, lib)
@@ -369,7 +370,8 @@ def main():
         die("no functions to thunk (empty symbol list)")
 
     print("[2/5] writing intermediates + running TLC stat")
-    write_intermediates(gendir, args, funcs)
+    if not DRY_RUN:
+        write_intermediates(gendir, args, funcs)
     stat = gendir / "ThunkStat.json"
     # Reference the generated intermediates by absolute path and do not chdir into gendir, so any
     # relative path in the user's compile args (e.g. `-- -I.`) still resolves against the directory
@@ -408,9 +410,7 @@ def main():
     run(gtl_cmd)
 
     if DRY_RUN:
-        if not args.keep_intermediates:
-            shutil.rmtree(out / ".gen", ignore_errors=True)
-        print("\n(dry run: the commands above were not executed, nothing was built)")
+        print("\n(dry run: the commands above were not executed, nothing was written)")
         return
 
     if soname != f"lib{args.name}.so":
