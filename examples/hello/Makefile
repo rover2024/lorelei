@@ -40,9 +40,9 @@ $(HERE)/build/main.elf: $(HERE)/main.c $(GTL)/libhello.so
 # the flag is harmless (qemu only consults it for paths missing on the host).
 run: all
 	LORELEI_THUNK_PATH=$(INSTALL) \
-	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(INSTALL)/lib:$(HERE)/build \
+	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build \
 	  $(QEMU) -L $(DEVKIT)/x86_64/sysroot -plugin $(PLUGIN) \
-	  -E LD_LIBRARY_PATH=$(GTL):$(DEVKIT)/x86_64/lib \
+	  -E LD_LIBRARY_PATH=$(DEVKIT)/x86_64/lib:$(GTL) \
 	  $(HERE)/build/main.elf
 
 clean:

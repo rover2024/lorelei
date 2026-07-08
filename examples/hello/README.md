@@ -56,11 +56,21 @@ make run
 
 ```bash
 LORELEI_THUNK_PATH=install \
-LD_LIBRARY_PATH=$DEVKIT/lib:install/lib:build \
+LD_LIBRARY_PATH=$DEVKIT/lib:build \
     $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
-    -E LD_LIBRARY_PATH=install/x86_64/lib/x86_64-LoreGTL:$DEVKIT/x86_64/lib \
+    -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:install/x86_64/lib/x86_64-LoreGTL \
     build/main.elf
 ```
+
+The two `LD_LIBRARY_PATH`s do different jobs. The guest one, passed with `-E`, is the emulated program's search path:
+
+- `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
+- `install/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so` thunk, loaded in place of an ordinary guest library.
+
+The host one is qemu's own search path. The host thunk is found through `LORELEI_THUNK_PATH`, not here:
+
+- `$DEVKIT/lib` holds the host runtime support shipped with the devkit.
+- `build` is where `make` put the host's own `libhello.so`.
 
 `-L` points qemu at the devkit's x86_64 sysroot so it finds the guest's loader and libc. Expected output, printed by the host `libhello.so` from an emulated guest:
 
