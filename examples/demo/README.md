@@ -28,7 +28,7 @@ export PLUGIN=/path/to/libdlcall.so
 make run
 ```
 
-`make` builds the guest `libdemo.so` (x86_64) and `main` linked against it, the host `libdemo.so` (your host's architecture), and the thunk from the host library. `make run` runs `main` under the plugin with the guest thunk ahead of its own library on `LD_LIBRARY_PATH`, so the calls reach the host build:
+`make` builds the guest `libdemo.so` (x86_64) and `main` linked against it, the host `libdemo.so` (your host's architecture), and the thunk from the host library. `make run` runs `main` under the plugin with the guest thunk on `LD_LIBRARY_PATH` in place of its own library, so the calls reach the host build:
 
 ```text
 demo_puts: Hello from the guest program

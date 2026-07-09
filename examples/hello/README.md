@@ -1,6 +1,6 @@
 # hello: a thunk as a drop-in library
 
-The same one-function library, `libhello.so`, built two ways: the **guest** build prints `from guest` and the **host** build prints `from host`. An unmodified x86_64 guest program `main` calls `hello("world", 7)`. On its own it runs the guest build under emulation. With the thunk swapped in, the call is forwarded to the host build, running natively. The output tells you which one ran.
+The same one-function library, `libhello.so`, built two ways: the **guest** build prints `from guest` and the **host** build prints `from host`. An unmodified x86_64 guest program `main` calls `hello("world", 7)`. `main` carries no rpath, so which `libhello.so` it loads is chosen at run time by `LD_LIBRARY_PATH`: point it at the guest build and it runs under emulation, point it at the generated thunk instead and the call is forwarded to the host build, running natively. The output tells you which one ran.
 
 The sources are under `src/`:
 
@@ -23,7 +23,7 @@ tar -xf lorelei-devkit-<arch>-<version>.tar.xz   # unpacks to lorelei-devkit-<ar
 
 Set `DEVKIT` to the unpacked devkit, then `make`. It:
 
-- builds the guest `libhello.so` (x86_64) and the guest program `main`, linked against it with an rpath,
+- builds the guest `libhello.so` (x86_64) and the guest program `main` linked against it,
 - builds the host `libhello.so` (your host's architecture),
 - generates the thunk from the host library with `LoreMakeThunk.py`.
 
@@ -50,14 +50,16 @@ export PLUGIN=/path/to/libdlcall.so
 make run
 ```
 
-`make run` runs the same `main` twice. First on its own, so it loads its own guest library:
+`make run` runs the same `main` twice. First with its own guest library on the guest `LD_LIBRARY_PATH`:
 
 ```bash
-$QEMU -L $DEVKIT/x86_64/sysroot build/guest/main
+$QEMU -L $DEVKIT/x86_64/sysroot \
+    -E LD_LIBRARY_PATH=build/guest \
+    build/guest/main
 # hello from guest: world, lucky 7
 ```
 
-Then under the plugin, with the generated guest `libhello.so` ahead of its own on `LD_LIBRARY_PATH`, so the call reaches the host build:
+Then under the plugin, with the generated guest `libhello.so` on the guest `LD_LIBRARY_PATH` in its place, so the call reaches the host build:
 
 ```bash
 LORELEI_THUNK_PATH=thunks \
@@ -68,7 +70,7 @@ LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
 # hello from host: world, lucky 7
 ```
 
-The guest `LD_LIBRARY_PATH`, passed with `-E`, is searched before the program's rpath, so its generated `libhello.so` replaces the guest build:
+The guest `LD_LIBRARY_PATH`, passed with `-E`, is where the emulated program looks for its libraries. Because `main` has no rpath, whatever `libhello.so` this path resolves is the one it loads. The thunk run lists the generated thunk here, not the guest build, so the thunk is loaded in its place:
 
 - `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`.
 - `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
