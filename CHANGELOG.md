@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.5.0 (2026-07-09)
+
+Makes a failed library load say why, and simplifies how the examples select the thunk.
+
+- **Load failures now report the linker error.** Every place the runtime gives up on a `dlopen` or `dlsym` (the guest runtime failing to load the host runtime or resolve its common entry, a guest thunk failing to load its host thunk, the host thunk failing to load or resolve a symbol from the real host library) now appends the `dlerror` string, so `[GRT] failed to load host runtime` becomes `[GRT] failed to load host runtime: <reason>` instead of an unexplained abort. The host-side error is fetched through the plugin, so it is available even during guest-runtime bootstrap.
+- **Examples select the thunk purely through `LD_LIBRARY_PATH`.** `examples/hello` and `examples/demo` no longer link `main` with an `$ORIGIN` rpath. The program carries no rpath at all, so which `libX.so` it loads (the guest build, or the generated guest thunk in its place) is decided entirely by the guest `LD_LIBRARY_PATH` passed with `-E`, with nothing implicit in the binary.
+
 ## v1.0.4.0 (2026-07-08)
 
 Makes building a thunk a single command. The devkit now ships LoreMakeThunk, a self-contained generator that turns a library and its headers into a ready thunk pack using only the devkit's own clang and LoreTLC, with no build system and nothing to hand-write. Two runnable examples and a container come with it.
