@@ -25,7 +25,8 @@ namespace lore::mod {
         // inside the library image.
         Dl_info selfInfo;
         if (!dladdr(m_staticThunkContext, &selfInfo)) {
-            log::logger().loreCritical("failed to get thunk library name");
+            log::logger().loreCriticalF("failed to get thunk library name of address %p",
+                                        (void *) m_staticThunkContext);
             std::abort();
         }
         const char *modulePath = selfInfo.dli_fname;
