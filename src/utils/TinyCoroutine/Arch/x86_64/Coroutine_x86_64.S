@@ -89,3 +89,8 @@ coroutine_switch:
     
     // return
     ret
+
+    // This asm uses no executable stack. Emit the marker so the linker keeps
+    // the library non-executable. A missing note here made libLoreHostRT.so
+    // require an executable stack, which hardened loaders refuse to dlopen.
+    .section .note.GNU-stack, "", @progbits
