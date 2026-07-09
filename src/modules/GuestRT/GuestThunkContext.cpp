@@ -10,6 +10,7 @@
 #include <lorelei/Support/Logging.h>
 
 #include "GuestClient.h"
+#include "LogCategory.h"
 
 namespace lore::mod {
 
@@ -24,7 +25,7 @@ namespace lore::mod {
         // inside the library image.
         Dl_info selfInfo;
         if (!dladdr(m_staticThunkContext, &selfInfo)) {
-            loreCritical("[GTL] failed to get thunk library name");
+            log::logger().loreCritical("failed to get thunk library name of address %1", m_staticThunkContext);
             std::abort();
         }
         const char *modulePath = selfInfo.dli_fname;
@@ -32,14 +33,15 @@ namespace lore::mod {
         // Look up the matching host thunk library (HTL) and load it host-side.
         auto info = GuestClient::getThunkInfo(modulePath, false);
         if (!info.forward) {
-            loreCritical("[GTL] %1: failed to get thunk info", modulePath);
+            log::logger().loreCritical("%1: failed to get thunk info", modulePath);
             std::abort();
         }
         const char *htlPath = info.forward->hostThunk;
         m_htlHandle = GuestClient::loadLibrary(htlPath, RTLD_NOW);
         if (!m_htlHandle) {
             const char *err = GuestClient::getLibraryError();
-            loreCritical("[GTL] %1: failed to load HTL (%2)", htlPath, err ? err : "unknown error");
+            log::logger().loreCritical("%1: failed to load HTL (%2)", htlPath,
+                                       err ? err : "unknown error");
             std::abort();
         }
 
@@ -47,7 +49,7 @@ namespace lore::mod {
         void *exchangeFunc = GuestClient::getProcAddress(m_htlHandle, "LoreExchangeContext");
         if (!exchangeFunc) {
             const char *err = GuestClient::getLibraryError();
-            loreCritical("[GTL] %1: failed to get init proc (%2)", htlPath,
+            log::logger().loreCritical("%1: failed to get init proc (%2)", htlPath,
                          err ? err : "unknown error");
             std::abort();
         }

@@ -4,9 +4,11 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include <dlfcn.h>
@@ -15,6 +17,7 @@
 #include <lorelei/Support/StringExtras.h>
 
 #include "HostServer.h"
+#include "LogCategory.h"
 
 namespace lore {
 
@@ -88,7 +91,8 @@ namespace lore {
             // inside the patched qemu and gives the host a stable anchor address into the emulator.
             void *emuAddr = dlsym(RTLD_DEFAULT, "qemu_plugin_register_vcpu_syscall_filter_cb");
             if (!emuAddr) {
-                loreCritical("[HRT] Failed to find qemu_plugin_register_vcpu_syscall_filter_cb\n");
+                log::logger().loreCritical(
+                    "failed to find qemu_plugin_register_vcpu_syscall_filter_cb");
                 exit(1);
             }
             mod::HostServer::emuAddr = emuAddr;
@@ -126,7 +130,7 @@ namespace lore {
             // load() returns false only when a config file that is present cannot be parsed; a missing
             // one is fine, so it is not worth a warning.
             if (!db->load(overridePath, buildConfigVars(), opts)) {
-                loreWarning("[HRT] Failed to parse a thunk config");
+                log::logger().loreWarning("failed to parse a thunk config");
             }
             server.setThunkDatabase(std::move(db));
         }
@@ -144,13 +148,26 @@ namespace lore {
         if (level < runtime_instance.level) {
             return;
         }
+
+        // Render the emitting component's category as a "name: " prefix, skipping the unnamed
+        // default. This is the one place runtime records become text: both host-native logs and
+        // guest logs forwarded through DS_LogMessage land here, so every line is tagged with its
+        // origin and no message string carries its own tag.
+        std::string line;
+        if (ctx.category && *ctx.category && std::strcmp(ctx.category, "default") != 0) {
+            line.reserve(std::strlen(ctx.category) + 2 + s.size());
+            line.append(ctx.category).append(": ").append(s);
+        } else {
+            line.assign(s);
+        }
+
         if (runtime_instance.logFile) {
-            std::fwrite(s.data(), 1, s.size(), runtime_instance.logFile);
+            std::fwrite(line.data(), 1, line.size(), runtime_instance.logFile);
             std::fputc('\n', runtime_instance.logFile);
             return;
         }
         if (runtime_instance.defaultLogCallback) {
-            runtime_instance.defaultLogCallback(level, ctx, s);
+            runtime_instance.defaultLogCallback(level, ctx, line);
         }
     }
 

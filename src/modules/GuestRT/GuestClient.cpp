@@ -11,6 +11,8 @@
 
 #include <lorelei/DLCall/Tools/VariadicAdaptor.h>
 
+#include "LogCategory.h"
+
 #ifdef __x86_64__
 #  include "Arch/x86_64/Syscall_x86_64.h"
 #elif defined(__aarch64__)
@@ -103,8 +105,8 @@ namespace lore::mod {
             handle = dlopen(path, RTLD_NOW);
             if (!handle) {
                 const char *err = dlerror();
-                loreWarning("[GRT] %1: failed to load thunk library \"%2\" (%3)", hostLibPath, path,
-                            err ? err : "unknown error");
+                log::logger().loreWarning("%1: failed to load thunk library \"%2\" (%3)",
+                                          hostLibPath, path, err ? err : "unknown error");
                 return nullptr;
             }
         }
@@ -128,7 +130,7 @@ namespace lore::mod {
     void *GuestClient::convertHostProcAddress(const char *name, void *addr) {
         auto hostLibPath = getModulePath(addr, false);
         if (!hostLibPath) {
-            loreWarningF("[GRT] failed to get module path for %p", addr);
+            log::logger().loreWarningF("failed to get module path for %p", addr);
             return nullptr;
         }
 
@@ -137,7 +139,7 @@ namespace lore::mod {
             // The reverse mapping is not found, assume the guest thunk library has the same name
             thunkInfo = getThunkInfo(hostLibPath, false);
             if (!thunkInfo.forward) {
-                loreCritical("[GRT] failed to get forward thunk info for %1", hostLibPath);
+                log::logger().loreCritical("failed to get forward thunk info for %1", hostLibPath);
                 return nullptr;
             }
             return convertHostProcAddress_helper(hostLibPath, *thunkInfo.forward, name);
@@ -150,15 +152,17 @@ namespace lore::mod {
             const char *thunk = reversedThunks[i];
             auto subThunkInfo = getThunkInfo(thunk, false);
             if (!subThunkInfo.forward) {
-                loreWarning("[GRT] %1: failed to get forward thunk info for %2", hostLibPath, thunk);
+                log::logger().loreWarning("%1: failed to get forward thunk info for %2",
+                                          hostLibPath, thunk);
                 continue;
             }
             if (void *func = convertHostProcAddress_helper(hostLibPath, *subThunkInfo.forward, name)) {
                 return func;
             }
         }
-        loreWarningF("[GRT] %s: failed to convert host function \"%s\" at %p to guest function",
-                     hostLibPath, name, addr);
+        log::logger().loreWarningF(
+            "%s: failed to convert host function \"%s\" at %p to guest function", hostLibPath, name,
+            addr);
         return nullptr;
     }
 

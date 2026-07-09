@@ -14,6 +14,7 @@
 #include <lorelei/Support/StringExtras.h>
 
 #include "HostServer.h"
+#include "LogCategory.h"
 
 namespace lore {
 
@@ -78,7 +79,7 @@ namespace lore::mod {
         // its forward-thunk lookup in the database.
         Dl_info selfInfo = {};
         if (!dladdr(m_staticThunkContext, &selfInfo)) {
-            loreCritical("[HTL] failed to get current thunk module path");
+            log::logger().loreCritical("failed to get current thunk module path");
             std::abort();
         }
         const char *modulePath = selfInfo.dli_fname;
@@ -91,7 +92,7 @@ namespace lore::mod {
         const auto thunkName = normalizeThunkName(modulePath);
         const auto *forward = config->forwardThunk(thunkName);
         if (!forward) {
-            loreCritical("[HTL] %1: failed to resolve forward thunk info", modulePath);
+            log::logger().loreCritical("%1: failed to resolve forward thunk info", modulePath);
             std::abort();
         }
 
@@ -100,7 +101,7 @@ namespace lore::mod {
             m_hostLibraryHandle = dlopen(forward->hostLibrary, RTLD_NOW);
             if (!m_hostLibraryHandle) {
                 const char *err = dlerror();
-                loreCritical("[HTL] %1: failed to load host library %2 (%3)", modulePath,
+                log::logger().loreCritical("%1: failed to load host library %2 (%3)", modulePath,
                              forward->hostLibrary, err ? err : "unknown error");
                 std::abort();
             }
@@ -113,8 +114,9 @@ namespace lore::mod {
                 entry.addr = dlsym(m_hostLibraryHandle, entry.key);
                 if (!entry.addr) {
                     const char *err = dlerror();
-                    loreCritical("[HTL] %1: failed to resolve symbol %2 from host library (%3)",
-                                 modulePath, entry.key, err ? err : "unknown error");
+                    log::logger().loreCritical(
+                        "%1: failed to resolve symbol %2 from host library (%3)", modulePath,
+                        entry.key, err ? err : "unknown error");
                     std::abort();
                 }
             }

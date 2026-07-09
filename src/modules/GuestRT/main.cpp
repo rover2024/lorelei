@@ -8,6 +8,7 @@
 #include <lorelei/Support/Logging.h>
 
 #include "GuestClient.h"
+#include "LogCategory.h"
 
 namespace lore {
 
@@ -15,10 +16,12 @@ namespace lore {
 
     // Report a bootstrap failure with the host-side dlerror() and abort. getLibraryError talks to
     // the plugin directly (not through the common entry), so it is usable this early, before the
-    // common entry is resolved. The log callback is not installed yet either, hence plain stderr.
+    // common entry is resolved. The log callback is not installed yet either, so this prints to
+    // stderr directly, tagged with the same guest-rt category the host sink would render.
     [[noreturn]] static void abortHostError(const char *what) {
         const char *err = mod::GuestClient::getLibraryError();
-        std::fprintf(stderr, "[GRT] %s: %s\n", what, err ? err : "unknown error");
+        std::fprintf(stderr, "%s: %s: %s\n", log::logger().name(), what,
+                     err ? err : "unknown error");
         std::abort();
     }
 
