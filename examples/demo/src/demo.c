@@ -10,7 +10,6 @@ int demo_add(int lhs, int rhs) {
 
 void demo_puts(const char *message) {
     puts(message);
-    fflush(stdout);
 }
 
 int demo_printf(const char *format, ...) {
@@ -26,7 +25,6 @@ int demo_printf(const char *format, ...) {
 
 int demo_vprintf(const char *format, va_list args) {
     int written = vprintf(format, args);
-    fflush(stdout);
     return written;
 }
 
