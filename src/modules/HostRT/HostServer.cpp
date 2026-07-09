@@ -119,14 +119,15 @@ namespace lore::mod {
     }
 
     bool HostServer::isHostAddressNaive(void *addr) {
-        // dladdr resolves addresses backed by a loaded module, and guest addresses are not, so a
-        // failed lookup (return 0) means the address is host-side.
+        // dladdr resolves addresses backed by a host-loaded module. Guest objects are mapped by the
+        // emulated loader and are not in the host link map, so a successful lookup means the address
+        // is host-side (the mirror of the guest-side check, where dladdr sees the guest's objects).
         // ##FIXME: dladdr cannot see anonymous-mmap trampolines, so this naive classification is
         // sound only because callers unwrapTrampoline() first (itself an unchecked speculative
         // read at a fixed offset). A dedicated trampoline mmap arena would let both be range-checked
         // directly, the way separation mode uses emuAddr. Deferred.
         Dl_info info;
-        return dladdr(addr, &info) == 0;
+        return dladdr(addr, &info) != 0;
     }
 
     void HostServer::reenter(ReentryArguments *ra) {
