@@ -23,7 +23,7 @@ option(LORE_STATIC_LLVM "Statically link LLVM/Clang into the tools" OFF)
 
 # Emitted into <lorelei/BuildConfig.h>
 set(LORE_CONFIG_THUNK_VARG_MAX 64) # max packed variadic arguments a thunked call marshals
-set(LORE_CONFIG_QEMU_SUPPORT_ADDRESS_SEPARATION ON) # QEMU separates guest/host address ranges (fork)
+set(LORE_CONFIG_QEMU_SUPPORT_ADDRESS_SEPARATION OFF) # ON assumes the fork splits guest/host ranges at emuAddr. OFF classifies host addresses via dladdr and runs on stock QEMU
 
 # ----------------------------------
 # CMake Settings
