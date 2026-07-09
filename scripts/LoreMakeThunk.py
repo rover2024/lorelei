@@ -213,8 +213,17 @@ def write_intermediates(gendir, args, funcs):
 
     def gen_desc():
         desc = ["#pragma once", ""]
+        # TLC parses Desc.h as C++, so a C library's declarations need C linkage or the guest
+        # thunk exports mangled names and the drop-in fails to resolve them. Give it here (the
+        # default) so the header itself needs no extern "C" guards. Only the library headers are
+        # wrapped, never the lore ThunkInterface headers below, which are genuinely C++.
+        c_linkage = args.lang == "c"
+        if c_linkage:
+            desc.append('extern "C" {')
         for h in args.header:
             desc.append(f"#include <{h}>")
+        if c_linkage:
+            desc.append("}")
         desc.append("")
         desc.append("// Undo any function-like macros the headers define over the names we thunk (zlib's")
         desc.append("// gzgetc is one). #undef of a non-macro is a harmless no-op, so this is always safe,")
@@ -303,6 +312,10 @@ def main():
     g_api.add_argument("--header", action="append", default=[], metavar="HEADER",
                        help="a header that declares the API, as written in an #include. Not needed "
                             "when --desc is given, which supplies its own #includes")
+    g_api.add_argument("--lang", choices=["c", "c++"], default="c",
+                       help='linkage of the --header files. c (default) wraps them in extern "C" '
+                            "in the generated Desc.h, so a plain C header needs no guards; pass "
+                            "c++ for a genuinely C++ library. Ignored with --desc")
 
     g_ovr = ap.add_argument_group(
         "intermediate overrides",
