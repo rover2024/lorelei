@@ -65,15 +65,15 @@ Then under the plugin, the call reaches the host build:
 LORELEI_THUNK_PATH=thunks \
 LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
     $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
-    -E LD_LIBRARY_PATH=thunks/x86_64/lib/x86_64-LoreGTL:$DEVKIT/x86_64/lib \
+    -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:thunks/x86_64/lib/x86_64-LoreGTL \
     build/guest/main
 # hello from host: world, lucky 7
 ```
 
 The guest `LD_LIBRARY_PATH`, passed with `-E`, is where the emulated program looks for its libraries:
 
-- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`, which loads in place of the guest build.
 - `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
+- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`, which loads in place of the guest build.
 
 The host `LD_LIBRARY_PATH` is qemu's own search path:
 

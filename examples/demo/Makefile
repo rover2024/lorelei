@@ -48,7 +48,7 @@ run: all
 	LORELEI_THUNK_PATH=$(HERE)/thunks \
 	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build/host \
 	  $(QEMU) -L $(DEVKIT)/x86_64/sysroot -plugin $(PLUGIN) \
-	  -E LD_LIBRARY_PATH=$(GTL):$(DEVKIT)/x86_64/lib \
+	  -E LD_LIBRARY_PATH=$(DEVKIT)/x86_64/lib:$(GTL) \
 	  $(HERE)/build/guest/main
 
 clean:
