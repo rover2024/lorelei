@@ -13,6 +13,15 @@ namespace lore {
 
     static void logCallback(int level, const LogContext &ctx, const std::string_view &s);
 
+    // Report a bootstrap failure with the host-side dlerror() and abort. getLibraryError talks to
+    // the plugin directly (not through the common entry), so it is usable this early, before the
+    // common entry is resolved. The log callback is not installed yet either, hence plain stderr.
+    [[noreturn]] static void abortHostError(const char *what) {
+        const char *err = mod::GuestClient::getLibraryError();
+        std::fprintf(stderr, "[GRT] %s: %s\n", what, err ? err : "unknown error");
+        std::abort();
+    }
+
     struct LOREGUESTRT_EXPORT GuestRuntime {
         int level = Logger::Information;
         mod::GuestClient client;
@@ -20,8 +29,7 @@ namespace lore {
         GuestRuntime() {
             void *hostRuntimeHandle = mod::GuestClient::loadLibrary("libLoreHostRT.so", RTLD_NOW);
             if (!hostRuntimeHandle) {
-                std::fputs("[GRT] failed to load host runtime\n", stderr);
-                std::abort();
+                abortHostError("failed to load host runtime");
             }
 
             // Resolve the host runtime's common entry. Every InvokeProc-based request
@@ -31,8 +39,7 @@ namespace lore {
             void *commonHostEntry =
                 mod::GuestClient::getProcAddress(hostRuntimeHandle, "LoreCommonHostEntry");
             if (!commonHostEntry) {
-                std::fputs("[GRT] failed to resolve host common entry\n", stderr);
-                std::abort();
+                abortHostError("failed to resolve host common entry");
             }
             mod::GuestClient::setCommonHostEntry(commonHostEntry);
 

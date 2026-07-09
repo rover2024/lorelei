@@ -102,7 +102,9 @@ namespace lore::mod {
         if (!handle) {
             handle = dlopen(path, RTLD_NOW);
             if (!handle) {
-                loreWarning("[GRT] %1: failed to load thunk library \"%2\"", hostLibPath, path);
+                const char *err = dlerror();
+                loreWarning("[GRT] %1: failed to load thunk library \"%2\" (%3)", hostLibPath, path,
+                            err ? err : "unknown error");
                 return nullptr;
             }
         }

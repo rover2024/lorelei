@@ -99,8 +99,9 @@ namespace lore::mod {
             /// STEP: load host library
             m_hostLibraryHandle = dlopen(forward->hostLibrary, RTLD_NOW);
             if (!m_hostLibraryHandle) {
-                loreCritical("[HTL] %1: failed to load host library (%2)", modulePath,
-                             forward->hostLibrary);
+                const char *err = dlerror();
+                loreCritical("[HTL] %1: failed to load host library %2 (%3)", modulePath,
+                             forward->hostLibrary, err ? err : "unknown error");
                 std::abort();
             }
 
@@ -111,8 +112,9 @@ namespace lore::mod {
                 assert(entry.key != nullptr);
                 entry.addr = dlsym(m_hostLibraryHandle, entry.key);
                 if (!entry.addr) {
-                    loreCritical("[HTL] %1: failed to resolve symbol %2 from host library",
-                                 modulePath, entry.key);
+                    const char *err = dlerror();
+                    loreCritical("[HTL] %1: failed to resolve symbol %2 from host library (%3)",
+                                 modulePath, entry.key, err ? err : "unknown error");
                     std::abort();
                 }
             }

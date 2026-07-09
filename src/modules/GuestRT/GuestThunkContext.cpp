@@ -38,14 +38,17 @@ namespace lore::mod {
         const char *htlPath = info.forward->hostThunk;
         m_htlHandle = GuestClient::loadLibrary(htlPath, RTLD_NOW);
         if (!m_htlHandle) {
-            loreCritical("[GTL] %1: failed to load HTL", htlPath);
+            const char *err = GuestClient::getLibraryError();
+            loreCritical("[GTL] %1: failed to load HTL (%2)", htlPath, err ? err : "unknown error");
             std::abort();
         }
 
         // Hand the static context across to the HTL so both sides share the same proc table.
         void *exchangeFunc = GuestClient::getProcAddress(m_htlHandle, "LoreExchangeContext");
         if (!exchangeFunc) {
-            loreCritical("[GTL] %1: failed to get init proc", htlPath);
+            const char *err = GuestClient::getLibraryError();
+            loreCritical("[GTL] %1: failed to get init proc (%2)", htlPath,
+                         err ? err : "unknown error");
             std::abort();
         }
         void *args[] = {
