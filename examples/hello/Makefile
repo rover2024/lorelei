@@ -26,13 +26,13 @@ all: $(HERE)/build/guest/main $(GTL)/libhello.so
 # rpath, so which libhello.so it loads is decided entirely by LD_LIBRARY_PATH at run time.
 $(HERE)/build/guest/main: $(SRC)/hello_guest.c $(SRC)/main.c $(SRC)/hello.h
 	mkdir -p $(HERE)/build/guest
-	$(DEVKIT)/bin/x86_64-linux-gnu-clang -shared -fPIC -o $(HERE)/build/guest/libhello.so $(SRC)/hello_guest.c
+	$(DEVKIT)/bin/x86_64-linux-gnu-clang -shared -fPIC $(SRC)/hello_guest.c -o $(HERE)/build/guest/libhello.so
 	$(DEVKIT)/bin/x86_64-linux-gnu-clang $(SRC)/main.c -I$(SRC) -L$(HERE)/build/guest -lhello -o $@
 
 # 2. the host library, native to this host, for the host thunk to dispatch to.
 $(HERE)/build/host/libhello.so: $(SRC)/hello_host.c $(SRC)/hello.h
 	mkdir -p $(HERE)/build/host
-	cc -shared -fPIC -o $@ $(SRC)/hello_host.c
+	cc -shared -fPIC $(SRC)/hello_host.c -o $@
 
 # 3. the thunk, generated from the host library into a self-contained LORELEI_THUNK_PATH pack under
 # thunks/. LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.

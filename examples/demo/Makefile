@@ -27,13 +27,13 @@ all: $(HERE)/build/guest/main $(GTL)/libdemo.so
 # rpath, so which libdemo.so it loads is decided entirely by LD_LIBRARY_PATH at run time.
 $(HERE)/build/guest/main: $(SRC)/demo.c $(SRC)/main.c $(SRC)/demo.h
 	mkdir -p $(HERE)/build/guest
-	$(DEVKIT)/bin/x86_64-linux-gnu-clang -shared -fPIC -o $(HERE)/build/guest/libdemo.so $(SRC)/demo.c
+	$(DEVKIT)/bin/x86_64-linux-gnu-clang -shared -fPIC $(SRC)/demo.c -o $(HERE)/build/guest/libdemo.so
 	$(DEVKIT)/bin/x86_64-linux-gnu-clang $(SRC)/main.c -I$(SRC) -L$(HERE)/build/guest -ldemo -o $@
 
 # 2. the host library, native to this host, from the same source, for the host thunk to dispatch to.
 $(HERE)/build/host/libdemo.so: $(SRC)/demo.c $(SRC)/demo.h
 	mkdir -p $(HERE)/build/host
-	cc -shared -fPIC -o $@ $(SRC)/demo.c
+	cc -shared -fPIC $(SRC)/demo.c -o $@
 
 # 3. the thunk, generated from the host library into a self-contained LORELEI_THUNK_PATH pack under
 # thunks/. LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
