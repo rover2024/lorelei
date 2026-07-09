@@ -59,7 +59,7 @@ $QEMU -L $DEVKIT/x86_64/sysroot \
 # hello from guest: world, lucky 7
 ```
 
-Then under the plugin, with the generated guest `libhello.so` on the guest `LD_LIBRARY_PATH` in its place, so the call reaches the host build:
+Then under the plugin, the call reaches the host build:
 
 ```bash
 LORELEI_THUNK_PATH=thunks \
@@ -70,9 +70,9 @@ LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
 # hello from host: world, lucky 7
 ```
 
-The guest `LD_LIBRARY_PATH`, passed with `-E`, is where the emulated program looks for its libraries. Because `main` has no rpath, whatever `libhello.so` this path resolves is the one it loads. The thunk run lists the generated thunk here, not the guest build, so the thunk is loaded in its place:
+The guest `LD_LIBRARY_PATH`, passed with `-E`, is where the emulated program looks for its libraries:
 
-- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`.
+- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`, which loads in place of the guest build.
 - `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
 
 The host `LD_LIBRARY_PATH` is qemu's own search path:
@@ -82,7 +82,7 @@ The host `LD_LIBRARY_PATH` is qemu's own search path:
 
 `-L` points qemu at the devkit's x86_64 sysroot so it finds the guest's loader and libc (needed on a non-x86_64 host, harmless on x86_64).
 
-The finished tree:
+The resulting directory tree:
 
 ```text
 src/
