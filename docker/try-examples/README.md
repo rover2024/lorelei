@@ -13,14 +13,15 @@ Grab the `lorelei-devkit-<arch>` package for your host architecture from the lat
 It builds the image if needed and runs both examples. You should see, at the end:
 
 ```text
-Hello, world! Have a wonderful day. Your lucky number is 7.
+hello from guest: world, lucky 7
+hello from host: world, lucky 7
 demo_puts: Hello from the guest program
 demo_printf: checking 20 + 22 = 42
 demo_vprintf: checking 7
 demo_qsort: 1 2 3 4 5
 ```
 
-Every line is printed by a native host library, called from an x86_64 guest running under qemu.
+The `from host` line and the `demo_*` lines come from a native host library, called from an unmodified x86_64 guest under qemu. The `from guest` line is that same program run without the thunk.
 
 ## What It Does
 

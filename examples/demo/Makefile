@@ -1,4 +1,7 @@
-# Build and run the demo thunk example with the devkit's LoreMakeThunk.py.
+# Build and run the demo thunk example. Like hello it builds a guest libdemo.so (that main links) and
+# a host libdemo.so (that the thunk dispatches to), from one source. Unlike hello, demo's output does
+# not reveal which one ran (it forwards the real work to libc), so `make run` shows the thunked run:
+# the variadic and callback calls carried across to the host.
 #
 #   DEVKIT   an unpacked lorelei devkit (provides LoreMakeThunk.py and the guest toolchain)
 #   QEMU     the patched qemu-x86_64 (built with the dlcall plugin), used by `make run`
@@ -12,38 +15,41 @@ DEVKIT ?= $(LORELEI_DEVKIT)
 QEMU   ?=
 PLUGIN ?=
 
-HERE    := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-INSTALL := $(HERE)/install
-GTL     := $(INSTALL)/x86_64/lib/x86_64-LoreGTL
+HERE   := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+SRC    := $(HERE)/src
+GTL    := $(HERE)/thunks/x86_64/lib/x86_64-LoreGTL
 
 .PHONY: all run clean
 
-all: $(HERE)/build/main.elf
+all: $(HERE)/build/guest/main $(GTL)/libdemo.so
 
-# 1. the native host library
-$(HERE)/build/libdemo.so: $(HERE)/demo.c
-	mkdir -p $(HERE)/build
-	cc -shared -fPIC -O2 -o $@ $<
+# 1. the guest library (x86_64) and the guest program. main links the guest library with an rpath of
+# $ORIGIN, so on its own it loads that build/guest/libdemo.so sitting next to it.
+$(HERE)/build/guest/main: $(SRC)/demo.c $(SRC)/main.c $(SRC)/demo.h
+	mkdir -p $(HERE)/build/guest
+	$(DEVKIT)/bin/x86_64-linux-gnu-clang -shared -fPIC -o $(HERE)/build/guest/libdemo.so $(SRC)/demo.c
+	$(DEVKIT)/bin/x86_64-linux-gnu-clang $(SRC)/main.c -I$(SRC) -L$(HERE)/build/guest -ldemo \
+	    -Wl,-rpath,'$$ORIGIN' -o $@
 
-# 2. generate + build the thunk (host HTL + guest GTL) with the devkit's LoreMakeThunk.py, into a
-# self-contained thunk pack under install/. LoreMakeThunk finds its devkit from its own location
-# ($(DEVKIT)/bin), so no --devkit is needed.
-$(GTL)/libdemo.so: $(HERE)/build/libdemo.so
-	$(DEVKIT)/bin/LoreMakeThunk.py --name demo --lib $< --header demo.h -o $(INSTALL) -- -I$(HERE)
+# 2. the host library, native to this host, from the same source, for the host thunk to dispatch to.
+$(HERE)/build/host/libdemo.so: $(SRC)/demo.c $(SRC)/demo.h
+	mkdir -p $(HERE)/build/host
+	cc -shared -fPIC -o $@ $(SRC)/demo.c
 
-# 3. the guest program, linked against the GTL
-$(HERE)/build/main.elf: $(HERE)/main.c $(GTL)/libdemo.so
-	$(DEVKIT)/bin/x86_64-linux-gnu-clang $< -I$(HERE) -L$(GTL) -ldemo -o $@
+# 3. the thunk, generated from the host library into a self-contained LORELEI_THUNK_PATH pack under
+# thunks/. LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
+$(GTL)/libdemo.so: $(HERE)/build/host/libdemo.so
+	$(DEVKIT)/bin/LoreMakeThunk.py --name demo --lib $< --header demo.h -o $(HERE)/thunks -- -I$(SRC)
 
-# 4. run the guest under qemu + the dlcall plugin. -L points qemu at the bundled x86_64 sysroot so it
-# finds the guest's ld-linux/libc. On a non-x86_64 host that loader is otherwise absent, and on x86_64
-# the flag is harmless (qemu only consults it for paths missing on the host).
+# 4. run main under the plugin, with the generated guest thunk swapped in ahead of its own libdemo.so,
+# so the variadic and callback calls are carried across to the host. -L points qemu at the devkit's
+# x86_64 sysroot for the guest loader/libc (needed on a non-x86_64 host, harmless on x86_64).
 run: all
-	LORELEI_THUNK_PATH=$(INSTALL) \
-	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build \
+	LORELEI_THUNK_PATH=$(HERE)/thunks \
+	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build/host \
 	  $(QEMU) -L $(DEVKIT)/x86_64/sysroot -plugin $(PLUGIN) \
-	  -E LD_LIBRARY_PATH=$(DEVKIT)/x86_64/lib:$(GTL) \
-	  $(HERE)/build/main.elf
+	  -E LD_LIBRARY_PATH=$(GTL):$(DEVKIT)/x86_64/lib \
+	  $(HERE)/build/guest/main
 
 clean:
-	rm -rf $(HERE)/build $(INSTALL)
+	rm -rf $(HERE)/build $(HERE)/thunks

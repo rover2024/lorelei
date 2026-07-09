@@ -1,46 +1,44 @@
-# hello: a minimal thunk
+# hello: a thunk as a drop-in library
 
-A one-function host library that an x86_64 guest calls through a thunk, so the real function runs natively on the host:
+The same one-function library, `libhello.so`, built two ways: the **guest** build prints `from guest` and the **host** build prints `from host`. An unmodified x86_64 guest program `main` calls `hello("world", 7)`. On its own it runs the guest build under emulation. With the thunk swapped in, the call is forwarded to the host build, running natively. The output tells you which one ran.
 
-```c
-void hello(const char *name, int lucky);   // prints a one-line greeting
-```
+The sources are under `src/`:
 
-The pieces:
+- `hello.h`: the declaration, shared by both builds and the program.
+- `hello_guest.c` / `hello_host.c`: the two implementations, printing `from guest` / `from host`.
+- `main.c`: the guest program, which calls `hello("world", 7)`.
 
-- `hello.h` / `hello.c`: the native host library, the thing that really runs.
-- `main.c`: the x86_64 guest program, which just calls `hello("world", 7)`.
-- `Makefile`: builds the library, generates the thunk with `LoreMakeThunk.py`, and builds the guest program.
+`Makefile` builds the two libraries and the program, generates the thunk with `LoreMakeThunk.py`, and runs it both ways.
 
 ## Get The Devkit
 
-You need a lorelei **devkit** (the toolchain, `LoreTLC`, `LoreMakeThunk.py`, runtimes and headers). Grab `lorelei-devkit-<arch>` for your host from a [Lorelei release](https://github.com/rover2024/lorelei/releases) and unpack it:
+You need a lorelei **devkit** (the toolchain, `LoreMakeThunk.py`, runtimes and headers). Grab `lorelei-devkit-<arch>` for your host from a [Lorelei release](https://github.com/rover2024/lorelei/releases) and unpack it:
 
 ```bash
-# <arch> is your host: x86_64, aarch64 or riscv64. <version> is the release, e.g. 1.0.3.0.
+# <arch> is your host: x86_64, aarch64 or riscv64. <version> is the release, e.g. 1.0.4.0.
 tar -xf lorelei-devkit-<arch>-<version>.tar.xz   # unpacks to lorelei-devkit-<arch>/
 ```
 
 ## Build
 
-Set `DEVKIT` to the unpacked devkit, then `make`. In one go it:
+Set `DEVKIT` to the unpacked devkit, then `make`. It:
 
-- compiles the host `libhello.so`,
-- generates the thunk from it with `LoreMakeThunk.py`,
-- compiles the guest `main.elf` against the generated GTL.
+- builds the guest `libhello.so` (x86_64) and the guest program `main`, linked against it with an rpath,
+- builds the host `libhello.so` (your host's architecture),
+- generates the thunk from the host library with `LoreMakeThunk.py`.
 
 ```bash
 export DEVKIT=/path/to/lorelei-devkit-<arch>
 make
 ```
 
-The thunk-generation step is what this example is really about. On the built library, `make` runs the devkit's `LoreMakeThunk.py`:
+The thunk-generation step is what this example is about. `make` runs the devkit's `LoreMakeThunk.py` on the host library:
 
 ```bash
-$DEVKIT/bin/LoreMakeThunk.py --name hello --lib build/libhello.so --header hello.h -o install -- -I.
+$DEVKIT/bin/LoreMakeThunk.py --name hello --lib build/host/libhello.so --header hello.h -o thunks -- -Isrc
 ```
 
-It finds its own devkit (from its `bin/` location) and builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix at `install/`. Flags after `--` go to the thunk compile.
+It builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix at `thunks/`.
 
 ## Run
 
@@ -52,30 +50,53 @@ export PLUGIN=/path/to/libdlcall.so
 make run
 ```
 
-`make run` is just qemu with the dlcall plugin, `LORELEI_THUNK_PATH` pointed at the thunk pack:
+`make run` runs the same `main` twice. First on its own, so it loads its own guest library:
 
 ```bash
-LORELEI_THUNK_PATH=install \
-LD_LIBRARY_PATH=$DEVKIT/lib:build \
-    $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
-    -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:install/x86_64/lib/x86_64-LoreGTL \
-    build/main.elf
+$QEMU -L $DEVKIT/x86_64/sysroot build/guest/main
+# hello from guest: world, lucky 7
 ```
 
-The two `LD_LIBRARY_PATH`s do different jobs. The guest one, passed with `-E`, is the emulated program's search path:
+Then under the plugin, with the generated guest `libhello.so` ahead of its own on `LD_LIBRARY_PATH`, so the call reaches the host build:
 
+```bash
+LORELEI_THUNK_PATH=thunks \
+LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
+    $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
+    -E LD_LIBRARY_PATH=thunks/x86_64/lib/x86_64-LoreGTL:$DEVKIT/x86_64/lib \
+    build/guest/main
+# hello from host: world, lucky 7
+```
+
+The guest `LD_LIBRARY_PATH`, passed with `-E`, is searched before the program's rpath, so its generated `libhello.so` replaces the guest build:
+
+- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`.
 - `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
-- `install/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so` thunk, loaded in place of an ordinary guest library.
 
-The host one is qemu's own search path. The host thunk is found through `LORELEI_THUNK_PATH`, not here:
+The host `LD_LIBRARY_PATH` is qemu's own search path:
 
 - `$DEVKIT/lib` holds the host runtime support shipped with the devkit.
-- `build` is where `make` put the host's own `libhello.so`.
+- `build/host` holds the host `libhello.so` the host thunk dispatches to.
 
-`-L` points qemu at the devkit's x86_64 sysroot so it finds the guest's loader and libc. Expected output, printed by the host `libhello.so` from an emulated guest:
+`-L` points qemu at the devkit's x86_64 sysroot so it finds the guest's loader and libc (needed on a non-x86_64 host, harmless on x86_64).
+
+The finished tree:
 
 ```text
-Hello, world! Have a wonderful day. Your lucky number is 7.
+src/
+  hello.h
+  hello_guest.c
+  hello_host.c
+  main.c
+build/
+  guest/
+    libhello.so                            (guest build of the library)
+    main                                   (the guest program)
+  host/
+    libhello.so                            (host build of the library)
+thunks/
+  lib/x86_64-LoreHTL/libhello_HTL.so       (host thunk)
+  x86_64/lib/x86_64-LoreGTL/libhello.so    (guest thunk, the drop-in)
 ```
 
 ### Running In A Container

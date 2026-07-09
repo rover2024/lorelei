@@ -1,6 +1,6 @@
 # demo: variadic functions and callbacks
 
-A fuller companion to [../hello](../hello). Same one-command build, the wrapped library just exercises the harder cases a real thunk hits:
+A fuller companion to [../hello](../hello). Same drop-in structure (a guest `libdemo.so` that `main` links, a host `libdemo.so` that the thunk dispatches to), built from one source in `src/`. The wrapped library just exercises the harder cases a real thunk hits:
 
 ```c
 int  demo_add(int lhs, int rhs);                                 // a plain call
@@ -12,6 +12,8 @@ void demo_qsort(void *base, size_t n, size_t size,               // a callback t
 ```
 
 The thunk forwards the variadic / `va_list` arguments to the host, and for `demo_qsort` the host's `qsort` calls the comparator back in the guest mid-call. `main.c` runs each and checks the result.
+
+Unlike hello, demo's output does not reveal whether the guest or host build ran, since both forward the real work to libc. So there is no `from guest` / `from host` marker. `make run` shows the thunked run: the same `main`, with the generated guest thunk swapped in, carrying the calls across to the host.
 
 ## Build And Run
 
@@ -26,7 +28,7 @@ export PLUGIN=/path/to/libdlcall.so
 make run
 ```
 
-Expected output, every line from the host `libdemo.so`, the sorted numbers coming back through a guest comparator:
+`make` builds the guest `libdemo.so` (x86_64) and `main` linked against it, the host `libdemo.so` (your host's architecture), and the thunk from the host library. `make run` runs `main` under the plugin with the guest thunk ahead of its own library on `LD_LIBRARY_PATH`, so the calls reach the host build:
 
 ```text
 demo_puts: Hello from the guest program
@@ -35,10 +37,10 @@ demo_vprintf: checking 7
 demo_qsort: 1 2 3 4 5
 ```
 
-Every line was produced by the **host** `libdemo.so`, and the sorted numbers came back through a comparator that ran in the guest.
+The sorted numbers came back through a comparator that ran in the guest, called from the host's `qsort` mid-thunk.
 
 ### Running In A Container
 
 If your machine has no qemu or x86_64 rootfs, run this example in a container instead: [../../docker/try-examples](../../docker/try-examples) builds qemu for you and needs only Docker and an unpacked devkit.
 
-For the `LoreMakeThunk.py` command and the minimal case, start with [../hello](../hello).
+For the drop-in mechanism spelled out step by step, start with [../hello](../hello).
