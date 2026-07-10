@@ -4,6 +4,8 @@
 
 #include <dlfcn.h>
 
+#include <cstdio>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -14,7 +16,40 @@
 #include "GuestClient.h"
 #include "LogCategory.h"
 
+#define LORE_GUESTRT_USE_PROC_MAPS_FOR_SELF_PATH 1
+
 namespace lore::mod {
+
+#if LORE_GUESTRT_USE_PROC_MAPS_FOR_SELF_PATH
+    namespace {
+
+        std::string findModulePathByAddress(const void *addr) {
+            auto target = reinterpret_cast<uintptr_t>(addr);
+            std::FILE *maps = std::fopen("/proc/self/maps", "r");
+            if (!maps) {
+                return {};
+            }
+
+            char line[4096];
+            while (std::fgets(line, sizeof(line), maps)) {
+                unsigned long long lo = 0;
+                unsigned long long hi = 0;
+                char perms[8] = {};
+                char path[3072] = {};
+                int n = std::sscanf(line, "%llx-%llx %7s %*s %*s %*s %3071[^\n]", &lo,
+                                    &hi, perms, path);
+                if (n >= 3 && target >= lo && target < hi) {
+                    std::fclose(maps);
+                    return n == 4 ? std::string(path) : std::string();
+                }
+            }
+
+            std::fclose(maps);
+            return {};
+        }
+
+    }
+#endif
 
     GuestThunkContext::~GuestThunkContext() {
         if (m_htlHandle) {
@@ -25,6 +60,15 @@ namespace lore::mod {
     void GuestThunkContext::initialize() {
         // Recover this thunk library's own path from the address of its static context, which lives
         // inside the library image.
+#if LORE_GUESTRT_USE_PROC_MAPS_FOR_SELF_PATH
+        std::string modulePathStorage = findModulePathByAddress(m_staticThunkContext);
+        if (modulePathStorage.empty()) {
+            log::logger().loreCriticalF("failed to get thunk library name of address %p",
+                                        (void *) m_staticThunkContext);
+            std::abort();
+        }
+        const char *modulePath = modulePathStorage.c_str();
+#else
         Dl_info selfInfo;
         if (!dladdr(m_staticThunkContext, &selfInfo)) {
             log::logger().loreCriticalF("failed to get thunk library name of address %p",
@@ -32,6 +76,7 @@ namespace lore::mod {
             std::abort();
         }
         const char *modulePath = selfInfo.dli_fname;
+#endif
 
         // Pick the host thunk library (HTL) to load. The database wins if it names one (a JSON entry);
         // otherwise the path baked into this thunk; otherwise the lib<name>_HTL.so name convention.
