@@ -38,7 +38,7 @@ The thunk-generation step is what this example is about. `make` runs the devkit'
 $DEVKIT/bin/LoreMakeThunk.py --name hello --lib build/host/libhello.so --header hello.h -o thunks -- -Isrc
 ```
 
-It builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained `LORELEI_THUNK_PATH` prefix at `thunks/`.
+It builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self-contained thunk pack at `thunks/`.
 
 ## Run
 
@@ -59,10 +59,9 @@ $QEMU -L $DEVKIT/x86_64/sysroot \
 # hello from guest: world, lucky 7
 ```
 
-Then under the plugin, the call reaches the host build:
+Then under the plugin, the call reaches the host build. The generated guest thunk goes on the guest `-E LD_LIBRARY_PATH` in place of its own `libhello.so`, and the host runtime finds the pack from the thunk's own location:
 
 ```bash
-LORELEI_THUNK_PATH=thunks \
 LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
     $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
     -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:thunks/x86_64/lib/x86_64-LoreGTL \

@@ -8,7 +8,7 @@ Given a real shared library and the headers that declare its API, it:
   2. runs the devkit's LoreTLC to stat + generate the host and guest thunk sources,
   3. compiles each into a shared library with the devkit's clang,
 laying the two out in the standard thunk-pack layout, so the output directory is itself a ready
-LORELEI_THUNK_PATH prefix:
+thunk pack (the host runtime finds it from the guest thunk's own location at run time):
 
   <out>/lib/<host-arch>-LoreHTL/lib<name>_HTL.so
   <out>/x86_64/lib/x86_64-LoreGTL/lib<name>.so   (+ soname symlink)
@@ -301,7 +301,7 @@ def main():
     g_req.add_argument("--name", required=True,
                        help="thunk base name; the guest thunk becomes lib<name>.so (e.g. 'z' for zlib)")
     g_req.add_argument("-o", "--out", required=True,
-                       help="output prefix (a LORELEI_THUNK_PATH prefix)")
+                       help="output prefix (a self-contained thunk pack)")
 
     g_api = ap.add_argument_group(
         "library and API",
@@ -340,7 +340,7 @@ def main():
                              "--gtl-alias libz.so.1 (on top of the SONAME alias from --lib)")
     g_tune.add_argument("--htl-alias", dest="htl_alias", action="append", default=[], metavar="NAME",
                         help="extra symlink in the host thunk dir pointing at lib<name>_HTL.so "
-                             "(rarely needed; the runtime finds the HTL via LORELEI_THUNK_PATH)")
+                             "(rarely needed; the runtime derives the HTL from the pack layout)")
     g_tune.add_argument("--nm", help="nm command for dumping the library's symbols "
                                      "(default: the devkit's llvm-nm, else nm on PATH)")
     g_tune.add_argument("--htl-arg", action="append", default=[], metavar="FLAG",
@@ -458,7 +458,9 @@ def main():
     print("\ndone. thunk-pack prefix:", out)
     print("  HTL:", htl_out, f"(+ {', '.join(made_htl)})" if made_htl else "")
     print("  GTL:", gtl_out, f"(+ {', '.join(made_gtl)})" if made_gtl else "")
-    print(f"\nrun a guest over it with:  LORELEI_THUNK_PATH={out}")
+    print(f"\nrun a guest over it by putting the GTL dir on the guest -E LD_LIBRARY_PATH:")
+    print(f"  {gtl_out}")
+    print("the host runtime finds the rest of the pack from there.")
 
 
 if __name__ == "__main__":

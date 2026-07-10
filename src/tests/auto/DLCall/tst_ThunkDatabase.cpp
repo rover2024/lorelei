@@ -31,28 +31,6 @@ namespace {
         }
     };
 
-    // A throwaway directory for the auto-discovery tests. Creates empty marker files on demand.
-    struct TempDir {
-        std::filesystem::path path;
-
-        TempDir() {
-            static int counter = 0;
-            path = std::filesystem::temp_directory_path() /
-                   ("lore_tdb_dir_" + std::to_string(counter++));
-            std::filesystem::create_directories(path);
-        }
-        ~TempDir() {
-            std::error_code ec;
-            std::filesystem::remove_all(path, ec);
-        }
-        void touch(const std::string &name) const {
-            std::ofstream(path / name) << 'x';
-        }
-        std::string str() const {
-            return path.string();
-        }
-    };
-
     // Convenience: compare a NUL-terminated entry field against an expected string.
     std::string s(const char *p) {
         return p ? std::string(p) : std::string("<null>");
@@ -78,11 +56,12 @@ BOOST_AUTO_TEST_CASE(load_failures) {
     BOOST_TEST(db.reversedThunks().empty());
 }
 
-BOOST_AUTO_TEST_CASE(missing_file_is_not_an_error) {
-    // The config file is optional: a missing one is not a failure. It just leaves the database to
-    // whatever the directory auto-scan found (nothing here, with no GTL_DIR / HTL_DIR).
+BOOST_AUTO_TEST_CASE(unreadable_path_is_a_load_failure) {
+    // load() reports whether it could load what it was asked to: a missing or empty path is a failure
+    // (the caller decides if that is acceptable). Either way the database is left empty.
     ThunkDatabase db;
-    BOOST_TEST(db.load(std::filesystem::temp_directory_path() / "lore_tdb_nope_xyz.json"));
+    BOOST_TEST(!db.load(std::filesystem::temp_directory_path() / "lore_tdb_nope_xyz.json"));
+    BOOST_TEST(!db.load({}));
     BOOST_TEST(db.forwardThunks().empty());
     BOOST_TEST(db.reversedThunks().empty());
 }
@@ -294,150 +273,72 @@ BOOST_AUTO_TEST_CASE(reload_clears_previous_state) {
     BOOST_TEST(db.forwardThunk("alpha") == nullptr);
 }
 
-BOOST_AUTO_TEST_CASE(autodiscovery_from_directories) {
-    TempDir gtl;
-    TempDir htl;
+BOOST_AUTO_TEST_CASE(loadpack_shorthand_defaults_from_dirs) {
+    // loadPack() supplies GTL_DIR / HTL_DIR from its dir arguments, so a pack JSON may use the shorthand
+    // and omitted-field forms just like a top-level load with those vars.
+    TempJson pack(R"({ "forwardThunks": [ "libz", { "name": "liblzma" } ] })");
 
-    // foo has a matching host thunk -> discovered. bar has none -> skipped. baz is not a .so.
-    gtl.touch("foo.so");
-    htl.touch("foo_HTL.so");
-    gtl.touch("bar.so");
-    gtl.touch("baz.txt");
+    ThunkDatabase db;  // a fresh database is already empty; no top-level load needed
+    BOOST_TEST(db.loadPack(pack.path, "/p/gtl", "/p/htl", {}));
 
-    // One source with an empty override document, so only the source scan runs.
-    TempJson j(R"({})");
-
-    ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    opts.sources = {{gtl.path, htl.path, {}}};
-    BOOST_TEST(db.load(j.path, {}, opts));
-
-    const auto *foo = db.forwardThunk("foo");
-    BOOST_REQUIRE(foo != nullptr);
-    BOOST_TEST(s(foo->guestThunk) == (gtl.path / "foo.so").string());
-    BOOST_TEST(s(foo->hostThunk) == (htl.path / "foo_HTL.so").string());
-    BOOST_TEST(s(foo->hostLibrary) == "foo.so");
-
-    BOOST_TEST(db.forwardThunk("bar") == nullptr);
-    BOOST_TEST(db.forwardThunk("baz") == nullptr);
+    const auto *z = db.forwardThunk("libz");
+    BOOST_REQUIRE(z != nullptr);
+    BOOST_TEST(s(z->guestThunk) == "/p/gtl/libz.so");
+    BOOST_TEST(s(z->hostThunk) == "/p/htl/libz_HTL.so");
+    BOOST_TEST(s(z->hostLibrary) == "libz.so");
+    BOOST_TEST(db.forwardThunk("liblzma") != nullptr);
 }
 
-BOOST_AUTO_TEST_CASE(autodiscovery_does_not_duplicate_explicit_entry) {
-    TempDir gtl;
-    TempDir htl;
-    gtl.touch("foo.so");
-    htl.touch("foo_HTL.so");
-
-    // foo is also declared in the override JSON, so it replaces the scanned copy, not a second entry.
-    TempJson j(R"({ "forwardThunks": [
-        { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
-
-    ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    opts.sources = {{gtl.path, htl.path, {}}};
-    BOOST_TEST(db.load(j.path, {}, opts));
-
-    BOOST_TEST(db.forwardThunks().size() == 1u);
-    const auto *foo = db.forwardThunk("foo");
-    BOOST_REQUIRE(foo != nullptr);
-    // The override's explicit paths win, and the discovered copy is replaced, not appended.
-    BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
-}
-
-BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_first_match_wins) {
-    // An extra search path (highest priority) plus the base tree (lowest). Each contributes a distinct
-    // thunk, and a name present in both resolves to the earlier, higher-priority path.
-    TempDir extraGtl, extraHtl;  // sources[0], higher priority
-    TempDir baseGtl, baseHtl;    // sources[1], the base tree
-
-    extraGtl.touch("shared.so");
-    extraHtl.touch("shared_HTL.so");
-    extraGtl.touch("extra.so");
-    extraHtl.touch("extra_HTL.so");
-    baseGtl.touch("shared.so");
-    baseHtl.touch("shared_HTL.so");
-    baseGtl.touch("base.so");
-    baseHtl.touch("base_HTL.so");
-
-    TempJson j(R"({})");
-    ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    // The extra source first, the base tree last: same shape the host runtime assembles.
-    opts.sources = {{extraGtl.path, extraHtl.path, {}}, {baseGtl.path, baseHtl.path, {}}};
-    BOOST_TEST(db.load(j.path, {}, opts));
-
-    // All three distinct names are discovered across the two paths.
-    BOOST_TEST(db.forwardThunks().size() == 3u);
-    BOOST_TEST(db.forwardThunk("extra") != nullptr);
-    BOOST_TEST(db.forwardThunk("base") != nullptr);
-
-    // The shared name resolves to the extra path (scanned first), not the base tree.
-    const auto *shared = db.forwardThunk("shared");
-    BOOST_REQUIRE(shared != nullptr);
-    BOOST_TEST(s(shared->guestThunk) == (extraGtl.path / "shared.so").string());
-    BOOST_TEST(s(shared->hostThunk) == (extraHtl.path / "shared_HTL.so").string());
-}
-
-BOOST_AUTO_TEST_CASE(autodiscovery_multi_path_json_still_overrides) {
-    // The JSON overlay wins over any scanned entry, including one discovered via an extra search path.
-    TempDir extraGtl, extraHtl;
-    extraGtl.touch("foo.so");
-    extraHtl.touch("foo_HTL.so");
-
-    TempJson j(R"({ "forwardThunks": [
-        { "name": "foo", "guestThunk": "/custom/foo.so", "hostThunk": "/custom/foo_HTL.so" } ] })");
-
-    ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    opts.sources = {{extraGtl.path, extraHtl.path, {}}};
-    BOOST_TEST(db.load(j.path, {}, opts));
-
-    BOOST_TEST(db.forwardThunks().size() == 1u);
-    const auto *foo = db.forwardThunk("foo");
-    BOOST_REQUIRE(foo != nullptr);
-    BOOST_TEST(s(foo->guestThunk) == "/custom/foo.so");
-}
-
-BOOST_AUTO_TEST_CASE(per_source_json_refines_its_own_scan) {
-    // A source's own ThunkDB.json is layered over that source's scan, with the source's own dirs as
-    // the shorthand default. Here it adds an alias to the scanned thunk.
-    TempDir gtl, htl;
-    gtl.touch("foo.so");
-    htl.touch("foo_HTL.so");
-    TempJson cfg(R"({ "forwardThunks": [ { "name": "foo", "alias": ["f"] } ] })");
-
-    ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    opts.sources = {{gtl.path, htl.path, cfg.path}};
-    BOOST_TEST(db.load({}, {}, opts));  // no override JSON
-
-    const auto *foo = db.forwardThunk("foo");
-    BOOST_REQUIRE(foo != nullptr);
-    // The omitted paths defaulted against this source's own dirs, and the alias came from its JSON.
-    BOOST_TEST(s(foo->guestThunk) == (gtl.path / "foo.so").string());
-    BOOST_TEST(s(foo->hostThunk) == (htl.path / "foo_HTL.so").string());
-    BOOST_TEST(db.forwardThunk("f") == foo);
-}
-
-BOOST_AUTO_TEST_CASE(override_json_beats_source_json) {
-    // The explicit override JSON (load's first argument) sits on top of every source, including a
-    // source's own JSON.
-    TempDir gtl, htl;
-    gtl.touch("foo.so");
-    htl.touch("foo_HTL.so");
-    TempJson srcCfg(R"({ "forwardThunks": [
-        { "name": "foo", "guestThunk": "/src/foo.so", "hostThunk": "/src/foo_HTL.so" } ] })");
+BOOST_AUTO_TEST_CASE(loadpack_layers_under_override) {
+    // A pack is the lowest priority: it fills in new names but never displaces an entry already present
+    // (the override JSON, or an earlier pack).
     TempJson ovr(R"({ "forwardThunks": [
         { "name": "foo", "guestThunk": "/ovr/foo.so", "hostThunk": "/ovr/foo_HTL.so" } ] })");
+    TempJson pack(R"({ "forwardThunks": [
+        { "name": "foo", "guestThunk": "/pack/foo.so", "hostThunk": "/pack/foo_HTL.so" },
+        { "name": "bar", "guestThunk": "/pack/bar.so", "hostThunk": "/pack/bar_HTL.so" } ] })");
 
     ThunkDatabase db;
-    ThunkDatabase::LoadOptions opts;
-    opts.sources = {{gtl.path, htl.path, srcCfg.path}};
-    BOOST_TEST(db.load(ovr.path, {}, opts));
+    BOOST_TEST(db.load(ovr.path));
+    BOOST_TEST(db.loadPack(pack.path, "/p/gtl", "/p/htl", {}));
 
+    // foo stays the override's, and bar comes from the pack.
     const auto *foo = db.forwardThunk("foo");
     BOOST_REQUIRE(foo != nullptr);
     BOOST_TEST(s(foo->guestThunk) == "/ovr/foo.so");
+    BOOST_TEST(db.forwardThunk("bar") != nullptr);
+    BOOST_TEST(db.forwardThunks().size() == 2u);
+}
+
+BOOST_AUTO_TEST_CASE(materialize_forward_adds_and_is_idempotent) {
+    ThunkDatabase db;  // fresh, empty
+
+    const auto *e = db.materializeForward("qux", "/g/qux.so", "/h/qux_HTL.so", "qux.so");
+    BOOST_REQUIRE(e != nullptr);
+    BOOST_TEST(s(e->guestThunk) == "/g/qux.so");
+    BOOST_TEST(s(e->hostThunk) == "/h/qux_HTL.so");
+    BOOST_TEST(s(e->hostLibrary) == "qux.so");
+    BOOST_TEST(db.forwardThunk("qux") == e);
+
+    // Materializing the same name again keeps the existing entry (and its pointer) unchanged.
+    const auto *again = db.materializeForward("qux", "/other/qux.so", "/other/qux_HTL.so", "qux.so");
+    BOOST_TEST(again == e);
+    BOOST_TEST(s(again->guestThunk) == "/g/qux.so");
+    BOOST_TEST(db.forwardThunks().size() == 1u);
+}
+
+BOOST_AUTO_TEST_CASE(materialize_does_not_override_json) {
+    // Convention never displaces an explicit JSON entry.
+    TempJson j(R"({ "forwardThunks": [
+        { "name": "foo", "guestThunk": "/json/foo.so", "hostThunk": "/json/foo_HTL.so" } ] })");
+
+    ThunkDatabase db;
+    BOOST_TEST(db.load(j.path));
+
+    const auto *e = db.materializeForward("foo", "/conv/foo.so", "/conv/foo_HTL.so", "foo.so");
+    BOOST_REQUIRE(e != nullptr);
+    BOOST_TEST(s(e->guestThunk) == "/json/foo.so");
+    BOOST_TEST(db.forwardThunks().size() == 1u);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

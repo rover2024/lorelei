@@ -19,6 +19,8 @@
 
 #include <Invocation.h>
 
+#include "LogCategory.h"
+
 namespace lore::mod {
 
     namespace {
@@ -75,28 +77,16 @@ namespace lore::mod {
             }
         }
 
-        // Look up forward/reversed thunk info for a (host) library path.
-        void getThunkInfo(const char *path, bool isReverse, CThunkInfo *ret) {
-            *ret = {};
-
-            const auto *server = HostServer::instance();
-            assert(server != nullptr);
-            const auto *config = server->thunkDatabase();
-            assert(config != nullptr);
-
+        // Derive the thunk base name from a library path or bare name: the basename with the rightmost
+        // ".so" (and a trailing "_HTL") stripped.
+        std::string thunkNameOf(const char *path) {
             char nameBuf[PATH_MAX];
             getLibraryName(nameBuf, path ? path : "");
-
             std::string name(nameBuf);
             if (str::ends_with(name, "_HTL")) {
                 name = name.substr(0, name.size() - 4);
             }
-
-            if (isReverse) {
-                ret->reversed = config->reversedThunk(name);
-            } else {
-                ret->forward = config->forwardThunk(name);
-            }
+            return name;
         }
 
     }
@@ -116,6 +106,94 @@ namespace lore::mod {
     void HostServer::setThunkDatabase(std::unique_ptr<ThunkDatabase> db) {
         assert(db != nullptr);
         m_thunkDatabase = std::move(db);
+    }
+
+    void HostServer::configureThunkDiscovery(const std::map<std::string, std::string> &vars,
+                                             const std::filesystem::path &overridePath,
+                                             const std::string &hostArch, bool autoDiscover) {
+        m_thunkVars = vars;
+        m_hostArch = hostArch;
+        m_thunkAutoDiscover = autoDiscover;
+
+        // The initial database carries only the explicit override JSON, if one is configured. Packs are
+        // layered under it later, as their thunks appear, via resolveForwardThunk(). An unset override
+        // leaves the database empty. A set-but-unreadable one is worth a warning.
+        auto db = std::make_unique<ThunkDatabase>();
+        if (!overridePath.empty() && !db->load(overridePath, vars)) {
+            log::logger().loreWarning("failed to load the thunk override database");
+        }
+        m_thunkDatabase = std::move(db);
+    }
+
+    void HostServer::getThunkInfo(const char *path, bool isReverse, CThunkInfo *ret) {
+        *ret = {};
+
+        std::lock_guard<std::mutex> lock(m_thunkMutex);
+        assert(m_thunkDatabase != nullptr);
+
+        const std::string name = thunkNameOf(path);
+        if (isReverse) {
+            // A reversed mapping is declared in a pack's JSON, loaded by an earlier forward lookup.
+            ret->reversed = m_thunkDatabase->reversedThunk(name);
+        } else {
+            ret->forward = resolveForwardThunk(path, name);
+        }
+    }
+
+    const CForwardThunkInfo *HostServer::resolveForwardThunk(const char *guestThunkPath,
+                                                             const std::string &name) {
+        // An explicit database entry (from a JSON, or an earlier convention hit) always wins.
+        if (const auto *entry = m_thunkDatabase->forwardThunk(name)) {
+            return entry;
+        }
+        if (!m_thunkAutoDiscover || !guestThunkPath || !*guestThunkPath) {
+            return nullptr;
+        }
+
+        std::filesystem::path p(guestThunkPath);
+        std::filesystem::path gtlDir = p.parent_path();
+
+        // A guest thunk in the standard layout <prefix>/x86_64/lib/x86_64-LoreGTL/<name>.so names a
+        // pack. Load that pack's JSON once (it may declare aliases, redirects or reversed thunks), then
+        // fall back to the naming convention for the host thunk.
+        if (gtlDir.filename() == "x86_64-LoreGTL") {
+            std::filesystem::path prefix = gtlDir.parent_path().parent_path().parent_path();
+            if (!prefix.empty()) {
+                std::filesystem::path hostThunkDir = prefix / "lib" / (m_hostArch + "-LoreHTL");
+                if (m_loadedPackPrefixes.insert(prefix.lexically_normal().string()).second) {
+                    // A pack's ThunkDB.json is optional. Load it when present, and warn only if a
+                    // present one fails to parse.
+                    std::filesystem::path packJson = prefix / "share" / "lorelei" / "ThunkDB.json";
+                    if (std::filesystem::exists(packJson) &&
+                        !m_thunkDatabase->loadPack(packJson, gtlDir, hostThunkDir, m_thunkVars)) {
+                        log::logger().loreWarning("failed to load a thunk pack database");
+                    }
+                    if (const auto *entry = m_thunkDatabase->forwardThunk(name)) {
+                        return entry;
+                    }
+                }
+                // Convention: <prefix>/lib/<arch>-LoreHTL/<name>_HTL.so. Materialize it only when the
+                // host thunk is actually there.
+                std::filesystem::path hostThunk = hostThunkDir / (name + "_HTL.so");
+                if (std::filesystem::exists(hostThunk)) {
+                    return m_thunkDatabase->materializeForward(name, p.string(), hostThunk.string(),
+                                                               name + ".so");
+                }
+            }
+            return nullptr;
+        }
+
+        // A bare name (no directory) comes from a reversed lookup's candidate list. Synthesize a
+        // by-soname entry that the guest loader resolves through its own search path. The host thunk is
+        // a placeholder here, since a reversed lookup loads only the guest side.
+        if (!p.has_parent_path()) {
+            return m_thunkDatabase->materializeForward(name, name + ".so", name + "_HTL.so",
+                                                       name + ".so");
+        }
+
+        // A plain host library path (e.g. from convertHostProcAddress) resolves only against entries a
+        // forward lookup already established.
+        return nullptr;
     }
 
     bool HostServer::isHostAddressNaive(void *addr) {
@@ -246,7 +324,8 @@ extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *p
             assert(a);
             const auto path = reinterpret_cast<const char *>(a[0]);
             const bool isReverse = static_cast<bool>(reinterpret_cast<uintptr_t>(a[1]));
-            getThunkInfo(path, isReverse, reinterpret_cast<CThunkInfo *>(a[2]));
+            HostServer::instance()->getThunkInfo(path, isReverse,
+                                                 reinterpret_cast<CThunkInfo *>(a[2]));
             break;
         }
 

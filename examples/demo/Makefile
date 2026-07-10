@@ -35,8 +35,8 @@ $(HERE)/build/host/libdemo.so: $(SRC)/demo.c $(SRC)/demo.h
 	mkdir -p $(HERE)/build/host
 	cc -shared -fPIC $(SRC)/demo.c -o $@
 
-# 3. the thunk, generated from the host library into a self-contained LORELEI_THUNK_PATH pack under
-# thunks/. LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
+# 3. the thunk, generated from the host library into a self-contained thunk pack under thunks/.
+# LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
 $(GTL)/libdemo.so: $(HERE)/build/host/libdemo.so
 	$(DEVKIT)/bin/LoreMakeThunk.py --name demo --lib $< --header demo.h -o $(HERE)/thunks -- -I$(SRC)
 
@@ -45,7 +45,6 @@ $(GTL)/libdemo.so: $(HERE)/build/host/libdemo.so
 # qemu at the devkit's x86_64 sysroot for the guest loader/libc (needed on a non-x86_64 host, harmless
 # on x86_64).
 run: all
-	LORELEI_THUNK_PATH=$(HERE)/thunks \
 	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build/host \
 	  $(QEMU) -L $(DEVKIT)/x86_64/sysroot -plugin $(PLUGIN) \
 	  -E LD_LIBRARY_PATH=$(DEVKIT)/x86_64/lib:$(GTL) \

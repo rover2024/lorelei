@@ -34,8 +34,8 @@ $(HERE)/build/host/libhello.so: $(SRC)/hello_host.c $(SRC)/hello.h
 	mkdir -p $(HERE)/build/host
 	cc -shared -fPIC $(SRC)/hello_host.c -o $@
 
-# 3. the thunk, generated from the host library into a self-contained LORELEI_THUNK_PATH pack under
-# thunks/. LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
+# 3. the thunk, generated from the host library into a self-contained thunk pack under thunks/.
+# LoreMakeThunk finds its devkit from its own location ($(DEVKIT)/bin), so no --devkit.
 $(GTL)/libhello.so: $(HERE)/build/host/libhello.so
 	$(DEVKIT)/bin/LoreMakeThunk.py --name hello --lib $< --header hello.h -o $(HERE)/thunks -- -I$(SRC)
 
@@ -50,7 +50,6 @@ run: all
 	  -E LD_LIBRARY_PATH=$(HERE)/build/guest \
 	  $(HERE)/build/guest/main
 	@echo "== with the thunk =="
-	LORELEI_THUNK_PATH=$(HERE)/thunks \
 	LD_LIBRARY_PATH=$(DEVKIT)/lib:$(HERE)/build/host \
 	  $(QEMU) -L $(DEVKIT)/x86_64/sysroot -plugin $(PLUGIN) \
 	  -E LD_LIBRARY_PATH=$(DEVKIT)/x86_64/lib:$(GTL) \

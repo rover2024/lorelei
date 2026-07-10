@@ -10,7 +10,7 @@
 #
 # runtime-<arch>.tar.xz  = the lorelei runtime .so's alone (no toolchain, no thunks).
 # devkit-<arch>.tar.xz   = the whole tree minus the thunks (toolchain + runtime + headers/sysroot).
-# thunks-<arch>.tar.xz   = the prebuilt thunks (HTL/GTL + ThunkDB.json), a drop-in LORELEI_THUNK_PATH prefix.
+# thunks-<arch>.tar.xz   = the prebuilt thunks (HTL/GTL + ThunkDB.json), a drop-in thunk pack.
 #
 # Everything is built on an x86_64 host: the native arch natively, and aarch64/riscv64 by cross
 # compilation (the guest x86_64 side is always native here). No target binary runs at build time.
@@ -145,6 +145,7 @@ cmake -B "$REPOS_DIR/build/$TARGET-guest" -G Ninja \
     -Dqmsetup_DIR="$QMSETUP_NATIVE" \
     -DLORE_BUILD_TOOLS=FALSE \
     -DLORE_BUILD_GUEST_TARGETS=TRUE \
+    -DLORE_BUILD_HOST_TARGETS=FALSE \
     -DLORE_BUILD_TESTS=OFF
 cmake --build "$REPOS_DIR/build/$TARGET-guest" --target install
 

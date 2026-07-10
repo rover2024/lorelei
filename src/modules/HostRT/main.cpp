@@ -7,9 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <map>
-#include <memory>
 #include <string>
-#include <utility>
 
 #include <dlfcn.h>
 
@@ -31,18 +29,9 @@ namespace lore {
     static constexpr const char *kHostArch = "unknown";
 #endif
 
-    // The (guestThunkDir, hostThunkDir) pair for a thunk prefix. The prefix mirrors the deployed
-    // layout: guest thunks under <prefix>/x86_64/lib/x86_64-LoreGTL, host thunks under
-    // <prefix>/lib/<arch>-LoreHTL. This is the one place that encodes the on-disk thunk layout.
-    static std::pair<std::filesystem::path, std::filesystem::path>
-        thunkDirsForPrefix(const std::filesystem::path &prefix) {
-        return {prefix / "x86_64" / "lib" / "x86_64-LoreGTL",
-                prefix / "lib" / (std::string(kHostArch) + "-LoreHTL")};
-    }
-
     // Variables for ${...} substitution in a ThunkDB.json: HOME, the host ARCH, and any extra
     // name=value pairs from LORELEI_THUNKS_CONFIG_VARIABLES. GTL_DIR / HTL_DIR are not set here;
-    // load() fills them per source with that source's own thunk dirs.
+    // each source fills them with its own thunk dirs when its JSON is loaded.
     static std::map<std::string, std::string> buildConfigVars() {
         std::map<std::string, std::string> vars = {
             {"HOME", std::getenv("HOME") ? std::getenv("HOME") : ""},
@@ -97,42 +86,16 @@ namespace lore {
             }
             mod::HostServer::emuAddr = emuAddr;
 
-            // Assemble the thunk sources from LORELEI_THUNK_PATH: a colon-separated list of thunk
-            // prefixes, highest priority first. Every prefix mirrors the deployed layout (guest thunks
-            // under <prefix>/x86_64, host under <prefix>/lib) and carries its own
-            // <prefix>/share/lorelei/ThunkDB.json, so a self-contained thunk pack drops in without a
-            // rebuild. The first source to define a thunk name wins. LORELEI_THUNK_NO_AUTOSCAN leaves
-            // the sources empty, so only the override JSON applies.
-            ThunkDatabase::LoadOptions opts;
-            if (std::getenv("LORELEI_THUNK_NO_AUTOSCAN") == nullptr) {
-                if (const char *thunkPath = std::getenv("LORELEI_THUNK_PATH");
-                    thunkPath && *thunkPath) {
-                    for (const auto entry : split(std::string_view(thunkPath), ":")) {
-                        if (entry.empty()) {
-                            continue;
-                        }
-                        std::filesystem::path prefix{std::string(entry)};
-                        auto dirs = thunkDirsForPrefix(prefix);
-                        opts.sources.push_back({std::move(dirs.first), std::move(dirs.second),
-                                                prefix / "share" / "lorelei" / "ThunkDB.json"});
-                    }
-                }
-            }
-
-            // An explicit LORELEI_THUNK_DATABASE is a single override JSON layered on top of every
-            // source.
+            // Thunk discovery follows each thunk's own on-disk location: a guest thunk reports its
+            // resolved path, and the host derives its host thunk around it (see
+            // HostServer::resolveForwardThunk). LORELEI_THUNK_NO_AUTODISCOVER turns that off, leaving
+            // only the override JSON. LORELEI_THUNK_DATABASE names that override JSON, layered on top.
             std::filesystem::path overridePath;
             if (const char *configEnv = std::getenv("LORELEI_THUNK_DATABASE")) {
                 overridePath = configEnv;
             }
-
-            auto db = std::make_unique<ThunkDatabase>();
-            // load() returns false only when a config file that is present cannot be parsed; a missing
-            // one is fine, so it is not worth a warning.
-            if (!db->load(overridePath, buildConfigVars(), opts)) {
-                log::logger().loreWarning("failed to parse a thunk config");
-            }
-            server.setThunkDatabase(std::move(db));
+            const bool autoDiscover = std::getenv("LORELEI_THUNK_NO_AUTODISCOVER") == nullptr;
+            server.configureThunkDiscovery(buildConfigVars(), overridePath, kHostArch, autoDiscover);
         }
 
         ~HostRuntime() {

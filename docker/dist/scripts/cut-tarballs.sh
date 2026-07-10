@@ -4,12 +4,12 @@
 # directory named for itself (not the internal build-tree name):
 #   lorelei-devkit-<arch>   the full toolchain + lorelei runtime + headers/sysroot/cmake, no thunks
 #   lorelei-runtime-<arch>  the lorelei runtime .so's alone, no toolchain and no thunks
-#   lorelei-thunks-<arch>   the prebuilt thunks (HTL + GTL + ThunkDB.json), a drop-in LORELEI_THUNK_PATH
-#                           prefix mirroring the deployed layout (it depends on a runtime for the
+#   lorelei-thunks-<arch>   the prebuilt thunks (HTL + GTL + ThunkDB.json), a drop-in thunk pack
+#                           mirroring the deployed layout (it depends on a runtime for the
 #                           lorelei .so's the thunks link against)
 #
 # The base trees (devkit, runtime) stay independent of how many thunks were built: the thunks live only
-# in lorelei-thunks-<arch>, discovered at run time via LORELEI_THUNK_PATH.
+# in lorelei-thunks-<arch>, discovered at run time from each thunk's own location.
 set -euo pipefail
 TREE="$1"
 TARGET="$2"

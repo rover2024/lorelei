@@ -75,5 +75,6 @@ cmake -B build-guest -G Ninja \
     -Dqmsetup_DIR="$INSTALL_DIR/lib/cmake/qmsetup" \
     -DLORE_BUILD_TOOLS=FALSE \
     -DLORE_BUILD_GUEST_TARGETS=TRUE \
+    -DLORE_BUILD_HOST_TARGETS=FALSE \
     "${guest_extra[@]}"
 cmake --build build-guest --target install

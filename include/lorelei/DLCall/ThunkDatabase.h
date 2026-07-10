@@ -57,45 +57,37 @@ namespace lore {
         ThunkDatabase(const ThunkDatabase &) = delete;
         ThunkDatabase &operator=(const ThunkDatabase &) = delete;
 
-        /// LoadOptions - Tunes how load() populates the database.
-        struct LoadOptions {
-            /// Source - one thunk source: a (guestThunkDir, hostThunkDir) pair to scan for bare thunk
-            /// .so pairs, plus an optional ThunkDB.json layered over that source's own scan (its
-            /// shorthand entries default to this source's own dirs).
-            struct Source {
-                std::filesystem::path guestThunkDir;
-                std::filesystem::path hostThunkDir;
-                std::filesystem::path configPath;  // this source's ThunkDB.json (optional; may be absent)
-            };
+        /// Load \a jsonPath as the whole database, discarding any previous contents. \a vars supplies
+        /// the JSON ${...} substitutions (including GTL_DIR / HTL_DIR for a JSON's shorthand entries).
+        /// Returns false if the file cannot be opened (empty, missing, or unreadable path) or parsed.
+        /// Whether a missing file is acceptable is the caller's decision. This is the top-level
+        /// (override) load.
+        bool load(const std::filesystem::path &jsonPath,
+                  const std::map<std::string, std::string> &vars = {});
 
-            /// The thunk sources, highest priority first. Each source is scanned for bare thunk pairs
-            /// and then has its own configPath JSON layered over that scan; the first source to define a
-            /// thunk name wins (so earlier sources take precedence and the base tree comes last). Empty
-            /// means no scan. The caller assembles this, e.g. the LORELEI_THUNK_PATH prefixes followed
-            /// by the base tree, each paired with its <prefix>/share/lorelei/ThunkDB.json.
-            std::vector<Source> sources;
-        };
+        /// Layer one thunk pack's JSON on top of the loaded database without discarding it. Existing
+        /// entries win (insert-if-absent), so a pack loaded later never displaces the override JSON or
+        /// an earlier pack. \a gtlDir / \a hostThunkDir supply that JSON's shorthand defaults
+        /// (GTL_DIR / HTL_DIR). Used for run-time discovery, the first time a guest thunk from the pack
+        /// appears. Returns false if the JSON cannot be opened or parsed. The caller decides whether a
+        /// pack without a JSON is acceptable (usually it is, the convention covering it).
+        bool loadPack(const std::filesystem::path &jsonPath, const std::filesystem::path &guestThunkDir,
+                      const std::filesystem::path &hostThunkDir,
+                      const std::map<std::string, std::string> &vars);
 
-        /// Populate the database. Each source in \a opts.sources contributes its directory scan and its
-        /// own JSON, earlier sources winning over later ones; then the JSON at \a overridePath is
-        /// layered on top of everything as a final override. \a vars supplies the JSON ${...}
-        /// substitutions (each source's own dirs supply its JSON's shorthand defaults). JSON files are
-        /// optional; a missing one is not an error. Returns false only when a JSON file that is present
-        /// cannot be parsed.
-        bool load(const std::filesystem::path &overridePath,
-                  const std::map<std::string, std::string> &vars,
-                  const LoadOptions &opts);
+        /// Materialize one forward thunk if it is not already present, and return it. If \a name already
+        /// resolves (from a JSON), the existing entry is returned unchanged. The synthesized entry is
+        /// interned into the database's arena, so the returned pointer stays valid. Used for the
+        /// convention fallback, where a thunk's host/guest libraries follow the standard naming and no
+        /// JSON declares it.
+        const CForwardThunkInfo *materializeForward(const std::string &name, std::string guestThunk,
+                                                    std::string hostThunk, std::string hostLibrary);
 
-        bool load(const std::filesystem::path &overridePath,
-                  const std::map<std::string, std::string> &vars = {}) {
-            return load(overridePath, vars, LoadOptions{});
-        }
-
-        const std::vector<CForwardThunkInfo> &forwardThunks() const {
+        const std::deque<CForwardThunkInfo> &forwardThunks() const {
             return m_forwardThunks;
         }
 
-        const std::vector<CReversedThunkInfo> &reversedThunks() const {
+        const std::deque<CReversedThunkInfo> &reversedThunks() const {
             return m_reversedThunks;
         }
 
@@ -108,44 +100,47 @@ namespace lore {
         }
 
     private:
-        // Scan one thunk source: every guestThunkDir/*.so with a matching hostThunkDir/<name>_HTL.so
-        // becomes a forward thunk, replacing any existing entry of the same name (so a later call, a
-        // higher-priority source, wins).
-        void scanForwardThunks(const std::filesystem::path &guestThunkDir,
-                               const std::filesystem::path &hostThunkDir);
-
-        // Layer the JSON at \a path over the current entries: forward overrides (upsert by name) plus
-        // reversed thunks. Returns false only if the file is present but cannot be parsed.
+        // Layer the JSON at \a path over the current entries: forward entries (upsert by name) plus
+        // reversed thunks. With \a overwrite an entry replaces any existing one of the same name (the
+        // top-level load). Without it, an existing entry is kept (a pack layered underneath). Returns
+        // false if the file cannot be opened or parsed.
         bool loadJsonDatabase(const std::filesystem::path &path,
-                              const std::map<std::string, std::string> &vars);
+                              const std::map<std::string, std::string> &vars, bool overwrite);
 
-        // Add a forward thunk, or replace the existing one with the same name.
+        // Add a forward thunk. If one with the same name exists, replace it when \a overwrite is true,
+        // otherwise keep the existing entry.
         void upsertForward(std::string name, const std::vector<std::string> &alias,
-                           std::string guestThunk, std::string hostThunk, std::string hostLibrary);
+                           std::string guestThunk, std::string hostThunk, std::string hostLibrary,
+                           bool overwrite);
+
+        // Rebuild the name/alias lookup indexes from the current entries.
+        void rebuildIndexes();
 
         const char *intern(std::string str);
         const char *const *intern(const std::vector<std::string> &strs, size_t &count);
 
         template <class T>
-        static const T *lookup(const std::vector<T> &items,
+        static const T *lookup(const std::deque<T> &items,
                                const std::unordered_map<std::string, size_t> &index,
                                const std::string &name) {
             auto it = index.find(name);
             return it == index.end() ? nullptr : &items[it->second];
         }
 
-        // Stable-address backing storage for everything the entries point at.
+        // Stable-address backing storage for everything the entries point at. The entry containers are
+        // deques too: run-time discovery appends to them (loadPack / materializeForward) while the guest
+        // may still hold a pointer to an earlier entry, and a deque never relocates existing elements.
         std::deque<std::string> m_stringArena;
         std::deque<std::vector<const char *>> m_listArena;
 
-        std::vector<CForwardThunkInfo> m_forwardThunks;
-        std::vector<CReversedThunkInfo> m_reversedThunks;
+        std::deque<CForwardThunkInfo> m_forwardThunks;
+        std::deque<CReversedThunkInfo> m_reversedThunks;
 
         std::unordered_map<std::string, size_t> m_forwardThunkMap;
         std::unordered_map<std::string, size_t> m_reversedThunkMap;
 
-        // name -> index into m_forwardThunks, maintained by upsertForward across a load so the JSON
-        // can replace a scanned entry by name.
+        // name -> index into m_forwardThunks, maintained by upsertForward so a later JSON or pack can
+        // find an existing entry by name.
         std::unordered_map<std::string, size_t> m_forwardIndex;
     };
 

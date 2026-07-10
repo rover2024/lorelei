@@ -11,6 +11,7 @@ project(lorelei
 # Build Options
 # ----------------------------------
 option(LORE_BUILD_GUEST_TARGETS "Build guest targets" OFF)
+option(LORE_BUILD_HOST_TARGETS "Build host targets" ON)
 option(LORE_BUILD_TOOLS "Build tool targets" ON)
 option(LORE_BUILD_TESTS "Build test targets" OFF)
 option(LORE_DEVEL "Install developer files" ON)

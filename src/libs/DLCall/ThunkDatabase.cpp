@@ -63,15 +63,20 @@ namespace lore {
 
     void ThunkDatabase::upsertForward(std::string name, const std::vector<std::string> &alias,
                                       std::string guestThunk, std::string hostThunk,
-                                      std::string hostLibrary) {
+                                      std::string hostLibrary, bool overwrite) {
+        // If an entry with this name already exists, keep it unless \a overwrite is set. That lets a
+        // lower-priority load (a pack) leave the override and earlier entries intact.
+        auto it = m_forwardIndex.find(name);
+        if (it != m_forwardIndex.end() && !overwrite) {
+            return;
+        }
         CForwardThunkInfo info;
         info.name = intern(name);
         info.alias = intern(alias, info.aliasCount);
         info.guestThunk = intern(std::move(guestThunk));
         info.hostThunk = intern(std::move(hostThunk));
         info.hostLibrary = intern(std::move(hostLibrary));
-        // Replace an entry an earlier source added under the same name, rather than duplicate it.
-        if (auto it = m_forwardIndex.find(name); it != m_forwardIndex.end()) {
+        if (it != m_forwardIndex.end()) {
             m_forwardThunks[it->second] = info;
         } else {
             m_forwardIndex.emplace(std::move(name), m_forwardThunks.size());
@@ -79,41 +84,29 @@ namespace lore {
         }
     }
 
-    void ThunkDatabase::scanForwardThunks(const std::filesystem::path &guestThunkDir,
-                                          const std::filesystem::path &hostThunkDir) {
-        if (guestThunkDir.empty() || hostThunkDir.empty() ||
-            !std::filesystem::is_directory(guestThunkDir)) {
-            return;
+    const CForwardThunkInfo *ThunkDatabase::materializeForward(const std::string &name,
+                                                               std::string guestThunk,
+                                                               std::string hostThunk,
+                                                               std::string hostLibrary) {
+        // If a JSON already declared this name, return that entry unchanged: convention never overrides
+        // an explicit one.
+        if (const auto *existing = forwardThunk(name)) {
+            return existing;
         }
-
-        // Every GTL/*.so with a matching HTL/<name>_HTL.so becomes a forward thunk. upsertForward
-        // replaces any same-named entry, so when load() scans sources from lowest to highest priority
-        // the higher-priority source wins.
-        for (const auto &entry : std::filesystem::directory_iterator(guestThunkDir)) {
-            if (!entry.is_regular_file() && !entry.is_symlink()) {
-                continue;
-            }
-            const auto fileName = entry.path().filename().string();
-            if (!str::ends_with(fileName, ".so")) {
-                continue;
-            }
-            const auto name = fileName.substr(0, fileName.size() - 3);
-            if (name.empty()) {
-                continue;
-            }
-            auto hostThunk = (hostThunkDir / (name + "_HTL.so")).string();
-            if (!std::filesystem::exists(hostThunk)) {
-                continue;
-            }
-            upsertForward(name, {}, entry.path().string(), std::move(hostThunk), name + ".so");
-        }
+        upsertForward(name, {}, std::move(guestThunk), std::move(hostThunk), std::move(hostLibrary),
+                      false);
+        rebuildIndexes();
+        return forwardThunk(name);
     }
 
     bool ThunkDatabase::loadJsonDatabase(const std::filesystem::path &path,
-                                         const std::map<std::string, std::string> &vars) {
+                                         const std::map<std::string, std::string> &vars,
+                                         bool overwrite) {
         std::ifstream file(path);
         if (!file.is_open()) {
-            return true;  // no file just means no overrides, which is not an error
+            // The path could not be opened (empty, missing, or unreadable). The caller decides whether
+            // that is acceptable.
+            return false;
         }
 
         std::stringstream ss;
@@ -146,7 +139,8 @@ namespace lore {
                     const std::string name = item.string_value();
                     if (!name.empty() && allHasDefault) {
                         upsertForward(name, {}, defaultGuestThunkPath + "/" + name + ".so",
-                                      defaultHostThunkPath + "/" + name + "_HTL.so", name + ".so");
+                                      defaultHostThunkPath + "/" + name + "_HTL.so", name + ".so",
+                                      overwrite);
                     }
                     continue;
                 }
@@ -194,7 +188,7 @@ namespace lore {
                 }
 
                 upsertForward(*name, jsonStringArray(obj, "alias"), std::move(guestThunk),
-                              std::move(hostThunk), std::move(hostLibrary));
+                              std::move(hostThunk), std::move(hostLibrary), overwrite);
             }
         }
 
@@ -214,6 +208,11 @@ namespace lore {
                 if (!fileName) {
                     continue;
                 }
+                // A lower-priority load (a pack) does not displace a reversed entry already present. The
+                // reversed index reflects the entries indexed so far.
+                if (!overwrite && m_reversedThunkMap.count(*name)) {
+                    continue;
+                }
 
                 CReversedThunkInfo info;
                 info.name = intern(std::move(*name));
@@ -227,9 +226,8 @@ namespace lore {
         return true;
     }
 
-    bool ThunkDatabase::load(const std::filesystem::path &overridePath,
-                             const std::map<std::string, std::string> &vars,
-                             const ThunkDatabase::LoadOptions &opts) {
+    bool ThunkDatabase::load(const std::filesystem::path &jsonPath,
+                             const std::map<std::string, std::string> &vars) {
         m_stringArena.clear();
         m_listArena.clear();
         m_forwardThunks.clear();
@@ -238,25 +236,29 @@ namespace lore {
         m_reversedThunkMap.clear();
         m_forwardIndex.clear();
 
-        // Process the sources from lowest to highest priority (the list is highest-first), so a
-        // higher-priority source replaces a lower one via upsert. Each source scans its dirs and then
-        // layers its own JSON over that scan, with the source's own dirs as that JSON's shorthand
-        // defaults. Finally the explicit override JSON is layered on top of everything.
-        bool jsonOk = true;
-        for (auto it = opts.sources.rbegin(); it != opts.sources.rend(); ++it) {
-            scanForwardThunks(it->guestThunkDir, it->hostThunkDir);
-            auto sourceVars = vars;
-            sourceVars["GTL_DIR"] = it->guestThunkDir.string();
-            sourceVars["HTL_DIR"] = it->hostThunkDir.string();
-            if (!loadJsonDatabase(it->configPath, sourceVars)) {
-                jsonOk = false;
-            }
-        }
-        if (!overridePath.empty() && !loadJsonDatabase(overridePath, vars)) {
-            jsonOk = false;
-        }
+        const bool jsonOk = loadJsonDatabase(jsonPath, vars, true);
+        rebuildIndexes();
+        return jsonOk;
+    }
 
-        // Build the name/alias lookup indexes from the final entries.
+    bool ThunkDatabase::loadPack(const std::filesystem::path &jsonPath,
+                                 const std::filesystem::path &guestThunkDir,
+                                 const std::filesystem::path &hostThunkDir,
+                                 const std::map<std::string, std::string> &vars) {
+        // Lowest priority: keep every entry already present (the override JSON and any earlier pack), so
+        // discovery order cannot let a later pack shadow them. The pack's own dirs are its JSON's
+        // shorthand defaults.
+        auto packVars = vars;
+        packVars["GTL_DIR"] = guestThunkDir.string();
+        packVars["HTL_DIR"] = hostThunkDir.string();
+        const bool jsonOk = loadJsonDatabase(jsonPath, packVars, false);
+        rebuildIndexes();
+        return jsonOk;
+    }
+
+    void ThunkDatabase::rebuildIndexes() {
+        m_forwardThunkMap.clear();
+        m_reversedThunkMap.clear();
         const auto indexEntries = [](const auto &items, auto &index) {
             for (size_t i = 0; i < items.size(); ++i) {
                 const auto &entry = items[i];
@@ -268,8 +270,6 @@ namespace lore {
         };
         indexEntries(m_forwardThunks, m_forwardThunkMap);
         indexEntries(m_reversedThunks, m_reversedThunkMap);
-
-        return jsonOk;
     }
 
 }
