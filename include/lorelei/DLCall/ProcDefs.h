@@ -68,6 +68,10 @@ namespace lore::thunk {
         /// Host manifest only: true when AUTO_LINK folded the real symbol addresses in at link
         /// time, so the host runtime skips \c dlopen / \c dlsym of the real library.
         bool autoLink;
+        /// Guest manifest only: the host thunk's path baked in at build time, absolute or relative to
+        /// this guest thunk (e.g. "../lib/libz_HTL.so"). When set, the guest loads its HTL from here
+        /// directly. Null means the host derives it by the layout convention.
+        const char *hostThunkPath = nullptr;
     };
 
 }

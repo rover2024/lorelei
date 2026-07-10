@@ -1,12 +1,12 @@
 # hello: a thunk as a drop-in library
 
-The same one-function library, `libhello.so`, built two ways: the **guest** build prints `from guest` and the **host** build prints `from host`. An unmodified x86_64 guest program `main` calls `hello("world", 7)`. `main` carries no rpath, so which `libhello.so` it loads is chosen at run time by `LD_LIBRARY_PATH`: point it at the guest build and it runs under emulation, point it at the generated thunk instead and the call is forwarded to the host build, running natively. The output tells you which one ran.
+The same one-function library, `libhello.so`, built two ways: the **guest** build signs its greeting `(from the guest)` and the **host** build `(from the host)`. An unmodified x86_64 guest program `main` calls `hello("World", 7)`. `main` carries no rpath, so which `libhello.so` it loads is chosen at run time by `LD_LIBRARY_PATH`: point it at the guest build and it runs under emulation, point it at the generated thunk instead and the call is forwarded to the host build, running natively. The output tells you which one ran.
 
 The sources are under `src/`:
 
 - `hello.h`: the declaration, shared by both builds and the program.
-- `hello_guest.c` / `hello_host.c`: the two implementations, printing `from guest` / `from host`.
-- `main.c`: the guest program, which calls `hello("world", 7)`.
+- `hello_guest.c` / `hello_host.c`: the two implementations, signing `(from the guest)` / `(from the host)`.
+- `main.c`: the guest program, which calls `hello("World", 7)`.
 
 `Makefile` builds the two libraries and the program, generates the thunk with `LoreMakeThunk.py`, and runs it both ways.
 
@@ -56,7 +56,7 @@ make run
 $QEMU -L $DEVKIT/x86_64/sysroot \
     -E LD_LIBRARY_PATH=build/guest \
     build/guest/main
-# hello from guest: world, lucky 7
+# Hello, World! Your lucky number is 7. (from the guest)
 ```
 
 Then under the plugin, the call reaches the host build. The generated guest thunk goes on the guest `-E LD_LIBRARY_PATH` in place of its own `libhello.so`, and the host runtime finds the pack from the thunk's own location:
@@ -64,15 +64,15 @@ Then under the plugin, the call reaches the host build. The generated guest thun
 ```bash
 LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
     $QEMU -L $DEVKIT/x86_64/sysroot -plugin $PLUGIN \
-    -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:thunks/x86_64/lib/x86_64-LoreGTL \
+    -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:thunks/x86_64 \
     build/guest/main
-# hello from host: world, lucky 7
+# Hello, World! Your lucky number is 7. (from the host)
 ```
 
 The guest `LD_LIBRARY_PATH`, passed with `-E`, is where the emulated program looks for its libraries:
 
 - `$DEVKIT/x86_64/lib` holds the guest runtime support shipped with the devkit.
-- `thunks/x86_64/lib/x86_64-LoreGTL` holds the generated guest `libhello.so`, which loads in place of the guest build.
+- `thunks/x86_64` holds the generated guest `libhello.so`, which loads in place of the guest build. It carries the path to its host thunk, so the host runtime loads that directly.
 
 The host `LD_LIBRARY_PATH` is qemu's own search path:
 
@@ -96,8 +96,8 @@ build/
   host/
     libhello.so                            (host build of the library)
 thunks/
-  lib/x86_64-LoreHTL/libhello_HTL.so       (host thunk)
-  x86_64/lib/x86_64-LoreGTL/libhello.so    (guest thunk, the drop-in)
+  libhello_HTL.so                          (host thunk)
+  x86_64/libhello.so                       (guest thunk, the drop-in)
 ```
 
 ### Running In A Container

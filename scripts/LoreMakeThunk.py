@@ -10,8 +10,11 @@ Given a real shared library and the headers that declare its API, it:
 laying the two out in the standard thunk-pack layout, so the output directory is itself a ready
 thunk pack (the host runtime finds it from the guest thunk's own location at run time):
 
-  <out>/lib/<host-arch>-LoreHTL/lib<name>_HTL.so
-  <out>/x86_64/lib/x86_64-LoreGTL/lib<name>.so   (+ soname symlink)
+  <out>/lib<name>_HTL.so                     (host thunk, this host's arch)
+  <out>/x86_64/lib<name>.so   (+ soname symlink)   (guest thunk, x86_64)
+
+The guest thunk carries the relative path to its host thunk (LORE_THUNK_HTL_PATH), so the
+guest runtime loads the host thunk directly and the run needs only -E LD_LIBRARY_PATH=<out>/x86_64.
 
 Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is installed in. Header flags
 follow --, clang-tooling style):
@@ -391,8 +394,8 @@ def main():
 
     out = Path(args.out).resolve()
     gendir = out / ".gen" / args.name
-    htl_dir = out / "lib" / f"{dk.host_arch}-LoreHTL"
-    gtl_dir = out / GUEST_ARCH / "lib" / f"{GUEST_ARCH}-LoreGTL"
+    htl_dir = out
+    gtl_dir = out / GUEST_ARCH
     if not DRY_RUN:
         htl_dir.mkdir(parents=True, exist_ok=True)
         gtl_dir.mkdir(parents=True, exist_ok=True)
@@ -435,8 +438,12 @@ def main():
 
     print("[5/5] compile guest thunk (GTL)")
     gtl_out = gtl_dir / f"lib{args.name}.so"
+    # Bake the host thunk's path, relative to the guest thunk, so the guest runtime loads it directly
+    # without the host deriving it from a fixed layout.
+    htl_rel = os.path.relpath(htl_out, gtl_dir)
     gtl_cmd = [*dk.guest_compile_cmd(), "-shared", *TU_FLAGS,
                f"-I{dk.guest_include}", f"-I{gendir}", *cflags,
+               f'-DLORE_THUNK_HTL_PATH="{htl_rel}"',
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
                f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]

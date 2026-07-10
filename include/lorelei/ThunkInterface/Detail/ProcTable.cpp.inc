@@ -119,6 +119,12 @@ namespace lore::thunk::detail {
 #else
         false,
 #endif
+        // hostThunkPath: only the guest build, via LoreMakeThunk's -D, carries one.
+#if !defined(LORE_THUNK_HOST) && defined(LORE_THUNK_HTL_PATH)
+        LORE_THUNK_HTL_PATH,
+#else
+        nullptr,
+#endif
     };
 
 }

@@ -17,7 +17,7 @@ PLUGIN ?=
 
 HERE   := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SRC    := $(HERE)/src
-GTL    := $(HERE)/thunks/x86_64/lib/x86_64-LoreGTL
+GTL    := $(HERE)/thunks/x86_64
 
 .PHONY: all run clean
 

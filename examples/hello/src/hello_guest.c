@@ -3,5 +3,5 @@
 
 void hello(const char *name, int lucky)
 {
-    printf("hello from guest: %s, lucky %d\n", name, lucky);
+    printf("Hello, %s! Your lucky number is %d. (from the guest)\n", name, lucky);
 }
