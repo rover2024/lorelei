@@ -37,7 +37,8 @@ mkdir -p "$TREE" "$OUT_DIR"
 # guest side is always native on this x86_64 builder.
 host_toolchain=()
 CROSS=0
-LLVM_SRC="/opt/lore-llvm/x86_64"   # our self-contained native LLVM; bundle-llvm.sh bundles this
+NATIVE_LLVM_SRC="/opt/lore-llvm/x86_64"
+LLVM_SRC="$NATIVE_LLVM_SRC"   # our self-contained native LLVM; bundle-llvm.sh bundles this
 if [ "$TARGET" != "$build_arch" ]; then
     CROSS=1
     # Install the cross gcc, fetch the target-arch clang/LLVM into a prefix and the thunk libs into
@@ -90,15 +91,21 @@ cmake --build "$REPOS_DIR/build/$TARGET-host" --target install
 # On a cross target the LoreTLC in $TREE is target-arch and cannot run here, so thunk sources are
 # generated with this native TLC (targeting $TARGET, like the deploy cross build). Built once, reused.
 STAGING="$REPOS_DIR/staging"
-if [ "$CROSS" = "1" ] && [ ! -x "$STAGING/bin/LoreTLC" ]; then
-    cmake -B "$REPOS_DIR/build/staging" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$STAGING" \
-        -Dqmsetup_DIR="$QMSETUP_NATIVE" \
-        -DClang_DIR="/opt/lore-llvm/x86_64/lib/cmake/clang" \
-        -DLLVM_DIR="/opt/lore-llvm/x86_64/lib/cmake/llvm" \
-        -DLORE_BUILD_TOOLS=TRUE -DLORE_BUILD_GUEST_TARGETS=FALSE -DLORE_BUILD_TESTS=OFF
-    cmake --build "$REPOS_DIR/build/staging" --target install
+if [ "$CROSS" = "1" ]; then
+    if [ ! -x "$STAGING/bin/LoreTLC" ]; then
+        cmake -B "$REPOS_DIR/build/staging" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$STAGING" \
+            -Dqmsetup_DIR="$QMSETUP_NATIVE" \
+            -DClang_DIR="$NATIVE_LLVM_SRC/lib/cmake/clang" \
+            -DLLVM_DIR="$NATIVE_LLVM_SRC/lib/cmake/llvm" \
+            -DLORE_BUILD_TOOLS=TRUE -DLORE_BUILD_GUEST_TARGETS=FALSE -DLORE_BUILD_TESTS=OFF
+        cmake --build "$REPOS_DIR/build/staging" --target install
+    fi
+    # The staging TLC (native) generates cross thunk sources, but it is not run through bundle-llvm.sh.
+    # Give it the native clang resource headers at the path LibTooling resolves from its own binary.
+    mkdir -p "$STAGING/lib"
+    ln -sfnT "$NATIVE_LLVM_SRC/lib/clang" "$STAGING/lib/clang"
 fi
 
 # --- 3. bundle the target-arch clang/LLVM ----------------------------------------------------------
