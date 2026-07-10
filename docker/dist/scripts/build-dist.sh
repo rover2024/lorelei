@@ -37,29 +37,31 @@ mkdir -p "$TREE" "$OUT_DIR"
 # guest side is always native on this x86_64 builder.
 host_toolchain=()
 CROSS=0
-LLVM_SRC="/usr/lib/llvm-${LLVM_VER}"   # what bundle-llvm.sh bundles (native LLVM by default)
+LLVM_SRC="/opt/lore-llvm/x86_64"   # our self-contained native LLVM; bundle-llvm.sh bundles this
 if [ "$TARGET" != "$build_arch" ]; then
     CROSS=1
-    # Install the cross gcc, extract the target-arch clang/LLVM into a prefix and the thunk libs into
-    # the multiarch tree. The target LLVM cannot live at /usr/lib/llvm-N (the native x86_64 clang does),
-    # so link it dynamically from the prefix.
+    # Install the cross gcc, fetch the target-arch clang/LLVM into a prefix and the thunk libs into
+    # the multiarch tree. The target LLVM cannot live at /opt/lore-llvm/x86_64 (the native x86_64 clang
+    # does), so link it dynamically from the prefix.
     "$SCRIPT_DIR/prepare-cross.sh" "$TARGET"
-    LLVM_SRC="/opt/xllvm/$TARGET/usr/lib/llvm-${LLVM_VER}"
+    LLVM_SRC="/opt/lore-llvm/$TARGET"
     triplet="$TARGET-linux-gnu"
-    # libLLVM.so pulls in libffi/libedit/libzstd/libxml2 (extracted into the prefix's multiarch dir by
-    # prepare-cross). GNU ld resolves a shared lib's own NEEDED deps via -rpath-link, not -L, so point
-    # -rpath-link there; the -L covers any direct link against the target libs in the same dir.
-    xllvm_libdir="/opt/xllvm/$TARGET/usr/lib/$triplet"
-    link_flags="-L$xllvm_libdir -Wl,-rpath-link,$xllvm_libdir"
+    # Our libLLVM.so / libclang-cpp.so are self-contained (no libedit/xml2/ffi to chase), so the cross
+    # link only needs to find those two .so's themselves; point -rpath-link at the target prefix's lib.
+    link_flags="-Wl,-rpath-link,$LLVM_SRC/lib"
     host_toolchain=(
         -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_DIR/$TARGET-linux-gnu.cmake"
-        -DClang_DIR="$LLVM_SRC/lib/cmake/clang"
-        -DLLVM_DIR="$LLVM_SRC/lib/cmake/llvm"
-        -DLORE_STATIC_LLVM=OFF
         -DCMAKE_EXE_LINKER_FLAGS="$link_flags"
         -DCMAKE_SHARED_LINKER_FLAGS="$link_flags"
     )
 fi
+# LoreTLC links our self-contained Clang/LLVM (libclang-cpp.so + libLLVM.so) for every target: native
+# from /opt/lore-llvm/x86_64, cross from the target prefix prepare-cross.sh fetched.
+host_toolchain+=(
+    -DClang_DIR="$LLVM_SRC/lib/cmake/clang"
+    -DLLVM_DIR="$LLVM_SRC/lib/cmake/llvm"
+    -DLORE_STATIC_LLVM=OFF
+)
 
 # --- 1. qmsetup (build tool, native x86_64) --------------------------------------------------------
 # Used at build time by the lorelei/thunks builds, and shipped in the devkit because the end user's
@@ -93,13 +95,15 @@ if [ "$CROSS" = "1" ] && [ ! -x "$STAGING/bin/LoreTLC" ]; then
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$STAGING" \
         -Dqmsetup_DIR="$QMSETUP_NATIVE" \
+        -DClang_DIR="/opt/lore-llvm/x86_64/lib/cmake/clang" \
+        -DLLVM_DIR="/opt/lore-llvm/x86_64/lib/cmake/llvm" \
         -DLORE_BUILD_TOOLS=TRUE -DLORE_BUILD_GUEST_TARGETS=FALSE -DLORE_BUILD_TESTS=OFF
     cmake --build "$REPOS_DIR/build/staging" --target install
 fi
 
 # --- 3. bundle the target-arch clang/LLVM ----------------------------------------------------------
-# For the native arch this is /usr/lib/llvm-N; for a cross target it is the same path populated with
-# the target-arch debs by bootstrap-dist.sh (dpkg-deb extracted, so the binaries are target-arch).
+# Our self-contained prefix for this arch: /opt/lore-llvm/x86_64 on a native build, or the target-arch
+# prefix prepare-cross.sh fetched. bundle-llvm.sh copies it into the tree and trims it to the runtime.
 "$SCRIPT_DIR/bundle-llvm.sh" "$TREE" "$LLVM_VER" "$LLVM_SRC"
 
 # --- 4. x86_64 guest sysroot (self-contained), under x86_64/sysroot/ so it stays separate from the
@@ -208,6 +212,6 @@ rm -rf "$REPOS_DIR/build/$TARGET-host" "$REPOS_DIR/build/$TARGET-thunk-host" \
        "$REPOS_DIR/build/$TARGET-thunk-guest" "$REPOS_DIR/build/$TARGET-thunk-gen" \
        "$REPOS_DIR/dist/$TARGET"
 if [ "$CROSS" = "1" ]; then
-    rm -rf "/opt/xllvm/$TARGET"
+    rm -rf "/opt/lore-llvm/$TARGET"
     apt-get clean 2>/dev/null || true
 fi

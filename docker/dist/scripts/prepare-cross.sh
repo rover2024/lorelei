@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# Prepare cross-compiling to <arch> on this amd64 host: install the cross gcc, and make the target-arch
-# clang/LLVM plus the thunked-library dev/runtime packages available in the multiarch tree.
+# Prepare cross-compiling to <arch> on this amd64 host: install the cross gcc, fetch our self-contained
+# target-arch clang/LLVM, and make the thunked-library dev/runtime packages available in the multiarch
+# tree.
 #
-# The LLVM/thunk packages are download-only + dpkg-deb extracted, not apt-installed: installing a
-# foreign-arch package runs its maintainer scripts, some of which exec target binaries (e.g. python's
-# postinst) and fail on a non-emulated host. Extraction runs no scripts and populates the same
-# multiarch paths (/usr/lib/<triplet>, /usr/lib/llvm-N) an install would.
+# The thunk dev/runtime packages are apt-installed for the target arch (their maintainer scripts run
+# fine on the non-emulated host) so apt drags their dependency closure into the multiarch tree. The
+# target-arch clang/LLVM is not a distro package: it comes from fetch-llvm.sh (see below).
 set -euo pipefail
 ARCH="$1"                       # aarch64 | riscv64
 LLVM_VER="${LLVM_VER:-20}"
@@ -49,20 +49,13 @@ fi
 apt-get install -y --no-install-recommends \
     "libffcall-dev:$dpkg_arch" "zlib1g-dev:$dpkg_arch" "liblzma-dev:$dpkg_arch"
 
-# The target-arch clang/LLVM go into a dedicated prefix: they cannot share /usr/lib/llvm-N with the
-# native x86_64 LLVM (whose clang binary must stay runnable here). ClangConfig.cmake ships in clang-N.
-# The LLVM cmake config is relocatable, so pointing Clang_DIR here resolves the target libs under it.
-# lld-N is included so the devkit bundles ld.lld: the guest toolchain links with -fuse-ld=lld, and on
-# the target host the bundled (target-arch) clang must find a matching lld next to it.
-LLVM_PREFIX="/opt/xllvm/$ARCH"
-rm -rf "$LLVM_PREFIX"
-mkdir -p "$LLVM_PREFIX"
-apt-get install -y --no-install-recommends --download-only \
-    "clang-${LLVM_VER}:$dpkg_arch" "lld-${LLVM_VER}:$dpkg_arch" \
-    "llvm-${LLVM_VER}-dev:$dpkg_arch" "libclang-${LLVM_VER}-dev:$dpkg_arch"
-for d in /var/cache/apt/archives/*_${dpkg_arch}.deb /var/cache/apt/archives/*_all.deb; do
-    [ -e "$d" ] || continue
-    dpkg-deb --fsys-tarfile "$d" | tar -x --skip-old-files -C "$LLVM_PREFIX" 2>/dev/null || true
-done
+# The target-arch clang/LLVM: our self-contained build for this arch (see fetch-llvm.sh), extracted
+# into a dedicated prefix. It cannot share /opt/lore-llvm/x86_64 with the native LLVM (whose clang must
+# stay runnable here). Its cmake config is relocatable, so pointing Clang_DIR/LLVM_DIR under it resolves
+# the target libclang-cpp.so / libLLVM.so that LoreTLC links, and the prefix carries ld.lld too (the
+# guest toolchain links with -fuse-ld=lld, and on the target host the bundled clang finds it alongside).
+LLVM_PREFIX="/opt/lore-llvm/$ARCH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/fetch-llvm.sh" "$ARCH" "$LLVM_PREFIX"
 
 echo "[prepare-cross] $ARCH ready (LLVM under $LLVM_PREFIX)"

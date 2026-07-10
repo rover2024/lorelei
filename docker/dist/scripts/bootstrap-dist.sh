@@ -20,14 +20,20 @@ fi
 apt-get update
 apt-get install -y --no-install-recommends \
     ca-certificates git curl wget xz-utils file patchelf pv \
-    cmake ninja-build python3 pkg-config
+    cmake ninja-build python3 pkg-config g++
 
-# Clang/LLVM: the native compiler (bundled for the x86_64 devkit) plus the Clang LibTooling headers for
-# building LoreTLC.
-apt-get install -y --no-install-recommends \
-    "clang-${LLVM_VER}" "lld-${LLVM_VER}" "llvm-${LLVM_VER}-dev" "libclang-${LLVM_VER}-dev"
-update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-${LLVM_VER}" 100
-update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-${LLVM_VER}" 100
+# Native Clang/LLVM: our self-contained build (see fetch-llvm.sh), not the distro debs. It is the
+# native compiler that builds the x86_64 guest side and generates the thunks, it is linked into
+# LoreTLC, and it is bundled into the x86_64 devkit. Putting its lib dir on the loader path lets the
+# freshly built LoreTLC and the bundled clang resolve libLLVM.so / libclang-cpp.so here, and its clang
+# is exposed on PATH for the guest toolchain (CMAKE_C_COMPILER=clang).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/fetch-llvm.sh" x86_64 /opt/lore-llvm/x86_64
+echo /opt/lore-llvm/x86_64/lib > /etc/ld.so.conf.d/lore-llvm.conf
+ldconfig
+for tool in clang clang++ clang-cpp lld ld.lld llvm-ar llvm-nm llvm-objcopy llvm-strip; do
+    ln -sf "/opt/lore-llvm/x86_64/bin/$tool" "/usr/local/bin/$tool"
+done
 
 # Native lorelei host dependency: ffcall backs the VariadicAdaptor in LoreHostRT. zlib/lzma dev provide
 # the headers and link libraries for the stable thunks the distribution ships. (Cross targets add the

@@ -58,6 +58,11 @@ function(lore_link_clang _target _scope)
         # (e.g. most target backends) do not bloat the binary.
         target_link_libraries(${_target} ${_scope}
             -Wl,--start-group ${_clang_archives} ${_llvm_archives} -Wl,--end-group ${_llvm_syslibs})
+    elseif(TARGET clang-cpp AND TARGET LLVM)
+        # Link the aggregate libclang-cpp.so and libLLVM.so rather than the static Clang component
+        # archives, so the tool shares the one libclang-cpp the devkit already bundles for its clang
+        # driver instead of baking a second copy of the Clang libraries into the executable.
+        target_link_libraries(${_target} ${_scope} clang-cpp LLVM)
     else()
         target_link_directories(${_target} ${_scope} ${LLVM_LIBRARY_DIRS})
         target_link_libraries(${_target} ${_scope}
