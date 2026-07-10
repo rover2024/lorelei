@@ -13,6 +13,8 @@
 #include <lorelei/Support/Logging.h>
 #include <lorelei/Support/StringExtras.h>
 
+#include <NextLibrary.h>
+
 #include "HostServer.h"
 #include "LogCategory.h"
 
@@ -84,41 +86,55 @@ namespace lore::mod {
         }
         const char *modulePath = selfInfo.dli_fname;
 
+        // With AUTO_LINK the real library's symbols were folded in at link time, so there is nothing to
+        // load or resolve here and no database entry is needed.
+        if (m_staticThunkContext->autoLink) {
+            return;
+        }
+
+        // Pick the real library to load. The database wins if it names one; otherwise the path baked
+        // into this thunk; otherwise the lib<name>.so name convention.
         const auto *server = HostServer::instance();
         assert(server != nullptr);
         const auto *config = server->thunkDatabase();
         assert(config != nullptr);
-
         const auto thunkName = normalizeThunkName(modulePath);
-        const auto *forward = config->forwardThunk(thunkName);
-        if (!forward) {
-            log::logger().loreCritical("%1: failed to resolve forward thunk info", modulePath);
+
+        std::string next;
+        if (const auto *forward = config->forwardThunk(thunkName);
+            forward && forward->hostLibrary && *forward->hostLibrary) {
+            next = forward->hostLibrary;
+        } else if (const char *baked = m_staticThunkContext->nextLibraryPath; baked && *baked) {
+            next = baked;
+        } else {
+            next = utils::nextLibraryByName(modulePath, /*hostThunk=*/true);
+        }
+        // Expand ${...} (e.g. ARCH) on the host side, where those variables are known, then resolve the
+        // path against this thunk's directory.
+        std::string hostLib =
+            utils::resolveNextLibrary(str::varexp(next, server->thunkVars()), modulePath);
+
+        /// STEP: load host library
+        m_hostLibraryHandle = dlopen(hostLib.c_str(), RTLD_NOW);
+        if (!m_hostLibraryHandle) {
+            const char *err = dlerror();
+            log::logger().loreCriticalF("%s: failed to load host library %s (%s)", modulePath,
+                         hostLib.c_str(), err ? err : "unknown error");
             std::abort();
         }
 
-        if (!m_staticThunkContext->autoLink) {
-            /// STEP: load host library
-            m_hostLibraryHandle = dlopen(forward->hostLibrary, RTLD_NOW);
-            if (!m_hostLibraryHandle) {
+        /// STEP: resolve host library symbols
+        // Resolve host-side real functions used by ProcFn<GuestToHost, Exec>.
+        for (size_t i = 0; i < m_staticThunkContext->thisProcs.size; ++i) {
+            auto &entry = m_staticThunkContext->thisProcs.arr[i];
+            assert(entry.key != nullptr);
+            entry.addr = dlsym(m_hostLibraryHandle, entry.key);
+            if (!entry.addr) {
                 const char *err = dlerror();
-                log::logger().loreCritical("%1: failed to load host library %2 (%3)", modulePath,
-                             forward->hostLibrary, err ? err : "unknown error");
+                log::logger().loreCritical(
+                    "%1: failed to resolve symbol %2 from host library (%3)", modulePath,
+                    entry.key, err ? err : "unknown error");
                 std::abort();
-            }
-
-            /// STEP: resolve host library symbols
-            // Resolve host-side real functions used by ProcFn<GuestToHost, Exec>.
-            for (size_t i = 0; i < m_staticThunkContext->thisProcs.size; ++i) {
-                auto &entry = m_staticThunkContext->thisProcs.arr[i];
-                assert(entry.key != nullptr);
-                entry.addr = dlsym(m_hostLibraryHandle, entry.key);
-                if (!entry.addr) {
-                    const char *err = dlerror();
-                    log::logger().loreCritical(
-                        "%1: failed to resolve symbol %2 from host library (%3)", modulePath,
-                        entry.key, err ? err : "unknown error");
-                    std::abort();
-                }
             }
         }
     }

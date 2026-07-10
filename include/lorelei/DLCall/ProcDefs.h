@@ -68,10 +68,15 @@ namespace lore::thunk {
         /// Host manifest only: true when AUTO_LINK folded the real symbol addresses in at link
         /// time, so the host runtime skips \c dlopen / \c dlsym of the real library.
         bool autoLink;
-        /// Guest manifest only: the host thunk's path baked in at build time, absolute or relative to
-        /// this guest thunk (e.g. "../lib/libz_HTL.so"). When set, the guest loads its HTL from here
-        /// directly. Null means the host derives it by the layout convention.
-        const char *hostThunkPath = nullptr;
+        /// The next library this thunk forwards to, baked in at build time (a guest thunk's host thunk,
+        /// a host thunk's real library). How the value resolves:
+        /// - a bare filename is taken to be on the loader's search path
+        /// - an absolute path is used as is
+        /// - a relative path (any value containing '/', so a same-directory target is written "./name")
+        ///   is joined with this thunk's own directory
+        /// Null falls back to the name convention: <name>_HTL.so for a guest thunk, <name>.so for a
+        /// host thunk.
+        const char *nextLibraryPath = nullptr;
     };
 
 }

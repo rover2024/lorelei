@@ -84,21 +84,6 @@ namespace lore {
         }
     }
 
-    const CForwardThunkInfo *ThunkDatabase::materializeForward(const std::string &name,
-                                                               std::string guestThunk,
-                                                               std::string hostThunk,
-                                                               std::string hostLibrary) {
-        // If a JSON already declared this name, return that entry unchanged: convention never overrides
-        // an explicit one.
-        if (const auto *existing = forwardThunk(name)) {
-            return existing;
-        }
-        upsertForward(name, {}, std::move(guestThunk), std::move(hostThunk), std::move(hostLibrary),
-                      false);
-        rebuildIndexes();
-        return forwardThunk(name);
-    }
-
     bool ThunkDatabase::loadJsonDatabase(const std::filesystem::path &path,
                                          const std::map<std::string, std::string> &vars,
                                          bool overwrite) {

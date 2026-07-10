@@ -75,14 +75,6 @@ namespace lore {
                       const std::filesystem::path &hostThunkDir,
                       const std::map<std::string, std::string> &vars);
 
-        /// Materialize one forward thunk if it is not already present, and return it. If \a name already
-        /// resolves (from a JSON), the existing entry is returned unchanged. The synthesized entry is
-        /// interned into the database's arena, so the returned pointer stays valid. Used for the
-        /// convention fallback, where a thunk's host/guest libraries follow the standard naming and no
-        /// JSON declares it.
-        const CForwardThunkInfo *materializeForward(const std::string &name, std::string guestThunk,
-                                                    std::string hostThunk, std::string hostLibrary);
-
         const std::deque<CForwardThunkInfo> &forwardThunks() const {
             return m_forwardThunks;
         }
@@ -128,8 +120,8 @@ namespace lore {
         }
 
         // Stable-address backing storage for everything the entries point at. The entry containers are
-        // deques too: run-time discovery appends to them (loadPack / materializeForward) while the guest
-        // may still hold a pointer to an earlier entry, and a deque never relocates existing elements.
+        // deques too: run-time discovery appends to them (loadPack) while the guest may still hold a
+        // pointer to an earlier entry, and a deque never relocates existing elements.
         std::deque<std::string> m_stringArena;
         std::deque<std::vector<const char *>> m_listArena;
 

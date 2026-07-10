@@ -143,7 +143,8 @@ namespace lore::mod {
 
     const CForwardThunkInfo *HostServer::resolveForwardThunk(const char *guestThunkPath,
                                                              const std::string &name) {
-        // An explicit database entry (from a JSON, or an earlier convention hit) always wins.
+        // A database entry (from a JSON) wins. Self-describing thunks that carry their own next library
+        // are not in the database and resolve it themselves, so a miss here is normal.
         if (const auto *entry = m_thunkDatabase->forwardThunk(name)) {
             return entry;
         }
@@ -151,50 +152,24 @@ namespace lore::mod {
             return nullptr;
         }
 
-        std::filesystem::path p(guestThunkPath);
-        std::filesystem::path gtlDir = p.parent_path();
-
-        // A guest thunk in the standard layout <prefix>/x86_64/lib/x86_64-LoreGTL/<name>.so names a
-        // pack. Load that pack's JSON once (it may declare aliases, redirects or reversed thunks), then
-        // fall back to the naming convention for the host thunk.
-        if (gtlDir.filename() == "x86_64-LoreGTL") {
-            std::filesystem::path prefix = gtlDir.parent_path().parent_path().parent_path();
-            if (!prefix.empty()) {
-                std::filesystem::path hostThunkDir = prefix / "lib" / (m_hostArch + "-LoreHTL");
-                if (m_loadedPackPrefixes.insert(prefix.lexically_normal().string()).second) {
-                    // A pack's ThunkDB.json is optional. Load it when present, and warn only if a
-                    // present one fails to parse.
-                    std::filesystem::path packJson = prefix / "share" / "lorelei" / "ThunkDB.json";
-                    if (std::filesystem::exists(packJson) &&
-                        !m_thunkDatabase->loadPack(packJson, gtlDir, hostThunkDir, m_thunkVars)) {
-                        log::logger().loreWarning("failed to load a thunk pack database");
-                    }
-                    if (const auto *entry = m_thunkDatabase->forwardThunk(name)) {
-                        return entry;
-                    }
-                }
-                // Convention: <prefix>/lib/<arch>-LoreHTL/<name>_HTL.so. Materialize it only when the
-                // host thunk is actually there.
-                std::filesystem::path hostThunk = hostThunkDir / (name + "_HTL.so");
-                if (std::filesystem::exists(hostThunk)) {
-                    return m_thunkDatabase->materializeForward(name, p.string(), hostThunk.string(),
-                                                               name + ".so");
-                }
-            }
+        // A guest thunk in the standard pack layout <prefix>/x86_64/lib/x86_64-LoreGTL/<name>.so names
+        // a pack. Load that pack's optional JSON once (aliases, redirects, reversed thunks), then look
+        // up again.
+        std::filesystem::path gtlDir = std::filesystem::path(guestThunkPath).parent_path();
+        if (gtlDir.filename() != "x86_64-LoreGTL") {
             return nullptr;
         }
-
-        // A bare name (no directory) comes from a reversed lookup's candidate list. Synthesize a
-        // by-soname entry that the guest loader resolves through its own search path. The host thunk is
-        // a placeholder here, since a reversed lookup loads only the guest side.
-        if (!p.has_parent_path()) {
-            return m_thunkDatabase->materializeForward(name, name + ".so", name + "_HTL.so",
-                                                       name + ".so");
+        std::filesystem::path prefix = gtlDir.parent_path().parent_path().parent_path();
+        if (prefix.empty() || !m_loadedPackPrefixes.insert(prefix.lexically_normal().string()).second) {
+            return nullptr;
         }
-
-        // A plain host library path (e.g. from convertHostProcAddress) resolves only against entries a
-        // forward lookup already established.
-        return nullptr;
+        std::filesystem::path packJson = prefix / "share" / "lorelei" / "ThunkDB.json";
+        std::filesystem::path hostThunkDir = prefix / "lib" / (m_hostArch + "-LoreHTL");
+        if (std::filesystem::exists(packJson) &&
+            !m_thunkDatabase->loadPack(packJson, gtlDir, hostThunkDir, m_thunkVars)) {
+            log::logger().loreWarning("failed to load a thunk pack database");
+        }
+        return m_thunkDatabase->forwardThunk(name);
     }
 
     bool HostServer::isHostAddressNaive(void *addr) {

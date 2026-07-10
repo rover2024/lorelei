@@ -45,6 +45,12 @@ namespace lore::mod {
             return m_thunkDatabase.get();
         }
 
+        /// The ${...} substitution variables (HOME, ARCH, and any extras), for expanding a value such
+        /// as a host thunk's baked next library.
+        inline const std::map<std::string, std::string> &thunkVars() const {
+            return m_thunkVars;
+        }
+
         /// Set up run-time thunk discovery. Builds the initial database from the explicit override JSON
         /// alone (\a overridePath, may be empty), and remembers what discovery needs later: the JSON
         /// ${...} substitution \a vars and the host architecture tag \a hostArch (for the
@@ -129,19 +135,17 @@ namespace lore::mod {
         }
 
     protected:
-        // Resolve a forward thunk for a guest thunk's own resolved location \a guestThunkPath (its
-        // basename is \a name). Returns a database entry when one exists (from a JSON or an earlier
-        // convention hit). Otherwise, for a guest thunk in the standard layout, loads that pack's JSON
-        // once and then materializes a convention entry (host thunk
-        // <prefix>/lib/<arch>-LoreHTL/<name>_HTL.so). A bare name (from a reversed lookup's candidate)
-        // materializes a by-soname entry the guest loader resolves. Assumes m_thunkMutex is held.
+        // Look up a forward thunk by \a name. Returns a database entry when one exists. Otherwise, for a
+        // guest thunk in the standard pack layout \a guestThunkPath, loads that pack's optional JSON
+        // once and looks up again. A self-describing thunk carries its own next library and is not in
+        // the database, so a miss is normal. Assumes m_thunkMutex is held.
         const CForwardThunkInfo *resolveForwardThunk(const char *guestThunkPath,
                                                      const std::string &name);
 
         std::unique_ptr<ThunkDatabase> m_thunkDatabase;
 
-        // Serializes m_thunkDatabase access: getThunkInfo() may extend it (loadPack /
-        // materializeForward) while other guest threads read it.
+        // Serializes m_thunkDatabase access: getThunkInfo() may extend it (loadPack) while other guest
+        // threads read it.
         std::mutex m_thunkMutex;
 
         // Retained from configureThunkDiscovery() so resolveForwardThunk() can load a pack's JSON the

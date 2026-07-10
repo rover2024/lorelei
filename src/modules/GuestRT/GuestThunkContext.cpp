@@ -9,6 +9,8 @@
 
 #include <lorelei/Support/Logging.h>
 
+#include <NextLibrary.h>
+
 #include "GuestClient.h"
 #include "LogCategory.h"
 
@@ -31,28 +33,19 @@ namespace lore::mod {
         }
         const char *modulePath = selfInfo.dli_fname;
 
-        // Find the matching host thunk library (HTL). A build-time hostThunkPath baked into the thunk
-        // locates the HTL directly (absolute, or relative to this thunk's own directory); otherwise the
-        // host derives it from the deployed layout.
-        std::string htlPath;
-        if (const char *baked = m_staticThunkContext->hostThunkPath; baked && *baked) {
-            if (baked[0] == '/') {
-                htlPath = baked;
-            } else {
-                std::string dir(modulePath);
-                auto slash = dir.find_last_of('/');
-                htlPath = (slash == std::string::npos ? std::string(".") : dir.substr(0, slash));
-                htlPath += '/';
-                htlPath += baked;
-            }
+        // Pick the host thunk library (HTL) to load. The database wins if it names one (a JSON entry);
+        // otherwise the path baked into this thunk; otherwise the lib<name>_HTL.so name convention.
+        std::string next;
+        if (auto info = GuestClient::getThunkInfo(modulePath, false);
+            info.forward && info.forward->hostThunk && *info.forward->hostThunk) {
+            next = info.forward->hostThunk;
+        } else if (const char *baked = m_staticThunkContext->nextLibraryPath; baked && *baked) {
+            next = baked;
         } else {
-            auto info = GuestClient::getThunkInfo(modulePath, false);
-            if (!info.forward) {
-                log::logger().loreCritical("%1: failed to get thunk info", modulePath);
-                std::abort();
-            }
-            htlPath = info.forward->hostThunk;
+            next = utils::nextLibraryByName(modulePath, /*hostThunk=*/false);
         }
+
+        std::string htlPath = utils::resolveNextLibrary(next, modulePath);
         m_htlHandle = GuestClient::loadLibrary(htlPath.c_str(), RTLD_NOW);
         if (!m_htlHandle) {
             const char *err = GuestClient::getLibraryError();

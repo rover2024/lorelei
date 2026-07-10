@@ -119,9 +119,9 @@ namespace lore::thunk::detail {
 #else
         false,
 #endif
-        // hostThunkPath: only the guest build, via LoreMakeThunk's -D, carries one.
-#if !defined(LORE_THUNK_HOST) && defined(LORE_THUNK_HTL_PATH)
-        LORE_THUNK_HTL_PATH,
+        // nextLibraryPath: the guest and host builds each bake their own via LoreMakeThunk's -D.
+#ifdef LORE_THUNK_NEXT_LIBRARY
+        LORE_THUNK_NEXT_LIBRARY,
 #else
         nullptr,
 #endif

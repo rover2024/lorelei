@@ -310,35 +310,4 @@ BOOST_AUTO_TEST_CASE(loadpack_layers_under_override) {
     BOOST_TEST(db.forwardThunks().size() == 2u);
 }
 
-BOOST_AUTO_TEST_CASE(materialize_forward_adds_and_is_idempotent) {
-    ThunkDatabase db;  // fresh, empty
-
-    const auto *e = db.materializeForward("qux", "/g/qux.so", "/h/qux_HTL.so", "qux.so");
-    BOOST_REQUIRE(e != nullptr);
-    BOOST_TEST(s(e->guestThunk) == "/g/qux.so");
-    BOOST_TEST(s(e->hostThunk) == "/h/qux_HTL.so");
-    BOOST_TEST(s(e->hostLibrary) == "qux.so");
-    BOOST_TEST(db.forwardThunk("qux") == e);
-
-    // Materializing the same name again keeps the existing entry (and its pointer) unchanged.
-    const auto *again = db.materializeForward("qux", "/other/qux.so", "/other/qux_HTL.so", "qux.so");
-    BOOST_TEST(again == e);
-    BOOST_TEST(s(again->guestThunk) == "/g/qux.so");
-    BOOST_TEST(db.forwardThunks().size() == 1u);
-}
-
-BOOST_AUTO_TEST_CASE(materialize_does_not_override_json) {
-    // Convention never displaces an explicit JSON entry.
-    TempJson j(R"({ "forwardThunks": [
-        { "name": "foo", "guestThunk": "/json/foo.so", "hostThunk": "/json/foo_HTL.so" } ] })");
-
-    ThunkDatabase db;
-    BOOST_TEST(db.load(j.path));
-
-    const auto *e = db.materializeForward("foo", "/conv/foo.so", "/conv/foo_HTL.so", "foo.so");
-    BOOST_REQUIRE(e != nullptr);
-    BOOST_TEST(s(e->guestThunk) == "/json/foo.so");
-    BOOST_TEST(db.forwardThunks().size() == 1u);
-}
-
 BOOST_AUTO_TEST_SUITE_END()

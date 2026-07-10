@@ -13,7 +13,7 @@ thunk pack (the host runtime finds it from the guest thunk's own location at run
   <out>/lib<name>_HTL.so                     (host thunk, this host's arch)
   <out>/x86_64/lib<name>.so   (+ soname symlink)   (guest thunk, x86_64)
 
-The guest thunk carries the relative path to its host thunk (LORE_THUNK_HTL_PATH), so the
+The guest thunk carries the relative path to its host thunk (LORE_THUNK_NEXT_LIBRARY), so the
 guest runtime loads the host thunk directly and the run needs only -E LD_LIBRARY_PATH=<out>/x86_64.
 
 Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is installed in. Header flags
@@ -433,6 +433,10 @@ def main():
                f"-L{dk.host_libdir}", "-lLoreHostRT", f"-Wl,-rpath,{RPATH}"]
     if args.auto_link:
         htl_cmd.append(str(lib))          # link the real library so its symbols resolve
+    else:
+        # Not linked in: bake the real library's name so the host thunk dlopens it at run time. A bare
+        # name is resolved on the loader's search path, where the real library normally lives.
+        htl_cmd.append(f'-DLORE_THUNK_NEXT_LIBRARY="{soname}"')
     htl_cmd += args.htl_arg
     run(htl_cmd)
 
@@ -443,7 +447,7 @@ def main():
     htl_rel = os.path.relpath(htl_out, gtl_dir)
     gtl_cmd = [*dk.guest_compile_cmd(), "-shared", *TU_FLAGS,
                f"-I{dk.guest_include}", f"-I{gendir}", *cflags,
-               f'-DLORE_THUNK_HTL_PATH="{htl_rel}"',
+               f'-DLORE_THUNK_NEXT_LIBRARY="{htl_rel}"',
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
                f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]
