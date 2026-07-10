@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.6.0 (2026-07-11)
+
+Makes the shipped devkit run on any Linux distribution, and lets a thunk find the library it forwards to from nothing but its own location.
+
+- **The bundled Clang/LLVM is now self-contained.** The devkit shipped the distribution's LLVM packages, whose `libLLVM.so` pulls in `libedit`, `libxml2` and `libffi`; distributions that ship a different `libedit` soname (Fedora, Arch) could not start the bundled clang. The devkit now bundles our own Clang/LLVM 20.1.8, built with those optional dependencies off, so it depends only on glibc and libstdc++ and runs on any distribution at or above the glibc floor. `LoreTLC` links the shared `libclang-cpp` rather than baking a second static copy of Clang into itself, which also shrinks it from roughly 30 MB to under 1 MB.
+- **The guest runtime no longer trips the guest loader on newer-glibc hosts.** Recovering a thunk's own path with guest `dladdr` walked dynamic-loader internals that misbehave under qemu-user on newer glibc, crashing thunk startup on Fedora and Arch; the runtime now reads the path from `/proc/self/maps` instead. The x86_64 magic-syscall wrappers also declare their `rcx`/`r11`/`cc` clobbers, and the coroutine trampoline's asm stack is marked non-executable so glibc 2.41+ maps it.
+- **Thunks are self-describing, and `LORELEI_THUNK_PATH` is gone.** Each thunk records where its next library is (a guest thunk names its host thunk, a host thunk its real library), so discovery needs only `LD_LIBRARY_PATH` and no separate search-path variable. `LoreMakeThunk` writes a flat pack to match.
+- **The host runtime flushes host stdio at each completed invocation**, so host-side output is not lost when the guest's stdout is a pipe or a redirect rather than a terminal.
+
 ## v1.0.5.0 (2026-07-09)
 
 Runs on stock upstream QEMU, makes a failed library load say why and where from, and simplifies how the examples select the thunk.
