@@ -31,4 +31,17 @@ rm -rf "$DEST"
 mkdir -p "$DEST"
 tar -xf "$tmp/$file" -C "$DEST" --strip-components=1
 rm -rf "$tmp"
+
+# The bundle drops the static component archives to stay small, but LLVM/Clang's cmake exports still
+# list every one with an existence check that find_package enforces. LoreTLC links only the dylib
+# targets (clang-cpp, LLVM) and never these archives, so satisfy the check with empty placeholders
+# (bundle-llvm.sh strips them back out of the devkit). Without this, find_package(Clang) aborts with
+# "imported target references the file lib<component>.a but this file does not exist".
+if [ -d "$DEST/lib/cmake" ]; then
+    grep -rhoE 'lib[A-Za-z0-9_.+-]+\.a' "$DEST"/lib/cmake 2>/dev/null | sort -u | while read -r base; do
+        f="$DEST/lib/$base"
+        [ -e "$f" ] || : > "$f"
+    done
+fi
+
 echo "[fetch-llvm] $ARCH ready at $DEST ($("$DEST/bin/clang" --version | head -1))"
