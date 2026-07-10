@@ -18,7 +18,7 @@ static inline uint64_t syscall1(int64_t num, uint64_t arg1) {
                  "movq %%rax, %0\n"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1)
-                 : "%rax", "%rdi", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "cc", "memory");
     return ret;
 #else
     return 0;
@@ -35,7 +35,7 @@ static inline uint64_t syscall2(int64_t num, uint64_t arg1, uint64_t arg2) {
                  "mov %%rax, %0"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1), "r"(arg2)
-                 : "%rax", "%rdi", "%rsi", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "%rsi", "cc", "memory");
     return ret;
 #else
     return 0;
@@ -53,7 +53,7 @@ static inline uint64_t syscall3(int64_t num, uint64_t arg1, uint64_t arg2, uint6
                  "mov %%rax, %0"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1), "r"(arg2), "r"(arg3)
-                 : "%rax", "%rdi", "%rsi", "%rdx", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "%rsi", "%rdx", "cc", "memory");
     return ret;
 #else
     return 0;
@@ -73,7 +73,7 @@ static inline uint64_t syscall4(int64_t num, uint64_t arg1, uint64_t arg2, uint6
                  "mov %%rax, %0"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1), "r"(arg2), "r"(arg3), "r"(arg4)
-                 : "%rax", "%rdi", "%rsi", "%rdx", "%r10", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "%rsi", "%rdx", "%r10", "cc", "memory");
     return ret;
 #else
     return 0;
@@ -94,7 +94,8 @@ static inline uint64_t syscall5(int64_t num, uint64_t arg1, uint64_t arg2, uint6
                  "mov %%rax, %0"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1), "r"(arg2), "r"(arg3), "r"(arg4), "r"(arg5)
-                 : "%rax", "%rdi", "%rsi", "%rdx", "%r10", "%r8", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "%rsi", "%rdx", "%r10", "%r8",
+                   "cc", "memory");
     return ret;
 #else
     return 0;
@@ -116,7 +117,8 @@ static inline uint64_t syscall6(int64_t num, uint64_t arg1, uint64_t arg2, uint6
                  "mov %%rax, %0"
                  : "=r"(ret)
                  : "r"(num), "r"(arg1), "r"(arg2), "r"(arg3), "r"(arg4), "r"(arg5), "r"(arg6)
-                 : "%rax", "%rdi", "%rsi", "%rdx", "%r10", "%r8", "%r9", "memory");
+                 : "%rax", "%rcx", "%r11", "%rdi", "%rsi", "%rdx", "%r10", "%r8",
+                   "%r9", "cc", "memory");
     return ret;
 #else
     return 0;
