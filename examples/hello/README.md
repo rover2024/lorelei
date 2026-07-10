@@ -1,11 +1,11 @@
 # hello: a thunk as a drop-in library
 
-The same one-function library, `libhello.so`, built two ways: the **guest** build signs its greeting `(from the guest)` and the **host** build `(from the host)`. An unmodified x86_64 guest program `main` calls `hello("World", 7)`. `main` carries no rpath, so which `libhello.so` it loads is chosen at run time by `LD_LIBRARY_PATH`: point it at the guest build and it runs under emulation, point it at the generated thunk instead and the call is forwarded to the host build, running natively. The output tells you which one ran.
+The same one-function library, `libhello.so`, built two ways: the **guest** build tags its output `(from the guest)` and the **host** build `(from the host)`. An unmodified x86_64 guest program `main` calls `hello("World", 7)`. `main` carries no rpath, so which `libhello.so` it loads is chosen at run time by `LD_LIBRARY_PATH`: point it at the guest build and it runs under emulation, point it at the generated thunk instead and the call is forwarded to the host build, running natively. The output tells you which one ran.
 
 The sources are under `src/`:
 
 - `hello.h`: the declaration, shared by both builds and the program.
-- `hello_guest.c` / `hello_host.c`: the two implementations, signing `(from the guest)` / `(from the host)`.
+- `hello_guest.c` / `hello_host.c`: the two implementations, tagging their output `(from the guest)` / `(from the host)`.
 - `main.c`: the guest program, which calls `hello("World", 7)`.
 
 `Makefile` builds the two libraries and the program, generates the thunk with `LoreMakeThunk.py`, and runs it both ways.
