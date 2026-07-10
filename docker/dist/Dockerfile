@@ -22,7 +22,8 @@ ENV THUNKS_SRC=/home/build/lorelei-thunks
 ENV OUT_DIR=/home/build/out
 
 # Shared build dependencies (native clang/LLVM, cmake/ninja). Cached across source edits.
-COPY docker/dist/scripts/bootstrap-dist.sh /tmp/scripts/
+# fetch-llvm.sh rides along: bootstrap-dist.sh calls it to pull the self-contained native LLVM.
+COPY docker/dist/scripts/bootstrap-dist.sh docker/dist/scripts/fetch-llvm.sh /tmp/scripts/
 RUN sed -i 's/\r$//' /tmp/scripts/*.sh && chmod +x /tmp/scripts/*.sh && /tmp/scripts/bootstrap-dist.sh
 
 RUN mkdir -p ${REPOS_DIR} ${OUT_DIR}
