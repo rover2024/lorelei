@@ -2,6 +2,7 @@
 
 #include "HostServer.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
@@ -285,6 +286,13 @@ extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *p
             auto ret = reinterpret_cast<int *>(a[2]);
             assert(ia && ra_ptr && ret);
             *ret = static_cast<int>(Invocation::invoke(ia, reinterpret_cast<void **>(ra_ptr)));
+            // A host function may have written to a host stdio stream. qemu tears the process down on
+            // guest exit without running the host libc atexit handlers, so a fully-buffered stream
+            // (output redirected or piped) would be lost. Flush at each completed invocation, a point
+            // reached before exit.
+            if (*ret == 0) {
+                std::fflush(nullptr);
+            }
             break;
         }
 
@@ -294,6 +302,9 @@ extern "C" LOREHOSTRT_EXPORT void LoreCommonHostEntry(void *secondaryId, void *p
             auto ret = reinterpret_cast<int *>(payload);
             assert(ret);
             *ret = static_cast<int>(Invocation::resume());
+            if (*ret == 0) {
+                std::fflush(nullptr);
+            }
             break;
         }
 
