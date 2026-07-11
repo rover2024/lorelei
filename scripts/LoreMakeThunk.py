@@ -119,6 +119,21 @@ class Devkit:
         self.host_arch = self._detect_host_arch()
         self.host_triplet = HOST_TRIPLETS[self.host_arch]
 
+        # The devkit bundles the host libstdc++ C++ headers under lib/cxx/0, /1, ... (the host
+        # compiler's C++ search dirs, in order), so a build host needs a C compiler for the libc
+        # headers but not g++ / libstdc++-dev. Feed them to the host-side parse and compile with
+        # -nostdinc++ so the system C++ headers (if any) are not consulted. Empty on an older devkit
+        # that did not bundle them, where the host's own g++ is used instead.
+        self.host_cxx_isystem = []
+        cxx_root = self.prefix / "lib" / "cxx"
+        if cxx_root.is_dir():
+            dirs = sorted((d for d in cxx_root.iterdir() if d.is_dir()),
+                          key=lambda p: int(p.name) if p.name.isdigit() else 1 << 30)
+            if dirs:
+                self.host_cxx_isystem = ["-nostdinc++"]
+                for d in dirs:
+                    self.host_cxx_isystem += ["-isystem", str(d)]
+
     def _need(self, path, what):
         if path is None or not Path(path).exists():
             die(f"{what} not found in devkit ({self.prefix})")
@@ -411,13 +426,13 @@ def main():
     # relative path in the user's compile args (e.g. `-- -I.`) still resolves against the directory
     # LoreMakeThunk was invoked from, not gendir.
     run([dk.tlc, "stat", "-o", stat, "-c", gendir / "Symbols.conf", gendir / "Desc.h",
-         "--", "-xc++", "-std=gnu++20", f"-I{dk.host_include}", *cflags])
+         "--", "-xc++", "-std=gnu++20", *dk.host_cxx_isystem, f"-I{dk.host_include}", *cflags])
 
     print("[3/5] TLC generate (host + guest)")
     htl_src = gendir / "Thunk_host.cpp"
     gtl_src = gendir / "Thunk_guest.cpp"
     run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", gendir / "Manifest_host.cpp",
-         "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet,
+         "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet, *dk.host_cxx_isystem,
          f"-I{dk.host_include}", f"-I{gendir}", *cflags, *args.htl_arg])
     run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", gendir / "Manifest_guest.cpp",
          "--", "-xc++", "-std=gnu++20", "-target", GUEST_TRIPLET,
@@ -425,7 +440,8 @@ def main():
 
     print("[4/5] compile host thunk (HTL)")
     htl_out = htl_dir / f"lib{args.name}_HTL.so"
-    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, f"-I{dk.host_include}", f"-I{gendir}", *cflags,
+    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, *dk.host_cxx_isystem,
+               f"-I{dk.host_include}", f"-I{gendir}", *cflags,
                str(htl_src), "-o", str(htl_out),
                f"-L{dk.host_libdir}", "-lLoreHostRT"]
     if args.auto_link:

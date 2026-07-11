@@ -173,12 +173,32 @@ bundle_cxx_runtime() {  # <compiler> <dest-lib-dir> [extra compiler args...]
         src="$("$cxx" "$@" -print-file-name="$lib")"
         [ -f "$src" ] || { echo "[build-dist] $lib not found via $cxx"; exit 1; }
         cp -L "$src" "$dest/$lib"
+        # linker name (libstdc++.so -> libstdc++.so.6) so the host thunk's clang++ can `-lstdc++`
+        # against the bundled runtime without a system libstdc++-dev present.
+        ln -sf "$lib" "$dest/${lib%.*}"
     done
 }
+
+# The libstdc++ C++ headers too, so a build host needs a C compiler (for the libc headers) but not
+# g++ / libstdc++-dev. Copy the host compiler's C++ system-include dirs, in order, into lib/cxx/0, /1,
+# ...; LoreMakeThunk feeds them to the host parse/compile with -nostdinc++. (The guest side already
+# has its C++ headers inside x86_64/sysroot, from make-sysroot.)
+bundle_cxx_headers() {  # <compiler>
+    local cxx="$1" i=0 d
+    rm -rf "$TREE/lib/cxx"; mkdir -p "$TREE/lib/cxx"
+    while IFS= read -r d; do
+        [ -d "$d" ] || continue
+        cp -a "$d" "$TREE/lib/cxx/$i"
+        i=$((i + 1))
+    done < <("$cxx" -xc++ -E -Wp,-v - </dev/null 2>&1 | sed -n 's/^ \(\/[^ ]*\)$/\1/p' | grep '/c++/')
+    [ "$i" -gt 0 ] || { echo "[build-dist] no C++ headers found via $cxx"; exit 1; }
+}
+
 host_cxx=g++
 [ "$CROSS" = "1" ] && host_cxx="$TARGET-linux-gnu-g++"
 bundle_cxx_runtime "$host_cxx" "$TREE/lib"
 bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
+bundle_cxx_headers "$host_cxx"
 
 # --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
 # The guest generate parse targets x86_64 against the guest sysroot for its headers.

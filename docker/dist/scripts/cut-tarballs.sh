@@ -48,7 +48,7 @@ rm -rf "$rt"
 cp -a "$TREE" "$rt"
 # devel / toolchain (host side)
 rm -rf "$rt/bin" "$rt/include" "$rt/lib/cmake" "$rt/lib/llvm-${LLVM_VER}" "$rt/lib/clang" \
-       "$rt/share/lorelei/toolchains" "$rt/$gen_host"
+       "$rt/lib/cxx" "$rt/share/lorelei/toolchains" "$rt/$gen_host"
 rm -f  "$rt"/lib/libLLVM.so* "$rt"/lib/libclang-cpp.so* "$rt"/lib/libLoreTLCApi.so "$rt"/lib/libLoreClangExtras.a
 # devel / sysroot (guest side)
 rm -rf "$rt/x86_64/sysroot" "$rt/x86_64/include" "$rt/x86_64/lib/cmake" "$rt/$gen_guest"
