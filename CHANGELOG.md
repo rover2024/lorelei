@@ -6,6 +6,7 @@ Makes the devkit self-contained down to the C++ runtime, so a thunk depends on n
 
 - **The devkit bundles libstdc++ and libgcc.** `libstdc++.so.6` and `libgcc_s.so.1` now ship next to the lorelei runtimes (the host `lib/` and the guest `x86_64/lib/`), found on the same `LD_LIBRARY_PATH` the run already sets. The only library a thunk needs from the host is libc, so a clean container with just a C library runs a devkit plus a thunk pack directly, with no system C++ runtime installed.
 - **LoreMakeThunk drops the RPATH and build path from the thunks it generates.** The guest and host thunks it builds no longer carry an `$ORIGIN` RPATH, and the host thunk records its real library by SONAME (`libfoo.so`) rather than the path it was built from. Both the lorelei runtimes and the real library are located through `LD_LIBRARY_PATH` at run time.
+- **The guest runtime recovers its own module path with `dladdr` again by default.** The `/proc/self/maps` fallback added in 1.0.6.0 stays in the source behind a build switch but is off. It only mattered for a qemu-user crash specific to an x86_64 guest run against a sysroot whose glibc differs from the same-arch host's, which the recommended host-sysroot setup avoids.
 
 ## v1.0.6.0 (2026-07-11)
 

@@ -16,7 +16,12 @@
 #include "GuestClient.h"
 #include "LogCategory.h"
 
-#define LORE_GUESTRT_USE_PROC_MAPS_FOR_SELF_PATH 1
+// The /proc/self/maps lookup below is a workaround for a qemu-user crash that only surfaces when an
+// x86_64 guest runs against a sysroot whose glibc differs from the same-arch host's (a plain guest
+// dlopen segfaults there, back to at least qemu v7.0; cross-arch guests are immune). The recommended
+// setup points -L at the host's own x86_64 sysroot, so host and guest glibc match and it does not
+// arise. Left in place, but off: dladdr is the standard path. Flip to 1 to re-enable the workaround.
+#define LORE_GUESTRT_USE_PROC_MAPS_FOR_SELF_PATH 0
 
 namespace lore::mod {
 
