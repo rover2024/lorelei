@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.7.0 (2026-07-11)
+
+Makes the devkit self-contained down to the C++ runtime, so a thunk depends on nothing but libc from the machine it runs on.
+
+- **The devkit bundles libstdc++ and libgcc.** `libstdc++.so.6` and `libgcc_s.so.1` now ship next to the lorelei runtimes (the host `lib/` and the guest `x86_64/lib/`), found on the same `LD_LIBRARY_PATH` the run already sets. The only library a thunk needs from the host is libc, so a clean container with just a C library runs a devkit plus a thunk pack directly, with no system C++ runtime installed.
+- **LoreMakeThunk drops the RPATH and build path from the thunks it generates.** The guest and host thunks it builds no longer carry an `$ORIGIN` RPATH, and the host thunk records its real library by SONAME (`libfoo.so`) rather than the path it was built from. Both the lorelei runtimes and the real library are located through `LD_LIBRARY_PATH` at run time.
+
 ## v1.0.6.0 (2026-07-11)
 
 Makes the shipped devkit run on any Linux distribution, and lets a thunk find the library it forwards to from nothing but its own location.

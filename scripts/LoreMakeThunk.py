@@ -47,9 +47,6 @@ HOST_TRIPLETS = {
 # Flags every thunk TU is compiled with (mirrors thunk_configure_target in LoreThunkBuildApi.cmake).
 TU_FLAGS = ["-std=gnu++20", "-fPIC", "-fvisibility=hidden",
             "-fvisibility-inlines-hidden", "-fno-exceptions", "-fno-rtti"]
-# The thunk sits at lib/<arch>-Lore?TL (two components under the prefix), so one ../.. reaches the
-# prefix and ../../lib the runtime lib dir (mirrors thunk_default_install_rpath).
-RPATH = "$ORIGIN:$ORIGIN/../../lib"
 
 
 DRY_RUN = False
@@ -430,9 +427,12 @@ def main():
     htl_out = htl_dir / f"lib{args.name}_HTL.so"
     htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, f"-I{dk.host_include}", f"-I{gendir}", *cflags,
                str(htl_src), "-o", str(htl_out),
-               f"-L{dk.host_libdir}", "-lLoreHostRT", f"-Wl,-rpath,{RPATH}"]
+               f"-L{dk.host_libdir}", "-lLoreHostRT"]
     if args.auto_link:
-        htl_cmd.append(str(lib))          # link the real library so its symbols resolve
+        # Link the real library so its symbols resolve. Reference it by name (-l:), so the NEEDED entry
+        # is its SONAME (or bare filename), found via LD_LIBRARY_PATH at run time, rather than the path
+        # we were given (lld would otherwise bake that path in for a library that carries no SONAME).
+        htl_cmd += [f"-L{lib.parent}", f"-l:{lib.name}"]
     else:
         # Not linked in: bake the real library's name so the host thunk dlopens it at run time. A bare
         # name is resolved on the loader's search path, where the real library normally lives.
@@ -450,7 +450,7 @@ def main():
                f'-DLORE_THUNK_NEXT_LIBRARY="{htl_rel}"',
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
-               f"-Wl,-soname,{soname}", f"-Wl,-rpath,{RPATH}"]
+               f"-Wl,-soname,{soname}"]
     gtl_cmd += args.gtl_arg
     run(gtl_cmd)
 

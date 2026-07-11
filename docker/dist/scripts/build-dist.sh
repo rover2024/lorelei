@@ -160,6 +160,26 @@ cmake -B "$REPOS_DIR/build/$TARGET-guest" -G Ninja \
     -DLORE_BUILD_TESTS=OFF
 cmake --build "$REPOS_DIR/build/$TARGET-guest" --target install
 
+# --- 6b. bundle the C++ runtime so the devkit is self-contained -------------------------------------
+# LoreHostRT + host thunks (host arch) and LoreGuestRT + guest thunks (x86_64) link libstdc++/libgcc_s
+# dynamically. Ship the shared libraries next to each runtime, so a thunk needs only libc from the
+# machine it runs on: the host copy in lib/, the x86_64 copy in x86_64/lib/, both already on the
+# LD_LIBRARY_PATH the run sets. Each is located with -print-file-name so it matches the compiler that
+# built that side (the cross g++ on a cross host, the guest clang's sysroot on the x86_64 side).
+bundle_cxx_runtime() {  # <compiler> <dest-lib-dir> [extra compiler args...]
+    local cxx="$1" dest="$2"; shift 2
+    local lib src
+    for lib in libstdc++.so.6 libgcc_s.so.1; do
+        src="$("$cxx" "$@" -print-file-name="$lib")"
+        [ -f "$src" ] || { echo "[build-dist] $lib not found via $cxx"; exit 1; }
+        cp -L "$src" "$dest/$lib"
+    done
+}
+host_cxx=g++
+[ "$CROSS" = "1" ] && host_cxx="$TARGET-linux-gnu-g++"
+bundle_cxx_runtime "$host_cxx" "$TREE/lib"
+bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
+
 # --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
 # The guest generate parse targets x86_64 against the guest sysroot for its headers.
 gtl_gen_args="--target=x86_64-linux-gnu;--sysroot=$TREE/x86_64/sysroot"
