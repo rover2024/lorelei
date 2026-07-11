@@ -199,6 +199,13 @@ host_cxx=g++
 bundle_cxx_runtime "$host_cxx" "$TREE/lib"
 bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
 bundle_cxx_headers "$host_cxx"
+# The bundled clang lives in lib/llvm-N/bin with RUNPATH lib/llvm-N/lib, so it needs libstdc++/libgcc_s
+# on that RUNPATH too to start on a host without a system C++ runtime. Symlink to the copies in lib/
+# rather than duplicate them.
+for lib in libstdc++.so.6 libgcc_s.so.1; do
+    ln -sf "../../$lib" "$TREE/lib/llvm-${LLVM_VER}/lib/$lib"
+    ln -sf "$lib" "$TREE/lib/llvm-${LLVM_VER}/lib/${lib%.*}"
+done
 
 # --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
 # The guest generate parse targets x86_64 against the guest sysroot for its headers.
