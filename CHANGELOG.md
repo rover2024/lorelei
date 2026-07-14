@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.8.0 (2026-07-11)
+
+Leaves the host's C++ runtime to the host, so a thunked host C++ library keeps its own libstdc++.
+
+- **The devkit no longer ships a host `libstdc++.so`/`libgcc_s.so` on any runtime search path.** The host runtime, the host thunks and the bundled clang now bind the host's own system libstdc++ at run time. Every host the devkit targets already has one new enough (the devkit's own C++ needs only `GLIBCXX_3.4.31`, well below the `libstdc++` any glibc 2.38+ distribution ships), so nothing we ship shadows it. A thunked host C++ library therefore resolves libstdc++ to the same copy the rest of the host uses, instead of an older one carried in the devkit, which is what makes exceptions and RTTI cross the thunk boundary correctly. The libraries are kept only as a build-only copy under `lib/cxx-link`, off every runtime path, so a host thunk still links `-lstdc++` without a system `libstdc++-dev`. The guest side is unchanged: the x86_64 sysroot carries no libstdc++, so the guest copy still ships next to the guest runtime.
+
 ## v1.0.7.0 (2026-07-11)
 
 Makes the devkit self-contained down to the C++ runtime, so a thunk depends on nothing but libc from the machine it runs on.

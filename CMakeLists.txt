@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 
 project(lorelei
-    VERSION 1.0.7.0
+    VERSION 1.0.8.0
     LANGUAGES C CXX
     DESCRIPTION "Cross-Architecture Compatibility Layer For Binary Translators."
     HOMEPAGE_URL "https://github.com/rover2024/lorelei"
