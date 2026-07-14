@@ -160,15 +160,20 @@ cmake -B "$REPOS_DIR/build/$TARGET-guest" -G Ninja \
     -DLORE_BUILD_TESTS=OFF
 cmake --build "$REPOS_DIR/build/$TARGET-guest" --target install
 
-# --- 6b. bundle the C++ runtime so the devkit is self-contained -------------------------------------
-# LoreHostRT + host thunks (host arch) and LoreGuestRT + guest thunks (x86_64) link libstdc++/libgcc_s
-# dynamically. Ship the shared libraries next to each runtime, so a thunk needs only libc from the
-# machine it runs on: the host copy in lib/, the x86_64 copy in x86_64/lib/, both already on the
-# LD_LIBRARY_PATH the run sets. Each is located with -print-file-name so it matches the compiler that
-# built that side (the cross g++ on a cross host, the guest clang's sysroot on the x86_64 side).
+# --- 6b. bundle the C++ runtime the two sides need --------------------------------------------------
+# The guest thunks and LoreGuestRT link libstdc++/libgcc_s and run under qemu against the x86_64
+# sysroot, which carries no libstdc++, so the x86_64 copy is shipped next to the guest runtime in
+# x86_64/lib/ (on the guest LD_LIBRARY_PATH). The host side is different: every host we support has a
+# system libstdc++ new enough (the devkit's own C++ needs only GLIBCXX <= 3.4.31), so LoreHostRT, the
+# host thunks and clang all bind the host's system libstdc++ at run time, which keeps a thunked host
+# C++ library on the host's own libstdc++ rather than a copy we ship. The host libstdc++/libgcc are
+# kept only as a build-only copy in lib/cxx-link, off every runtime search path, so a host thunk can
+# still link -lstdc++ without a system libstdc++-dev. Each is located with -print-file-name so it
+# matches the compiler that built that side.
 bundle_cxx_runtime() {  # <compiler> <dest-lib-dir> [extra compiler args...]
     local cxx="$1" dest="$2"; shift 2
     local lib src
+    mkdir -p "$dest"
     for lib in libstdc++.so.6 libgcc_s.so.1; do
         src="$("$cxx" "$@" -print-file-name="$lib")"
         [ -f "$src" ] || { echo "[build-dist] $lib not found via $cxx"; exit 1; }
@@ -196,16 +201,9 @@ bundle_cxx_headers() {  # <compiler>
 
 host_cxx=g++
 [ "$CROSS" = "1" ] && host_cxx="$TARGET-linux-gnu-g++"
-bundle_cxx_runtime "$host_cxx" "$TREE/lib"
-bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
 bundle_cxx_headers "$host_cxx"
-# The bundled clang lives in lib/llvm-N/bin with RUNPATH lib/llvm-N/lib, so it needs libstdc++/libgcc_s
-# on that RUNPATH too to start on a host without a system C++ runtime. Symlink to the copies in lib/
-# rather than duplicate them.
-for lib in libstdc++.so.6 libgcc_s.so.1; do
-    ln -sf "../../$lib" "$TREE/lib/llvm-${LLVM_VER}/lib/$lib"
-    ln -sf "$lib" "$TREE/lib/llvm-${LLVM_VER}/lib/${lib%.*}"
-done
+bundle_cxx_runtime "$host_cxx" "$TREE/lib/cxx-link"    # host: build-only, for the host thunk -lstdc++
+bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
 
 # --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
 # The guest generate parse targets x86_64 against the guest sysroot for its headers.

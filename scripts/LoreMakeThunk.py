@@ -134,6 +134,14 @@ class Devkit:
                 for d in dirs:
                     self.host_cxx_isystem += ["-isystem", str(d)]
 
+        # The host libstdc++/libgcc a thunk links live in a build-only lib/cxx-link, off every runtime
+        # search path: the thunk binds the host's system libstdc++ at run time, not a copy we ship, so a
+        # thunked host C++ library keeps its own libstdc++. Point the HTL link there so clang++'s
+        # implicit -lstdc++/-lgcc_s resolve without a system libstdc++-dev. Absent on an older devkit
+        # that shipped libstdc++ on lib/ instead (host_libdir already covers that layout).
+        cxx_link = self.prefix / "lib" / "cxx-link"
+        self.host_cxx_link = cxx_link if cxx_link.is_dir() else None
+
     def _need(self, path, what):
         if path is None or not Path(path).exists():
             die(f"{what} not found in devkit ({self.prefix})")
@@ -444,6 +452,9 @@ def main():
                f"-I{dk.host_include}", f"-I{gendir}", *cflags,
                str(htl_src), "-o", str(htl_out),
                f"-L{dk.host_libdir}", "-lLoreHostRT"]
+    if dk.host_cxx_link:
+        # build-only libstdc++/libgcc for clang++'s implicit -lstdc++/-lgcc_s (bound to system at run time)
+        htl_cmd.append(f"-L{dk.host_cxx_link}")
     if args.auto_link:
         # Link the real library so its symbols resolve. Reference it by name (-l:), so the NEEDED entry
         # is its SONAME (or bare filename), found via LD_LIBRARY_PATH at run time, rather than the path
