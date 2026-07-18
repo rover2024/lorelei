@@ -4,7 +4,7 @@ Lorelei lets an emulated guest program call the host's native shared libraries d
 
 ## Foundation: A Magic Syscall
 
-The guest runs under a patched QEMU with `guest_base == 0`, so a guest pointer and a host pointer are the same number: buffers, structs and opaque handles cross the boundary untouched, with no copying or pointer translation.
+The guest runs under QEMU user-mode emulation with `guest_base == 0`, which is qemu-user's default, so a guest pointer and a host pointer are the same number: buffers, structs and opaque handles cross the boundary untouched, with no copying or pointer translation.
 
 On top of that, the guest reaches the host through one reserved syscall, number `4096` (`lore::DLCallSyscallNumber`):
 

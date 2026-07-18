@@ -10,7 +10,7 @@ Box64 and FEX pioneered this kind of native-library pass-through, building the t
 
 ## How It Works
 
-Lorelei runs the guest under a patched build of QEMU's user-mode emulation, forced to `guest_base == 0` so a guest pointer and a host pointer are the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
+Lorelei runs the guest under QEMU's user-mode emulation, where `guest_base == 0` (qemu-user's default) makes a guest pointer and a host pointer the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The `dlcall` plugin is upstream in QEMU, so a stock `qemu-x86_64` is all you need. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
 You do not write the per-library glue by hand. The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and generates the guest and host thunks, including the awkward cases of callbacks and variadic functions. See [docs/HowToUseTLC.md](docs/HowToUseTLC.md) for how to use it, and the runnable [examples/](examples) (hello and demo) to see the whole flow end to end: a library turned into a thunk with the devkit's `LoreMakeThunk.py` and run under the plugin in one command.
 
@@ -30,7 +30,7 @@ Lorelei supports **x86_64** guests, running on an **x86_64**, **arm64** or **ris
 
 ## Examples
 
-Two runnable examples build a thunk with the devkit's `LoreMakeThunk.py` and run it under qemu with the dlcall plugin. Each needs an unpacked [devkit](https://github.com/rover2024/lorelei/releases) and the patched `qemu-x86_64`.
+Two runnable examples build a thunk with the devkit's `LoreMakeThunk.py` and run it under qemu with the dlcall plugin. Each needs an unpacked [devkit](https://github.com/rover2024/lorelei/releases) and a `qemu-x86_64` carrying the dlcall plugin, which QEMU ships from 11.1 on.
 
 - [examples/hello](examples/hello): a minimal one-function library. Start here.
 - [examples/demo](examples/demo): variadic functions and a callback that reenters the guest.

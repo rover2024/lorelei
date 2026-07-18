@@ -42,7 +42,7 @@ It builds both the host thunk (HTL) and the x86_64 guest thunk (GTL) into a self
 
 ## Run
 
-Running needs the patched `qemu-x86_64` and its `libdlcall.so`. Build them from the [rover2024/qemu](https://github.com/rover2024/qemu) `minimal-passthrough-plugin` branch, or skip qemu entirely and [use the container](#running-in-a-container). Then `make run`:
+Running needs a `qemu-x86_64` and its `libdlcall.so`. The dlcall plugin is upstream in QEMU from 11.1 on, so a distribution build of that version or later already has it. Otherwise build QEMU yourself, or skip qemu entirely and [use the container](#running-in-a-container). Then `make run`:
 
 ```bash
 export QEMU=/path/to/qemu-x86_64
