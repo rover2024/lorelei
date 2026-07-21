@@ -43,7 +43,10 @@ namespace lore::thunk {
         void *addr;      ///< Its resolved thunk / invoke address.
     };
 
-    /// ProcArrayRef - A non-owning view over a \c ProcInfoPair array (null-key terminated).
+    /// ProcArrayRef - A non-owning counted view over a \c ProcInfoPair array.
+    ///
+    /// \c size is the number of valid entries. Generated tables may reserve an extra zeroed
+    /// sentinel slot, but consumers should use \c size rather than walking to a null key.
     struct ProcArrayRef {
         ProcInfoPair *arr;
         size_t size;
@@ -76,7 +79,7 @@ namespace lore::thunk {
         ///   is joined with this thunk's own directory
         /// Null falls back to the name convention: <name>_HTL.so for a guest thunk, <name>.so for a
         /// host thunk.
-        const char *nextLibraryPath = nullptr;
+        const char *nextLibraryPath;
     };
 
 }
