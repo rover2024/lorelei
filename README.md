@@ -10,15 +10,30 @@ Box64 and FEX pioneered this kind of native-library pass-through, building the t
 
 ## How It Works
 
-Lorelei runs the guest under QEMU's user-mode emulation, where `guest_base == 0` (qemu-user's default) makes a guest pointer and a host pointer the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. The `dlcall` plugin is upstream in QEMU, so a stock `qemu-x86_64` is all you need. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
+Lorelei runs the guest under QEMU's user-mode emulation, where `guest_base == 0` (qemu-user's default) makes a guest pointer and a host pointer the same number. A guest library call becomes a single magic syscall (number 4096) that a QEMU TCG plugin (`dlcall`) intercepts and turns into a native call into the real host library, with no marshalling and no pointer translation. Since `dlcall` ships with QEMU from 11.1 on, a stock `qemu-x86_64` is all you need, with no patched or forked emulator anywhere in the picture. The return value and any host-to-guest callbacks flow back the same way. For the full call path and the runtimes that carry it, see [docs/HowLoreleiWorks.md](docs/HowLoreleiWorks.md).
 
 You do not write the per-library glue by hand. The Thunk Library Compiler (TLC), built on Clang LibTooling, reads a library's headers and generates the guest and host thunks, including the awkward cases of callbacks and variadic functions. See [docs/HowToUseTLC.md](docs/HowToUseTLC.md) for how to use it, and the runnable [examples/](examples) (hello and demo) to see the whole flow end to end: a library turned into a thunk with the devkit's `LoreMakeThunk.py` and run under the plugin in one command.
 
+Lorelei supports **x86_64** guests, running on an **x86_64**, **arm64** or **riscv64** host.
+
+### The Mechanism Ships With QEMU
+
+Earlier versions of QEMU did not expose what this needs, so we contributed the missing pieces:
+
+- the linux-user **syscall-filter plugin API**, which landed in **QEMU 11.0**;
+- the **`dlcall` plugin** built on top of it, which landed in **QEMU 11.1**.
+
+From 11.1 on, a stock `qemu-x86_64` runs Lorelei as it comes, with nothing to patch or rebuild. QEMU's own documentation walks through the mechanism end to end using Lorelei's devkit, and describes Lorelei as "one end-to-end userspace implementation of this":
+
+> [QEMU documentation: Dynamic Linking Call](https://www.qemu.org/docs/master/about/emulation.html#dynamic-linking-call)
+
+Both contributions were deliberately kept generic: `dlcall` knows nothing about Lorelei or about any particular library, and QEMU's documentation states that any toolchain can implement the interface on top of it. Lorelei is, as far as we know, the first complete implementation, and we would be glad to see others, whether another thunk toolchain or another instrumentation framework. The parts the plugin leaves to userspace, such as argument marshalling, callbacks back into the guest and variadic functions, are where an implementation earns its keep, and ours is open source for anyone who wants a reference.
+
+### Related Repositories
+
 [LoreThunk](https://github.com/rover2024/lorelei-thunks) is a companion repository of ready-made thunks (zlib, lzma, ...).
 
-The underlying pass-through mechanism is also demonstrated from scratch in the [QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test).
-
-Lorelei supports **x86_64** guests, running on an **x86_64**, **arm64** or **riscv64** host.
+[QEMU Pass-Through Test](https://github.com/rover2024/qemu-passthrough-test) demonstrates the underlying pass-through mechanism from scratch.
 
 ## Highlights
 
