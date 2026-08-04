@@ -1,8 +1,25 @@
 // SPDX-License-Identifier: MIT
 
+#include <cstdio>
 #include <string>
 
 #include <lorelei/Support/Logging.h>
+
+#ifdef _WIN32
+#  include <io.h>
+#  define lore_dup    _dup
+#  define lore_dup2   _dup2
+#  define lore_close  _close
+#  define lore_fileno _fileno
+#  define NullDevice  "NUL"
+#else
+#  include <unistd.h>
+#  define lore_dup    dup
+#  define lore_dup2   dup2
+#  define lore_close  close
+#  define lore_fileno fileno
+#  define NullDevice  "/dev/null"
+#endif
 
 #define BOOST_TEST_MAIN
 #include <boost/test/unit_test.hpp>
@@ -47,6 +64,57 @@ namespace {
         ++g_emitCount;
         g_lastLevel = level;
     }
+
+    // Redirects stdout and stderr into a scratch file for as long as it lives, and hands back
+    // what was written. The default sink writes to them directly, so this is the only way to see
+    // what it produced.
+    class CapturedOutput {
+    public:
+        CapturedOutput() {
+            std::fflush(stdout);
+            std::fflush(stderr);
+            _sink = std::tmpfile();
+            _out = lore_dup(lore_fileno(stdout));
+            _err = lore_dup(lore_fileno(stderr));
+            if (_sink) {
+                lore_dup2(lore_fileno(_sink), lore_fileno(stdout));
+                lore_dup2(lore_fileno(_sink), lore_fileno(stderr));
+            }
+        }
+
+        ~CapturedOutput() {
+            std::fflush(stdout);
+            std::fflush(stderr);
+            lore_dup2(_out, lore_fileno(stdout));
+            lore_dup2(_err, lore_fileno(stderr));
+            lore_close(_out);
+            lore_close(_err);
+            if (_sink) {
+                std::fclose(_sink);
+            }
+        }
+
+        std::string contents() const {
+            std::fflush(stdout);
+            std::fflush(stderr);
+            if (!_sink) {
+                return {};
+            }
+            std::fseek(_sink, 0, SEEK_SET);
+            std::string text;
+            char buf[1024];
+            size_t n;
+            while ((n = std::fread(buf, 1, sizeof(buf), _sink)) > 0) {
+                text.append(buf, n);
+            }
+            return text;
+        }
+
+    private:
+        FILE *_sink = nullptr;
+        int _out = -1;
+        int _err = -1;
+    };
 } // namespace
 
 BOOST_AUTO_TEST_SUITE(test_Logging)
@@ -283,6 +351,84 @@ BOOST_AUTO_TEST_CASE(disabled_level_does_not_reach_the_callback) {
     BOOST_TEST(afterDebug == 0);   // the disabled level never invoked the callback
     BOOST_TEST(afterWarning == 1); // the enabled level did
     BOOST_TEST(lastLevel == Logger::Warning);
+}
+
+// --- The default sink ---------------------------------------------------------------------
+
+// Every case above replaces the sink, so the built-in one had never been run. It dropped
+// Information, which is 4 against Success's 3 and so clears the level gate and reaches the
+// switch, where it had no case of its own. A debug build aborted on the assert there, a release
+// build compiled the assert away and lost the message quietly, which is why surviving the call
+// is not enough to check.
+BOOST_AUTO_TEST_CASE(default_sink_emits_every_level_at_or_above_success) {
+    LoggingGuard guard;
+    Logger::setLogCallback(nullptr); // put the built-in one back
+
+    std::string text;
+    {
+        CapturedOutput captured;
+        LogContext context(__FILE__, __LINE__, __FUNCTION__, "lore.sink");
+        Logger(context).print(Logger::Trace, "trace-line");
+        Logger(context).print(Logger::Debug, "debug-line");
+        Logger(context).print(Logger::Success, "success-line");
+        Logger(context).print(Logger::Information, "information-line");
+        Logger(context).print(Logger::Warning, "warning-line");
+        Logger(context).print(Logger::Critical, "critical-line");
+        Logger(context).print(Logger::Fatal, "fatal-line");
+        text = captured.contents();
+    }
+
+    // below the gate, so deliberately absent
+    BOOST_TEST(text.find("trace-line") == std::string::npos);
+    BOOST_TEST(text.find("debug-line") == std::string::npos);
+
+    // at or above it, so every one of them has to appear
+    BOOST_TEST(text.find("success-line") != std::string::npos, text);
+    BOOST_TEST(text.find("information-line") != std::string::npos, text);
+    BOOST_TEST(text.find("warning-line") != std::string::npos, text);
+    BOOST_TEST(text.find("critical-line") != std::string::npos, text);
+    BOOST_TEST(text.find("fatal-line") != std::string::npos, text);
+}
+
+// print() takes an int rather than a Level, so a caller can invent one. That must neither abort
+// nor swallow the message.
+BOOST_AUTO_TEST_CASE(default_sink_takes_a_level_outside_the_enum) {
+    LoggingGuard guard;
+    Logger::setLogCallback(nullptr);
+
+    std::string text;
+    {
+        CapturedOutput captured;
+        LogContext context(__FILE__, __LINE__, __FUNCTION__, "lore.sink");
+        Logger(context).print(42, "invented-level");
+        Logger(context).print(-1, "negative-level"); // below the gate, dropped
+        text = captured.contents();
+    }
+
+    BOOST_TEST(text.find("invented-level") != std::string::npos, text);
+    BOOST_TEST(text.find("negative-level") == std::string::npos);
+}
+
+// nullptr means the built-in sink, the way it already does for setLogFilter(). Assigning it raw
+// would leave a null pointer for the next record to call through.
+BOOST_AUTO_TEST_CASE(null_callback_restores_the_default) {
+    LoggingGuard guard;
+    auto original = Logger::logCallback();
+
+    Logger::setLogCallback(captureSink);
+    BOOST_TEST(Logger::logCallback() == captureSink);
+
+    Logger::setLogCallback(nullptr);
+    BOOST_TEST(Logger::logCallback() != nullptr);
+    BOOST_TEST(Logger::logCallback() == original);
+
+    std::string text;
+    {
+        CapturedOutput captured;
+        loreWarning("built-in-sink-reached");
+        text = captured.contents();
+    }
+    BOOST_TEST(text.find("built-in-sink-reached") != std::string::npos, text);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

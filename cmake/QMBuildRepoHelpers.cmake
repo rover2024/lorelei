@@ -546,7 +546,7 @@ endfunction()
     )
 ]] #
 function(${_F}_add_executable _target)
-    set(options TEST QT_AUTOGEN CONSOLE WINDOWS NO_EXPORT NO_INSTALL NO_INSTALL_PDB)
+    set(options TEST CONSOLE WINDOWS NO_EXPORT NO_INSTALL NO_INSTALL_PDB)
     set(oneValueArgs RUNTIME_DIRECTORY PDB_DIRECTORY)
     set(multiValueArgs)
     cmake_parse_arguments(FUNC "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -757,8 +757,16 @@ function(${_F}_set_default_install_rpath _target)
         endif()
     else()
         if(_type STREQUAL "Plugin")
+            # <proj>_add_plugin() always appends a category level - it falls back to the target
+            # name when CATEGORY is omitted - so a plugin lands in
+            # <prefix>/<install-plugins-dir>/<category>, four levels below the install prefix:
+            #
+            #     <prefix>/lib/<name>/plugins/<category>/libfoo.so
+            #              ^4    ^3      ^2       ^1
+            #
+            # Reaching <prefix>/lib therefore takes four levels, not three.
             set_target_properties(${_target} PROPERTIES
-                INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../../lib"
+                INSTALL_RPATH "\$ORIGIN:\$ORIGIN/../../../../lib"
             )
         else()
             set_target_properties(${_target} PROPERTIES

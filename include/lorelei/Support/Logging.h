@@ -102,6 +102,8 @@ namespace lore {
 
         /// The process-wide sink. The default prints Success and above to stdout/stderr.
         static LogCallback logCallback();
+
+        /// Replaces the sink, or restores the built-in one when given \c nullptr.
         static void setLogCallback(LogCallback callback);
 
     protected:

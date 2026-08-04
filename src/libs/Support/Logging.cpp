@@ -173,25 +173,24 @@ namespace lore {
                                    const std::string_view &message) {
         (void) context;
 
-        // The default sink only emits Success and above. Lower levels (Trace/Debug/Information)
-        // are dropped here regardless of category filtering, so they need a custom callback to show.
+        // The default sink only emits Success and above. Trace and Debug are dropped here
+        // regardless of category filtering, so they need a custom callback to show.
         if (level < Logger::Success) {
             return;
         }
 
-        FILE *out;
+        // Information is 4 and Success is 3, so it clears the gate above rather than being
+        // dropped by it, and print() takes an int that need not be a Level at all. Neither is a
+        // reason to lose the message, so anything without a stream of its own goes to stdout.
+        FILE *out = stdout;
         switch (level) {
-            case Logger::Success:
-                out = stdout;
-                break;
             case Logger::Warning:
             case Logger::Critical:
             case Logger::Fatal:
                 out = stderr;
                 break;
             default:
-                assert(false);
-                return;
+                break;
         }
         // NOTE: %s assumes message.data() is null-terminated, which holds for the std::string-backed
         // views the loggers pass in. A view over a non-terminated buffer would over-read.
@@ -241,7 +240,7 @@ namespace lore {
     }
 
     void Logger::setLogCallback(LogCallback callback) {
-        LogRegistry::callback = callback;
+        LogRegistry::callback = callback ? callback : defaultLogCallback;
     }
 
     LogCategory::LogCategory(const char *name) : m_name(name) {
