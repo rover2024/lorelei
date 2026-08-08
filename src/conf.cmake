@@ -36,7 +36,7 @@ set(LORE_CONFIG_HEADER_PATH "lorelei/BuildConfig.h")
 # ----------------------------------
 # Include Build Helpers
 # ----------------------------------
-set(QM_BUILD_REPO_HELPERS_FUNCTION_PREFIX lore)
-include(${LORE_SOURCE_DIR}/cmake/QMBuildRepoHelpers.cmake) # generic apis
+qm_import(private/BuildSystem)
+qm_setup_build_repo_helpers(lore) # generic apis
 
 include(${LORE_SOURCE_DIR}/cmake/LoreBuildApi.cmake) # specific apis
