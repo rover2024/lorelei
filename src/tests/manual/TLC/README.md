@@ -23,8 +23,20 @@ QEMU_BUILD_DIR=/path/to/qemu/build/release cmake --build <build-dir> --target ru
 
 The target builds the guest thunk (`libThunkExample.so`), the host thunk (`libThunkExample_HTL.so`) and the program into the test's build directory, writes a `ThunkDB.json` next to them, and runs. Expected output ends with `ThunkExample guest test: OK`.
 
-## Cross-Architecture Coverage (planned)
+## Cross-Architecture Coverage
 
-This in-tree target stays x86_64-only, because one native build tree cannot hold both a native HTL and an x86_64 GTL/program. Rather than teach it a second (cross) toolchain, aarch64/riscv64 end-to-end coverage will ride on the **devkit** path, which already splits the two sides across separate builds (native HTL, cross x86_64 GTL) and is validated end to end on all three host arches by the `hello` example.
+The CMake target above stays x86_64-only, because one native build tree cannot hold both a native HTL and an x86_64 GTL/program. [`RunMakeThunk.sh`](RunMakeThunk.sh) drives the same fixture through [`LoreMakeThunk.py`](../../../../scripts/LoreMakeThunk.py) instead, which builds each side with the compiler its config names, so it runs on any host architecture. This is what CI runs, on x86_64, aarch64 and riscv64 alike.
 
-The plan: package **ThunkExample** as a devkit thunk under `lorelei-thunks/examples/` (alongside `hello`) — a `ThunkExample.toml` plus its host implementation — so that on any host arch `MakeThunk.py --devkit-prefix ... --config ThunkExample.toml` builds the HTL native and the GTL for x86_64, and the same `qemu -L <devkit>/x86_64/sysroot -plugin libdlcall.so` run drives the program. The `hello` example is the same flow end to end. To be done once the `MakeThunk` flow is fully exercised.
+It builds the example implementation into a native `libThunkExample.so`, generates the thunk pack from it (passing the fixture's own `Desc.h`, `Symbols.conf` and the two manifests through, since `Manifest_host.cpp` carries the hand-written `long double` type filters), links `Program.c` against the generated GTL, and runs it under qemu.
+
+Point it at a `MakeThunkConfig.json` and a qemu, and give it the compiler and runtime directories that config does not name:
+
+```sh
+CONFIG=<prefix>/share/lorelei/MakeThunkConfig.json \
+GUEST_CC=x86_64-linux-gnu-gcc \
+GUEST_RT=<prefix>/x86_64/lib HOST_RT=<prefix>/lib \
+QEMU=/path/to/qemu-x86_64 PLUGIN=/path/to/libdlcall.so \
+    ./RunMakeThunk.sh
+```
+
+With an unpacked devkit, `DEVKIT=<devkit>` supplies all of `CONFIG`, `GUEST_CC`, `GUEST_RT`, `HOST_RT` and the guest sysroot on its own.

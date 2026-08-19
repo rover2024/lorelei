@@ -2,25 +2,34 @@
 #
 # One-click test. Runs:
 #   1. the lorelei auto tests (ctest);
-#   2. the in-tree ThunkExample end-to-end test (src/tests/manual/TLC), under the patched QEMU with
-#      the dlcall plugin.
-# Everything is pre-built in the image, so this only runs.
+#   2. the ThunkExample end-to-end test (src/tests/manual/TLC), built through LoreMakeThunk and run
+#      under the patched QEMU with the dlcall plugin.
 set -euo pipefail
 : "${LORELEI_SRC:?}"
+: "${INSTALL_DIR:?}"
 : "${QEMU_BUILD_DIR:?}"
 
 echo "== 1/2  lorelei auto tests (ctest) =="
 ctest --test-dir "$LORELEI_SRC/build" --output-on-failure
 
 echo
-echo "== 2/2  ThunkExample end-to-end (in-tree manual test) =="
-# run_manual_tlc is x86_64-only: the in-tree test needs the GTL and HTL in one build tree, which a
-# cross host cannot produce. Run.cmake picks QEMU_BUILD_DIR up from the environment.
-if [ "$(uname -m)" = "x86_64" ]; then
-    cmake --build "$LORELEI_SRC/build" --target run_manual_tlc
-else
-    echo "  skipped (x86_64-only)"
-fi
+echo "== 2/2  ThunkExample end-to-end (via LoreMakeThunk) =="
+# Unlike the CMake target (run_manual_tlc), which needs the GTL and the HTL in one build tree and so
+# is x86_64-only, this builds each side with the compiler the config names, so it runs on every host
+# arch. The guest program needs the x86_64 loader and libc, which the bootstrap installs as amd64
+# multiarch, so no -L sysroot is passed.
+case "$(uname -m)" in
+    x86_64|amd64) guest_cc=gcc ;;
+    riscv64)      guest_cc=x86_64-unknown-linux-gnu-gcc ;;
+    *)            guest_cc=x86_64-linux-gnu-gcc ;;
+esac
+CONFIG="$INSTALL_DIR/share/lorelei/MakeThunkConfig.json" \
+GUEST_CC="$guest_cc" \
+GUEST_RT="$INSTALL_DIR/x86_64/lib" \
+HOST_RT="$INSTALL_DIR/lib" \
+QEMU="$QEMU_BUILD_DIR/qemu-x86_64" \
+PLUGIN="$QEMU_BUILD_DIR/contrib/plugins/libdlcall.so" \
+    bash "$LORELEI_SRC/src/tests/manual/TLC/RunMakeThunk.sh"
 
 echo
 echo "All tests passed."
