@@ -205,6 +205,50 @@ bundle_cxx_headers "$host_cxx"
 bundle_cxx_runtime "$host_cxx" "$TREE/lib/cxx-link"    # host: build-only, for the host thunk -lstdc++
 bundle_cxx_runtime clang++ "$TREE/x86_64/lib" --target=x86_64-linux-gnu --sysroot="$TREE/x86_64/sysroot"
 
+# The config LoreMakeThunk reads: it names the tools, directories and flags above rather than letting
+# the script assume a layout. Written here because this is where those paths are made, so the lib/cxx
+# ordering and the presence of lib/cxx-link are recorded rather than probed. Every path is relative to
+# ${root}, itself relative to the config's own directory, so the unpacked devkit is relocatable.
+write_makethunk_config() {
+    local cfg="$TREE/share/lorelei/MakeThunkConfig.json" d
+    mkdir -p "$(dirname "$cfg")"
+
+    # -nostdinc++ plus the bundled C++ header dirs, in the order the host compiler reported them.
+    local isystem='"-nostdinc++"'
+    for d in "$TREE"/lib/cxx/*/; do
+        [ -d "$d" ] || continue
+        isystem="$isystem, \"-isystem\", \"\${root}/lib/cxx/$(basename "$d")\""
+    done
+
+    cat > "$cfg" <<JSON
+{
+    "\$vars": {
+        "root": "\${configDir}/../.."
+    },
+    "tools": {
+        "tlc": "\${root}/bin/LoreTLC",
+        "host_cxx": "\${root}/bin/clang++",
+        "guest_cxx": "\${root}/bin/x86_64-linux-gnu-clang++",
+        "nm": "\${root}/bin/llvm-nm",
+        "readelf": "\${root}/bin/llvm-readelf"
+    },
+    "host": {
+        "include": "\${root}/include",
+        "libdir": "\${root}/lib",
+        "cxx_flags": [$isystem],
+        "link_flags": ["-L\${root}/lib/cxx-link"]
+    },
+    "guest": {
+        "include": "\${root}/x86_64/include",
+        "libdir": "\${root}/x86_64/lib",
+        "triplet": "x86_64-pc-linux-gnu",
+        "cxx_flags": ["--sysroot=\${root}/x86_64/sysroot"]
+    }
+}
+JSON
+}
+write_makethunk_config
+
 # --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
 # The guest generate parse targets x86_64 against the guest sysroot for its headers.
 gtl_gen_args="--target=x86_64-linux-gnu;--sysroot=$TREE/x86_64/sysroot"

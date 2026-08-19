@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-LoreMakeThunk.py: generate a Lorelei thunk (guest GTL + host HTL) for one library from a devkit,
-using only the devkit's own LoreTLC and clang. No cmake, no make, no git, no manifest file.
+LoreMakeThunk.py: generate a Lorelei thunk (guest GTL + host HTL) for one library, using only
+LoreTLC and a C++ compiler. No cmake, no make, no git, no manifest file.
+
+Where those live is named by a MakeThunkConfig.json rather than assumed, so the same script drives
+an unpacked devkit (which ships its own config at share/lorelei/MakeThunkConfig.json) or any other
+tree that can point at a LoreTLC, the lorelei headers and the two runtimes.
 
 Given a real shared library and the headers that declare its API, it:
   1. dumps the library's exported functions (nm) into a Symbols list,
@@ -16,9 +20,9 @@ thunk pack (the host runtime finds it from the guest thunk's own location at run
 The guest thunk carries the relative path to its host thunk (LORE_THUNK_NEXT_LIBRARY), so the
 guest runtime loads the host thunk directly and the run needs only -E LD_LIBRARY_PATH=<out>/x86_64.
 
-Usage (--devkit defaults to $LORELEI_DEVKIT or the devkit this script is installed in. Header flags
-follow --, clang-tooling style):
-  LoreMakeThunk.py [--devkit <dir>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <compile arguments>]
+Usage (the config comes from --config, else from the devkit given by --devkit, $LORELEI_DEVKIT or
+this script's own install location. Header flags follow --, clang-tooling style):
+  LoreMakeThunk.py [--devkit <dir> | --config <file>] --name <name> --lib <lib.so> --header <hdr> -o <out> [-- <compile arguments>]
 
 The four intermediates it normally generates (Desc.h, Symbols.conf, Manifest_host.cpp,
 Manifest_guest.cpp) can each be supplied instead, with --desc / --symbols / --manifest-host /
@@ -30,6 +34,7 @@ Example:
                -o ./out -- -I/usr/include
 """
 import argparse
+import json
 import os
 import re
 import shutil
@@ -75,77 +80,194 @@ def first_existing(*paths):
     return None
 
 
-def resolve_devkit(arg):
-    """--devkit, else $LORELEI_DEVKIT, else the devkit this script is installed in (bin/..)."""
-    if arg:
-        return arg
-    env = os.environ.get("LORELEI_DEVKIT")
-    if env:
-        return env
-    # Installed at <devkit>/bin/LoreMakeThunk.py, so the prefix is two levels up.
-    cand = Path(__file__).resolve().parent.parent
-    if (cand / "bin" / "LoreTLC").exists():
-        return cand
-    die("no devkit: pass --devkit, set LORELEI_DEVKIT, or install this script in a devkit's bin/")
+def varexp(s, find, _depth=0):
+    """Expand ${name} references in s, resolving each through find(name). Nesting is allowed and
+    $$ is a literal $, matching lore::str::varexp (Support/StringExtras.h) so this config uses the
+    same syntax as the ThunkDB.json sitting next to it. Unlike the C++ one, an undefined name is an
+    error rather than an empty string: silently emptying a path turns a typo into a puzzling
+    "not found" much later."""
+    if _depth > 16:
+        die(f"variable expansion too deep (a cycle?): {s}")
+    out = []
+    i = 0
+    while i < len(s):
+        if s[i] == "$" and i + 1 < len(s):
+            if s[i + 1] == "{":
+                depth, j = 1, i + 2
+                while j < len(s) and depth:
+                    if s[j] == "$" and j + 1 < len(s) and s[j + 1] == "{":
+                        depth += 1
+                        j += 2
+                        continue
+                    if s[j] == "}":
+                        depth -= 1
+                    j += 1
+                if depth:
+                    die(f"unterminated ${{ in {s!r}")
+                name = s[i + 2:j - 1]
+                if "${" in name:  # nested: resolve the inner reference first
+                    name = varexp(name, find, _depth + 1)
+                out.append(find(name))
+                i = j
+                continue
+            if s[i + 1] == "$":  # $$ escapes a literal dollar
+                out.append("$")
+                i += 2
+                continue
+        out.append(s[i])
+        i += 1
+    return "".join(out)
 
 
-class Devkit:
-    """Resolve the fixed devkit layout and validate the pieces we need are present."""
+class Config:
+    """A MakeThunkConfig.json, with its $vars expanded.
 
-    def __init__(self, prefix):
-        self.prefix = Path(prefix).resolve()
-        if not self.prefix.is_dir():
-            die(f"--devkit is not a directory: {self.prefix}")
+    The reserved "$vars" object names values every other string may reference as ${name}; the vars
+    may reference each other and the built-in ${configDir} (the directory holding the config), which
+    is what keeps a devkit relocatable: it writes ../.. once in $vars rather than in every path.
+    """
 
-        self.tlc = self._need(self.prefix / "bin" / "LoreTLC", "LoreTLC")
-        self.host_cxx = self._need(first_existing(self.prefix / "bin" / "clang++"), "host clang++")
-        # Guest C++ compiler: prefer the devkit's x86_64 wrapper (target + sysroot baked in); else
-        # drive the host clang++ at x86_64 with the devkit's guest sysroot.
-        self.guest_cxx_wrapper = first_existing(self.prefix / "bin" / "x86_64-linux-gnu-clang++")
+    def __init__(self, path):
+        self.path = Path(path).resolve()
+        try:
+            doc = json.loads(self.path.read_text())
+        except FileNotFoundError:
+            die(f"config not found: {self.path}")
+        except json.JSONDecodeError as e:
+            die(f"config is not valid JSON ({self.path}): {e}")
+        if not isinstance(doc, dict):
+            die(f"config must be a JSON object: {self.path}")
 
-        self.host_include = self._need(self.prefix / "include", "host include dir")
-        self.guest_include = self._need(self.prefix / "x86_64" / "include", "guest include dir")
-        self.host_libdir = self._need(self.prefix / "lib", "host lib dir")
-        self.guest_libdir = self._need(self.prefix / "x86_64" / "lib", "guest lib dir")
-        self.guest_sysroot = self._need(self.prefix / "x86_64" / "sysroot", "guest x86_64 sysroot")
+        raw_vars = doc.pop("$vars", {})
+        if not isinstance(raw_vars, dict):
+            die(f'"$vars" must be an object: {self.path}')
+        self._raw_vars = raw_vars
+        self._vars = {"configDir": str(self.path.parent)}
+        self._doc = doc
 
-        self.nm = first_existing(self.prefix / "bin" / "llvm-nm") or "nm"
-        self.readelf = first_existing(self.prefix / "bin" / "llvm-readelf") or "readelf"
+    def _lookup(self, name, _seen=()):
+        if name in self._vars:
+            return self._vars[name]
+        if name not in self._raw_vars:
+            die(f"undefined variable ${{{name}}} in {self.path}")
+        if name in _seen:
+            die(f"variable cycle: ${{{name}}} in {self.path}")
+        value = self._raw_vars[name]
+        if not isinstance(value, str):
+            die(f'"$vars.{name}" must be a string: {self.path}')
+        resolved = varexp(value, lambda n: self._lookup(n, _seen + (name,)))
+        # A $vars entry names a location, so collapse the . and .. a ${configDir}-relative one picks
+        # up; every flag built from it then reads as a plain path. Harmless on a non-path value,
+        # which normpath returns unchanged.
+        if resolved:
+            resolved = os.path.normpath(resolved)
+        self._vars[name] = resolved
+        return resolved
+
+    def _expand(self, value):
+        return varexp(value, self._lookup)
+
+    def str_(self, section, key, default=None):
+        """A plain string entry (expanded). Returns default when absent or null."""
+        obj = self._doc.get(section) or {}
+        if not isinstance(obj, dict):
+            die(f'"{section}" must be an object: {self.path}')
+        value = obj.get(key)
+        if value is None:
+            return default
+        if not isinstance(value, str):
+            die(f'"{section}.{key}" must be a string or null: {self.path}')
+        return self._expand(value)
+
+    def path_(self, section, key, what, required=True):
+        """A path entry (expanded and normalised). Missing files are reported against the config."""
+        value = self.str_(section, key)
+        if value is None:
+            if required:
+                die(f'"{section}.{key}" ({what}) is missing from {self.path}')
+            return None
+        resolved = Path(os.path.normpath(os.path.join(str(self.path.parent), value)))
+        if not resolved.exists():
+            die(f"{what} not found: {resolved}\n  (from \"{section}.{key}\" in {self.path})")
+        return resolved
+
+    def flags(self, section, key):
+        """A list-of-strings entry (each expanded). Absent means no flags. A flag is opaque, so any
+        path inside one must come from ${configDir} or a $vars entry rather than be written relative
+        to the config."""
+        obj = self._doc.get(section) or {}
+        value = obj.get(key)
+        if value is None:
+            return []
+        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+            die(f'"{section}.{key}" must be a list of strings: {self.path}')
+        return [self._expand(x) for x in value]
+
+
+CONFIG_RELPATH = Path("share") / "lorelei" / "MakeThunkConfig.json"
+
+
+def resolve_config(config_arg, devkit_arg):
+    """--config, else the config of the devkit named by --devkit / $LORELEI_DEVKIT / this script's
+    own install location. Everything funnels into one config-driven path."""
+    if config_arg:
+        return Path(config_arg)
+    prefix = devkit_arg or os.environ.get("LORELEI_DEVKIT")
+    if not prefix:
+        # Installed at <devkit>/bin/LoreMakeThunk.py, so the prefix is two levels up.
+        cand = Path(__file__).resolve().parent.parent
+        if (cand / CONFIG_RELPATH).exists():
+            prefix = cand
+    if not prefix:
+        die("no config: pass --config, or --devkit / $LORELEI_DEVKIT / install this script in a "
+            "devkit's bin/")
+    return Path(prefix) / CONFIG_RELPATH
+
+
+class Toolkit:
+    """The tools, directories and flags a thunk build needs, as named by a MakeThunkConfig.json.
+
+    Every field below is exactly one config entry: this class holds no knowledge of any directory
+    layout, so a devkit and a plain build tree differ only in the config that names them.
+    """
+
+    def __init__(self, cfg):
+        self.config = cfg
+
+        self.tlc = cfg.path_("tools", "tlc", "LoreTLC")
+        self.host_cxx = cfg.path_("tools", "host_cxx", "host C++ compiler")
+        # Guest C++ compiler. A wrapper with the target and sysroot baked in, else the host compiler
+        # driven at the guest triplet by guest.cxx_flags.
+        self.guest_cxx = cfg.path_("tools", "guest_cxx", "guest C++ compiler", required=False)
+        self.nm = cfg.path_("tools", "nm", "nm", required=False) or "nm"
+        self.readelf = cfg.path_("tools", "readelf", "readelf", required=False) or "readelf"
+
+        self.host_include = cfg.path_("host", "include", "host include dir")
+        self.host_libdir = cfg.path_("host", "libdir", "host lib dir")
+        self.guest_include = cfg.path_("guest", "include", "guest include dir")
+        self.guest_libdir = cfg.path_("guest", "libdir", "guest lib dir")
+
+        # Flag lists rather than single paths, because what makes the headers of a side reachable is
+        # not always a sysroot: a cross build tree reaches the guest ones through --gcc-toolchain /
+        # -idirafter. The TLC parse is always clang while the compiler is whatever tools names, so
+        # each side may separate the two; parse_flags defaults to cxx_flags, which is all a devkit
+        # (clang on both) needs.
+        self.host_cxx_flags = cfg.flags("host", "cxx_flags")
+        self.host_link_flags = cfg.flags("host", "link_flags")
+        self.host_parse_flags = cfg.flags("host", "parse_flags") or self.host_cxx_flags
+        self.guest_cxx_flags = cfg.flags("guest", "cxx_flags")
+        self.guest_link_flags = cfg.flags("guest", "link_flags")
+        self.guest_parse_flags = cfg.flags("guest", "parse_flags") or self.guest_cxx_flags
+
+        self.guest_triplet = cfg.str_("guest", "triplet", GUEST_TRIPLET)
 
         # Sanity: the manifest fragments the generated sources #include must be reachable.
-        self._need(self.host_include / "lorelei" / "ThunkInterface" / "ManifestHost.cpp.inc",
-                   "ThunkInterface headers (is this a lorelei devkit?)")
+        if not (self.host_include / "lorelei" / "ThunkInterface" / "ManifestHost.cpp.inc").exists():
+            die(f"ThunkInterface headers not found under {self.host_include} "
+                f'(is "host.include" in {cfg.path} right?)')
 
         self.host_arch = self._detect_host_arch()
-        self.host_triplet = HOST_TRIPLETS[self.host_arch]
-
-        # The devkit bundles the host libstdc++ C++ headers under lib/cxx/0, /1, ... (the host
-        # compiler's C++ search dirs, in order), so a build host needs a C compiler for the libc
-        # headers but not g++ / libstdc++-dev. Feed them to the host-side parse and compile with
-        # -nostdinc++ so the system C++ headers (if any) are not consulted. Empty on an older devkit
-        # that did not bundle them, where the host's own g++ is used instead.
-        self.host_cxx_isystem = []
-        cxx_root = self.prefix / "lib" / "cxx"
-        if cxx_root.is_dir():
-            dirs = sorted((d for d in cxx_root.iterdir() if d.is_dir()),
-                          key=lambda p: int(p.name) if p.name.isdigit() else 1 << 30)
-            if dirs:
-                self.host_cxx_isystem = ["-nostdinc++"]
-                for d in dirs:
-                    self.host_cxx_isystem += ["-isystem", str(d)]
-
-        # The host libstdc++/libgcc a thunk links live in a build-only lib/cxx-link, off every runtime
-        # search path: the thunk binds the host's system libstdc++ at run time, not a copy we ship, so a
-        # thunked host C++ library keeps its own libstdc++. Point the HTL link there so clang++'s
-        # implicit -lstdc++/-lgcc_s resolve without a system libstdc++-dev. Absent on an older devkit
-        # that shipped libstdc++ on lib/ instead (host_libdir already covers that layout).
-        cxx_link = self.prefix / "lib" / "cxx-link"
-        self.host_cxx_link = cxx_link if cxx_link.is_dir() else None
-
-    def _need(self, path, what):
-        if path is None or not Path(path).exists():
-            die(f"{what} not found in devkit ({self.prefix})")
-        return Path(path)
+        self.host_triplet = cfg.str_("host", "triplet") or HOST_TRIPLETS[self.host_arch]
 
     def _detect_host_arch(self):
         arch = capture([self.host_cxx, "-dumpmachine"]).strip().split("-", 1)[0]
@@ -158,10 +280,10 @@ class Devkit:
         die(f"unsupported host architecture '{arch}'")
 
     def guest_compile_cmd(self):
-        """The base argv for compiling the guest (x86_64) thunk."""
-        if self.guest_cxx_wrapper:
-            return [self.guest_cxx_wrapper]
-        return [self.host_cxx, "-target", GUEST_TRIPLET, f"--sysroot={self.guest_sysroot}"]
+        """The base argv for compiling the guest thunk."""
+        if self.guest_cxx:
+            return [self.guest_cxx, *self.guest_cxx_flags]
+        return [self.host_cxx, "-target", self.guest_triplet, *self.guest_cxx_flags]
 
 
 def read_soname(dk, lib):
@@ -376,10 +498,15 @@ def main():
     g_tune.add_argument("--no-auto-link", dest="auto_link", action="store_false",
                         help="do not link the host thunk against the real library (default: do)")
 
-    g_misc = ap.add_argument_group("devkit and misc")
+    g_misc = ap.add_argument_group("toolkit and misc")
+    g_misc.add_argument("--config", metavar="FILE",
+                        help="a MakeThunkConfig.json naming the tools, directories and flags to "
+                             "build with (default: the one in the devkit below). Lets a plain build "
+                             "tree stand in for a devkit")
     g_misc.add_argument("--devkit",
-                        help="unpacked lorelei devkit prefix (default: $LORELEI_DEVKIT, or the devkit "
-                             "this script is installed in)")
+                        help="unpacked lorelei devkit prefix, i.e. read its "
+                             "share/lorelei/MakeThunkConfig.json (default: $LORELEI_DEVKIT, or the "
+                             "devkit this script is installed in)")
     g_misc.add_argument("--keep-intermediates", action="store_true",
                         help="keep the generated Desc.h/Symbols.conf/Manifest/ThunkStat.json/*.cpp")
     g_misc.add_argument("-n", "--dry-run", action="store_true",
@@ -399,7 +526,7 @@ def main():
     if args.desc and args.header:
         print("note: --desc given, --header is ignored")
 
-    dk = Devkit(resolve_devkit(args.devkit))
+    dk = Toolkit(Config(resolve_config(args.config, args.devkit)))
     if args.nm:
         dk.nm = args.nm
     lib = Path(args.lib) if args.lib else None
@@ -434,27 +561,26 @@ def main():
     # relative path in the user's compile args (e.g. `-- -I.`) still resolves against the directory
     # LoreMakeThunk was invoked from, not gendir.
     run([dk.tlc, "stat", "-o", stat, "-c", gendir / "Symbols.conf", gendir / "Desc.h",
-         "--", "-xc++", "-std=gnu++20", *dk.host_cxx_isystem, f"-I{dk.host_include}", *cflags])
+         "--", "-xc++", "-std=gnu++20", *dk.host_parse_flags, f"-I{dk.host_include}", *cflags])
 
     print("[3/5] TLC generate (host + guest)")
     htl_src = gendir / "Thunk_host.cpp"
     gtl_src = gendir / "Thunk_guest.cpp"
     run([dk.tlc, "generate", "-o", htl_src, "-s", stat, "-m", "host", gendir / "Manifest_host.cpp",
-         "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet, *dk.host_cxx_isystem,
+         "--", "-xc++", "-std=gnu++20", "-target", dk.host_triplet, *dk.host_parse_flags,
          f"-I{dk.host_include}", f"-I{gendir}", *cflags, *args.htl_arg])
     run([dk.tlc, "generate", "-o", gtl_src, "-s", stat, "-m", "guest", gendir / "Manifest_guest.cpp",
-         "--", "-xc++", "-std=gnu++20", "-target", GUEST_TRIPLET,
-         f"--sysroot={dk.guest_sysroot}", f"-I{dk.guest_include}", f"-I{gendir}", *cflags, *args.gtl_arg])
+         "--", "-xc++", "-std=gnu++20", "-target", dk.guest_triplet, *dk.guest_parse_flags,
+         f"-I{dk.guest_include}", f"-I{gendir}", *cflags, *args.gtl_arg])
 
     print("[4/5] compile host thunk (HTL)")
     htl_out = htl_dir / f"lib{args.name}_HTL.so"
-    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, *dk.host_cxx_isystem,
+    htl_cmd = [dk.host_cxx, "-shared", *TU_FLAGS, *dk.host_cxx_flags,
                f"-I{dk.host_include}", f"-I{gendir}", *cflags,
                str(htl_src), "-o", str(htl_out),
                f"-L{dk.host_libdir}", "-lLoreHostRT"]
-    if dk.host_cxx_link:
-        # build-only libstdc++/libgcc for clang++'s implicit -lstdc++/-lgcc_s (bound to system at run time)
-        htl_cmd.append(f"-L{dk.host_cxx_link}")
+    # e.g. the devkit's build-only libstdc++/libgcc, for clang++'s implicit -lstdc++/-lgcc_s
+    htl_cmd += dk.host_link_flags
     if args.auto_link:
         # Link the real library so its symbols resolve. Reference it by name (-l:), so the NEEDED entry
         # is its SONAME (or bare filename), found via LD_LIBRARY_PATH at run time, rather than the path
@@ -477,6 +603,7 @@ def main():
                f'-DLORE_THUNK_NEXT_LIBRARY="{htl_rel}"',
                str(gtl_src), "-o", str(gtl_out),
                f"-L{dk.guest_libdir}", "-lLoreGuestRT",
+               *dk.guest_link_flags,
                f"-Wl,-soname,{soname}"]
     gtl_cmd += args.gtl_arg
     run(gtl_cmd)
