@@ -1,7 +1,7 @@
 name: deploy
 run-name: deploy (${{ github.ref_name }})
 
-# Build the shipping tarballs (a runtime, a devkit and a thunks pack per arch) and upload them as
+# Build the shipping tarballs (a runtime and a devkit per arch) and upload them as
 # artifacts. Fires on a push to main (a smoke-test build, tarballs suffixed with the short commit
 # sha), on a version tag (the real release path, tarballs suffixed with the version) and on manual
 # dispatch. Development happens on dev, so a push to main is the integration checkpoint. One job
@@ -28,16 +28,15 @@ jobs:
       - uses: actions/checkout@v4
 
       # Cross-compiles aarch64/riscv64 on the x86_64 runner (docker build + docker cp, no buildx).
-      # Tarballs land in ./out as lorelei-{runtime,devkit,thunks}-<arch>.tar.xz.
+      # Tarballs land in ./out as lorelei-{runtime,devkit}-<arch>.tar.xz.
       - name: Build the ${{ matrix.arch }} tarballs
         shell: bash
         run: bash docker/dist/build.sh -t "${{ matrix.arch }}" -o ./out
 
       # Name each tarball for the build it came from: the version on a release tag (v1.0.3.0 -> 1.0.3.0),
       # otherwise the short commit sha for a manual smoke-test build. Only the file name carries this.
-      # The unpacked top-level directory stays lorelei-<kind>-<arch>, so LORELEI_DEVKIT and
-      # LORELEI_THUNK_PATH are stable, and the artifact names stay unversioned so
-      # `gh run download -n lorelei-<kind>-<arch>` keeps working.
+      # The unpacked top-level directory stays lorelei-<kind>-<arch>, so LORELEI_DEVKIT is stable, and
+      # the artifact names stay unversioned so `gh run download -n lorelei-<kind>-<arch>` keeps working.
       - name: Version the tarball file names
         id: ver
         shell: bash
@@ -48,7 +47,7 @@ jobs:
             sfx="$(git rev-parse --short HEAD)"
           fi
           echo "sfx=$sfx" >> "$GITHUB_OUTPUT"
-          for k in runtime devkit thunks; do
+          for k in runtime devkit; do
             mv "out/lorelei-$k-${{ matrix.arch }}.tar.xz" \
                "out/lorelei-$k-${{ matrix.arch }}-$sfx.tar.xz"
           done
@@ -65,8 +64,3 @@ jobs:
           name: lorelei-devkit-${{ matrix.arch }}
           path: out/lorelei-devkit-${{ matrix.arch }}-${{ steps.ver.outputs.sfx }}.tar.xz
 
-      - name: Upload thunks ${{ matrix.arch }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: lorelei-thunks-${{ matrix.arch }}
-          path: out/lorelei-thunks-${{ matrix.arch }}-${{ steps.ver.outputs.sfx }}.tar.xz

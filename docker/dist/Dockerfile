@@ -18,7 +18,6 @@ ENV USE_USTC_MIRROR=${USE_USTC_MIRROR}
 
 ENV REPOS_DIR=/home/build/repos
 ENV LORELEI_SRC=/home/build/lorelei
-ENV THUNKS_SRC=/home/build/lorelei-thunks
 ENV OUT_DIR=/home/build/out
 
 # Shared build dependencies (native clang/LLVM, cmake/ninja). Cached across source edits.
@@ -27,11 +26,6 @@ COPY docker/dist/scripts/bootstrap-dist.sh docker/dist/scripts/fetch-llvm.sh /tm
 RUN sed -i 's/\r$//' /tmp/scripts/*.sh && chmod +x /tmp/scripts/*.sh && /tmp/scripts/bootstrap-dist.sh
 
 RUN mkdir -p ${REPOS_DIR} ${OUT_DIR}
-
-# The lorelei-thunks source (the distribution ships the stable thunks).
-ARG THUNKS_BRANCH=main
-RUN curl -fsSL "https://codeload.github.com/rover2024/lorelei-thunks/tar.gz/refs/heads/${THUNKS_BRANCH}" | tar xz -C /home/build \
-    && mv /home/build/lorelei-thunks-${THUNKS_BRANCH} ${THUNKS_SRC}
 
 # The lorelei v2 source, then build the distribution from it.
 COPY . ${LORELEI_SRC}

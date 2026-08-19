@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 #
-# Build the lorelei distribution for one target arch and cut three tarballs from a single tree: a small
-# runtime (for running thunked guests), a full devkit (runtime + devel + toolchain, for building
-# thunks), and a thunks pack (the prebuilt thunks alone). All use the Scheme A layout: the host-arch
-# side at the prefix root and the x86_64 guest side nested under x86_64/.
+# Build the lorelei distribution for one target arch and cut two tarballs from a single tree: a small
+# runtime (for running thunked guests) and a full devkit (runtime + devel + toolchain, for building
+# thunks). All use the Scheme A layout: the host-arch side at the prefix root and the x86_64 guest
+# side nested under x86_64/.
 #
-#   <tree>/                 host runtime + devel + LoreTLC + host thunks (HTL) + bundled clang/LLVM
-#   <tree>/x86_64/          x86_64 guest runtime + devel + guest thunks (GTL) + guest sysroot
+#   <tree>/                 host runtime + devel + LoreTLC + bundled clang/LLVM
+#   <tree>/x86_64/          x86_64 guest runtime + devel + guest sysroot
 #
-# runtime-<arch>.tar.xz  = the lorelei runtime .so's alone (no toolchain, no thunks).
-# devkit-<arch>.tar.xz   = the whole tree minus the thunks (toolchain + runtime + headers/sysroot).
-# thunks-<arch>.tar.xz   = the prebuilt thunks (HTL/GTL + ThunkDB.json), a drop-in thunk pack.
+# runtime-<arch>.tar.xz  = the lorelei runtime .so's alone (no toolchain).
+# devkit-<arch>.tar.xz   = the whole tree (toolchain + runtime + headers/sysroot).
+#
+# No thunk is built here. Thunks are downstream: they build against the devkit this produces, so
+# shipping them from this repository would point the dependency the wrong way.
 #
 # Everything is built on an x86_64 host: the native arch natively, and aarch64/riscv64 by cross
 # compilation (the guest x86_64 side is always native here). No target binary runs at build time.
 set -euo pipefail
 : "${LORELEI_SRC:?}"    # lorelei v2 source tree
-: "${THUNKS_SRC:?}"     # lorelei-thunks source tree
 : "${REPOS_DIR:?}"      # scratch dir for build trees and external deps
 : "${OUT_DIR:?}"        # where the tarballs are written
 
@@ -87,35 +88,14 @@ cmake -B "$REPOS_DIR/build/$TARGET-host" -G Ninja \
     "${host_toolchain[@]}"
 cmake --build "$REPOS_DIR/build/$TARGET-host" --target install
 
-# --- 2b. native staging lorelei (x86_64, runnable LoreTLC) for cross thunk generation --------------
-# On a cross target the LoreTLC in $TREE is target-arch and cannot run here, so thunk sources are
-# generated with this native TLC (targeting $TARGET, like the deploy cross build). Built once, reused.
-STAGING="$REPOS_DIR/staging"
-if [ "$CROSS" = "1" ]; then
-    if [ ! -x "$STAGING/bin/LoreTLC" ]; then
-        cmake -B "$REPOS_DIR/build/staging" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$STAGING" \
-            -Dqmsetup_DIR="$QMSETUP_NATIVE" \
-            -DClang_DIR="$NATIVE_LLVM_SRC/lib/cmake/clang" \
-            -DLLVM_DIR="$NATIVE_LLVM_SRC/lib/cmake/llvm" \
-            -DLORE_BUILD_TOOLS=TRUE -DLORE_BUILD_GUEST_TARGETS=FALSE -DLORE_BUILD_TESTS=OFF
-        cmake --build "$REPOS_DIR/build/staging" --target install
-    fi
-    # The staging TLC (native) generates cross thunk sources, but it is not run through bundle-llvm.sh.
-    # Give it the native clang resource headers at the path LibTooling resolves from its own binary.
-    mkdir -p "$STAGING/lib"
-    ln -sfnT "$NATIVE_LLVM_SRC/lib/clang" "$STAGING/lib/clang"
-fi
-
 # --- 3. bundle the target-arch clang/LLVM ----------------------------------------------------------
 # Our self-contained prefix for this arch: /opt/lore-llvm/x86_64 on a native build, or the target-arch
 # prefix prepare-cross.sh fetched. bundle-llvm.sh copies it into the tree and trims it to the runtime.
 "$SCRIPT_DIR/bundle-llvm.sh" "$TREE" "$LLVM_VER" "$LLVM_SRC"
 
 # --- 4. x86_64 guest sysroot (self-contained), under x86_64/sysroot/ so it stays separate from the
-# guest lorelei install in x86_64/lib/ (which lets the runtime cut drop the sysroot cleanly). The
-# stable thunks wrap zlib and lzma, so their amd64 dev + runtime go into the guest build environment. --
+# guest lorelei install in x86_64/lib/ (which lets the runtime cut drop the sysroot cleanly). zlib and
+# lzma ride along so a guest thunk for either builds against the devkit with no extra setup. --------
 "$SCRIPT_DIR/make-sysroot.sh" "$TREE/x86_64/sysroot" "$GCC_VER" \
     zlib1g-dev:amd64 zlib1g:amd64 liblzma-dev:amd64 liblzma5:amd64
 
@@ -249,64 +229,14 @@ JSON
 }
 write_makethunk_config
 
-# --- 7. thunks: host HTL (target) + guest GTL (x86_64) ---------------------------------------------
-# The guest generate parse targets x86_64 against the guest sysroot for its headers.
-gtl_gen_args="--target=x86_64-linux-gnu;--sysroot=$TREE/x86_64/sysroot"
-if [ "$CROSS" = "0" ]; then
-    # Native: the host build runs the in-tree (native) TLC to generate both sources and install the
-    # HTL; the guest build then reuses that generated source.
-    cmake -S "$THUNKS_SRC" -B "$REPOS_DIR/build/$TARGET-thunk-host" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TREE" \
-        -Dqmsetup_DIR="$QMSETUP_NATIVE" -Dlorelei_DIR="$TREE/lib/cmake/lorelei" \
-        -DTHUNK_GTL_TLC_OPTIONS="$gtl_gen_args" \
-        -DTHUNK_BUILD_HOST_TARGETS=TRUE -DTHUNK_BUILD_GUEST_TARGETS=FALSE
-    cmake --build "$REPOS_DIR/build/$TARGET-thunk-host" --target install
-    gen_src="$TREE/share/lorelei/thunks"
-else
-    # Cross: the in-tree TLC is target-arch and cannot run here, so generate both sources with the
-    # native staging TLC targeting $TARGET (its host parse points at the cross toolchain headers), then
-    # cross-compile the HTL from the generated source.
-    gen="$REPOS_DIR/build/$TARGET-thunk-gen"
-    cmake -S "$THUNKS_SRC" -B "$gen" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$gen/install" \
-        -Dqmsetup_DIR="$QMSETUP_NATIVE" -Dlorelei_DIR="$STAGING/lib/cmake/lorelei" \
-        -DTHUNK_HOST_ARCH="$TARGET" \
-        -DTHUNK_HTL_TLC_OPTIONS="--gcc-toolchain=/usr;-idirafter;/usr/include" \
-        -DTHUNK_GTL_TLC_OPTIONS="$gtl_gen_args" \
-        -DTHUNK_BUILD_HOST_TARGETS=FALSE -DTHUNK_BUILD_GUEST_TARGETS=FALSE
-    cmake --build "$gen" --target install
-    gen_src="$gen/install/share/lorelei/thunks"
-    cmake -S "$THUNKS_SRC" -B "$REPOS_DIR/build/$TARGET-thunk-host" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TREE" \
-        -Dqmsetup_DIR="$QMSETUP_NATIVE" -Dlorelei_DIR="$TREE/lib/cmake/lorelei" \
-        -DTHUNK_GEN_SOURCE_DIR="$gen_src" \
-        -DTHUNK_BUILD_HOST_TARGETS=TRUE -DTHUNK_BUILD_GUEST_TARGETS=FALSE \
-        "${host_toolchain[@]}"
-    cmake --build "$REPOS_DIR/build/$TARGET-thunk-host" --target install
-fi
-
-# guest GTL (x86_64, native clang) from the generated source, installed under x86_64/
-cmake -S "$THUNKS_SRC" -B "$REPOS_DIR/build/$TARGET-thunk-guest" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE="$GUEST_TC" \
-    -DCMAKE_INSTALL_PREFIX="$TREE/x86_64" \
-    -Dqmsetup_DIR="$QMSETUP_NATIVE" \
-    -Dlorelei_DIR="$TREE/x86_64/lib/cmake/lorelei" \
-    -DTHUNK_GEN_SOURCE_DIR="$gen_src" \
-    -DTHUNK_BUILD_HOST_TARGETS=FALSE -DTHUNK_BUILD_GUEST_TARGETS=TRUE
-cmake --build "$REPOS_DIR/build/$TARGET-thunk-guest" --target install
-
-# --- 8. cut the two tarballs -----------------------------------------------------------------------
+# --- 7. cut the two tarballs -----------------------------------------------------------------------
 "$SCRIPT_DIR/cut-tarballs.sh" "$TREE" "$TARGET" "$OUT_DIR" "$LLVM_VER"
 
-# --- 9. reclaim disk -------------------------------------------------------------------------------
+# --- 8. reclaim disk -------------------------------------------------------------------------------
 # Only $OUT_DIR needs to survive. When several arches share one docker RUN (the deploy build), the
 # per-target build dirs, the packed tree and the extracted target LLVM would otherwise accumulate into
-# the final image layer and can exhaust the builder's disk. The native staging TLC is reused across
-# arches, so keep its install; drop everything target-specific.
-rm -rf "$REPOS_DIR/build/$TARGET-host" "$REPOS_DIR/build/$TARGET-thunk-host" \
-       "$REPOS_DIR/build/$TARGET-thunk-guest" "$REPOS_DIR/build/$TARGET-thunk-gen" \
-       "$REPOS_DIR/dist/$TARGET"
+# the final image layer and can exhaust the builder's disk.
+rm -rf "$REPOS_DIR/build/$TARGET-host" "$REPOS_DIR/dist/$TARGET"
 if [ "$CROSS" = "1" ]; then
     rm -rf "/opt/lore-llvm/$TARGET"
     apt-get clean 2>/dev/null || true
