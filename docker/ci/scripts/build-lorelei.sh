@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Build this repository (lorelei v2) from the copied-in source, twice, into a uniform layout. Both
-# sides share one flat prefix (no per-repo subdir), alongside qmsetup and the thunks:
+# sides share one flat prefix (no per-repo subdir), alongside qmsetup:
 #   install         host side: LoreTLC + LoreHostRT (this machine's arch), and the tests
 #   install/x86_64  guest side: LoreGuestRT (x86_64)
 #

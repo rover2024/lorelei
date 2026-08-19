@@ -1,7 +1,6 @@
-# One-click test image for lorelei v2. It builds the patched QEMU and its dlcall plugin, qmsetup,
-# this repository, and the lorelei-thunks zlib thunk, then runs the end-to-end test (see
-# docker/ci/scripts/run-tests.sh). It targets an x86_64 host, where the guest and host ISA are the same
-# and a single native toolchain builds everything.
+# One-click test image for lorelei v2. It builds the patched QEMU and its dlcall plugin, qmsetup and
+# this repository, then runs the tests (see docker/ci/scripts/run-tests.sh). It targets an x86_64
+# host, where the guest and host ISA are the same and a single native toolchain builds everything.
 FROM ubuntu:24.04
 
 ARG http_proxy
@@ -17,7 +16,7 @@ ENV USE_USTC_MIRROR=${USE_USTC_MIRROR}
 
 # Install the toolchain and create the build user. Only the bootstrap + external-dependency scripts
 # are copied here, so this layer (the slow apt install) and the QEMU build below stay cached even
-# when the lorelei/thunks build scripts change; those are run from the repo copy further down.
+# when the lorelei build script changes; that one is run from the repo copy further down.
 COPY docker/ci/scripts/bootstrap-ubuntu.sh docker/common/build-qmsetup.sh docker/ci/scripts/build-qemu.sh /tmp/scripts/
 # Strip any CR line endings (a Windows checkout may carry CRLF), otherwise the shebang breaks.
 RUN sed -i 's/\r$//' /tmp/scripts/*.sh && chmod +x /tmp/scripts/*.sh && /tmp/scripts/bootstrap-ubuntu.sh
@@ -39,19 +38,18 @@ ARG BUILD_QEMU=1
 RUN /tmp/scripts/build-qmsetup.sh \
     && if [ "${BUILD_QEMU}" = "1" ]; then /tmp/scripts/build-qemu.sh; else echo "skipping QEMU build (BUILD_QEMU=${BUILD_QEMU})"; fi
 
-# Host toolchain for the lorelei + thunks build: gcc (default) or llvm (clang-20). Declared here, after
+# Host toolchain for the lorelei build: gcc (default) or llvm (clang-20). Declared here, after
 # the cached qemu/qmsetup layers, so switching it does not rebuild them. The x86_64 guest cross and the
 # qemu/qmsetup builds always use gcc.
 ARG LORE_TOOLCHAIN=gcc
 ENV LORE_TOOLCHAIN=${LORE_TOOLCHAIN}
 
-# Copy this repository (lorelei v2) and build it from local source, then the thunks against it. These
-# scripts are run from the repo copy, so editing them only rebuilds from here on.
+# Copy this repository (lorelei v2) and build it from local source. The script is run from the repo
+# copy, so editing it only rebuilds from here on.
 COPY --chown=user:user . ${LORELEI_SRC}
-# Same CRLF guard for the in-repo scripts (build-* here, and run-tests.sh at CMD time).
+# Same CRLF guard for the in-repo scripts (build-lorelei.sh here, and run-tests.sh at CMD time).
 RUN sed -i 's/\r$//' ${LORELEI_SRC}/docker/ci/scripts/*.sh \
-    && bash ${LORELEI_SRC}/docker/ci/scripts/build-lorelei.sh \
-    && bash ${LORELEI_SRC}/docker/ci/scripts/build-thunks.sh
+    && bash ${LORELEI_SRC}/docker/ci/scripts/build-lorelei.sh
 
 WORKDIR ${LORELEI_SRC}
 CMD ["/bin/bash"]

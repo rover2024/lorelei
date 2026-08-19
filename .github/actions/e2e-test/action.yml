@@ -1,31 +1,18 @@
-name: Lorelei end-to-end
-description: Build the Docker image, run the end-to-end test, and publish a result summary.
+name: Lorelei tests
+description: Build the Docker image, run the tests, and publish a result summary.
 
 inputs:
   arch:
     description: Architecture name (x86_64 / aarch64 / riscv64), for the image tag and the summary.
     required: true
   toolchain:
-    description: Host toolchain for the lorelei + thunks build (gcc or llvm), for the image tag and the summary.
+    description: Host toolchain for the lorelei build (gcc or llvm), for the image tag and the summary.
     required: false
     default: gcc
   build_args:
     description: Extra docker build arguments, e.g. --build-arg USE_USTC_MIRROR=1 for a domestic runner.
     required: false
     default: ''
-  archive_size:
-    description: >-
-      minizip (zlib) benchmark input size. The emulated (no-plugin) baseline runs the whole guest
-      under TCG, so on the slow riscv64 board it dominates the run; that runner passes a smaller size.
-    required: false
-    default: '256M'
-  xz_archive_size:
-    description: >-
-      xz (lzma) benchmark input size. Kept separate from archive_size and much smaller because xz -6
-      is far heavier than zlib under TCG: on the riscv64 board the emulated xz baseline runs at roughly
-      30 s per MB, so that runner uses a tiny input to stay well under a CI-reasonable time.
-    required: false
-    default: '64M'
 
 runs:
   using: composite
@@ -42,19 +29,16 @@ runs:
           --build-arg no_proxy="${no_proxy:-}" \
           -f docker/ci/Dockerfile -t "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" .
 
-    - name: Run end-to-end tests
+    - name: Run tests
       id: run
       shell: bash
       run: |
         set -o pipefail
-        # Use a larger archive in CI than the local one-click test, which keeps run-tests.sh's smaller default.
         # Record the exit status to a file rather than reading steps.run.outcome in the summary step:
         # the riscv64 self-hosted runner's act backend does not implement that context and renders it as
         # the literal "undefined". The hosted runners support it, but a status file works on both.
         rc=0
         docker run --rm \
-          -e ARCHIVE_SIZE="${{ inputs.archive_size }}" \
-          -e XZ_ARCHIVE_SIZE="${{ inputs.xz_archive_size }}" \
           "lorelei-test-${{ inputs.arch }}-${{ inputs.toolchain }}" bash docker/ci/scripts/run-tests.sh 2>&1 | tee run.log || rc=$?
         printf '%s' "$rc" > run.rc
         exit "$rc"
@@ -76,25 +60,8 @@ runs:
           status="❌ **Failed** on \`$arch\` (\`$toolchain\`, see the log below)"
         fi
 
-        # The two workload stages print timing lines with the same native/emulated/lorelei labels, so
-        # partition by the "== N/4 ... ==" stage banners: stage 3 is minizip, stage 4 is xz.
-        extract_rows() {
-          # $1 = banner that opens the section; $2 = banner that closes it ('' for end of log).
-          printf '%s\n' "$clean" | awk -v start="$1" -v end="$2" '
-            $0 ~ start { ingest = 1; next }
-            end != "" && $0 ~ end { ingest = 0 }
-            ingest && /^[[:space:]]+(native|emulated|lorelei)[^0-9]*[0-9]+\.[0-9]+s[[:space:]]*$/ {
-              t = $NF; label = $0
-              sub(/^[[:space:]]+/, "", label)
-              sub(/[[:space:]]+[0-9.]+s[[:space:]]*$/, "", label)
-              printf "| %s | %s |\n", label, t
-            }'
-        }
-        zlib_rows="$(extract_rows '== 3/4' '== 4/4')"
-        lzma_rows="$(extract_rows '== 4/4' '')"
-
         {
-          echo "## Lorelei End-to-End — \`$arch\` (\`$toolchain\`)"
+          echo "## Lorelei Tests — \`$arch\` (\`$toolchain\`)"
           echo
           echo "$status"
 
@@ -107,30 +74,6 @@ runs:
             else
               echo "- ✅ ThunkExample end-to-end"
             fi
-            echo "- ✅ minizip over the zlib thunk"
-            echo "- ✅ xz over the lzma thunk"
-          fi
-
-          if [ -n "$zlib_rows" ]; then
-            echo
-            echo "### minizip Over the zlib Thunk"
-            echo
-            echo "minizip stays emulated; only its zlib calls cross to the host, so the lorelei run lands near native."
-            echo
-            echo "| Run | Wall time |"
-            echo "| --- | --- |"
-            echo "$zlib_rows"
-          fi
-
-          if [ -n "$lzma_rows" ]; then
-            echo
-            echo "### xz Over the lzma Thunk"
-            echo
-            echo "xz stays emulated; only its liblzma calls cross to the host, so the lorelei run lands near native."
-            echo
-            echo "| Run | Wall time |"
-            echo "| --- | --- |"
-            echo "$lzma_rows"
           fi
 
           echo
