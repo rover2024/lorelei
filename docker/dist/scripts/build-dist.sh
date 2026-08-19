@@ -193,6 +193,14 @@ write_makethunk_config() {
     local cfg="$TREE/share/lorelei/MakeThunkConfig.json" d
     mkdir -p "$(dirname "$cfg")"
 
+    # An optional tool is named only when the devkit actually ships it, else null so the script falls
+    # back to the one on PATH. Naming a file that is not there is a hard error, by design: the config
+    # is meant to describe this tree, so a wrong path should be caught rather than silently ignored.
+    opt_tool() {  # <key> <relative path>
+        if [ -x "$TREE/$2" ]; then printf '"%s": "${root}/%s"' "$1" "$2"
+        else printf '"%s": null' "$1"; fi
+    }
+
     # -nostdinc++ plus the bundled C++ header dirs, in the order the host compiler reported them.
     local isystem='"-nostdinc++"'
     for d in "$TREE"/lib/cxx/*/; do
@@ -209,8 +217,8 @@ write_makethunk_config() {
         "tlc": "\${root}/bin/LoreTLC",
         "host_cxx": "\${root}/bin/clang++",
         "guest_cxx": "\${root}/bin/x86_64-linux-gnu-clang++",
-        "nm": "\${root}/bin/llvm-nm",
-        "readelf": "\${root}/bin/llvm-readelf"
+        $(opt_tool nm bin/llvm-nm),
+        $(opt_tool readelf bin/llvm-readelf)
     },
     "host": {
         "include": "\${root}/include",
